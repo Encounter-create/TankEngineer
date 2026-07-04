@@ -225,10 +225,10 @@ export function hitTestGarage(
   w: number,
   inventory: Inventory,
 ): GarageClickResult | null {
-  const types: PartType[] = ['barrel', 'turret', 'chassis'];
-  const colW = w / 3;
+  const types: PartType[] = ['barrel', 'turret', 'chassis', 'commander'];
+  const colW = w / 4;
 
-  for (let ci = 0; ci < 3; ci++) {
+  for (let ci = 0; ci < 4; ci++) {
     const cx = colW * ci + colW / 2;
     const parts = inventory.getOwnedByType(types[ci]);
 

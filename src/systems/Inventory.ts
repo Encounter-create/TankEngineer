@@ -55,7 +55,10 @@ export class Inventory {
           Array.isArray(parsed.ownedPartIds) &&
           Array.isArray(parsed.shopPartIds)
         ) {
-          return { ...defaultInventory(), ...parsed };
+          // Merge: keep old data but also include all default parts (catches new parts added in updates)
+          const defaults = defaultInventory();
+          const mergedIds = [...new Set([...defaults.ownedPartIds, ...parsed.ownedPartIds])];
+          return { ...defaults, ...parsed, ownedPartIds: mergedIds };
         }
       }
     } catch {
@@ -79,7 +82,7 @@ export class Inventory {
   }
 
   getOwnedParts(): Part[] {
-    const allParts = [...MVP_BARRELS, ...MVP_TURRETS, ...MVP_CHASSIS];
+    const allParts = [...MVP_BARRELS, ...MVP_TURRETS, ...MVP_CHASSIS, ...MVP_COMMANDERS];
     return allParts.filter(p => this.owns(p.id));
   }
 

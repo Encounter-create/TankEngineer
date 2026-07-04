@@ -4,6 +4,7 @@ import { TankEntity, TANK_RADIUS } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 import { SiegeState, TOTAL_WAVES } from '../modes/Siege';
 import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
+import { Particle } from '../entities/Particle';
 
 // ============================================================
 // Color palette
@@ -48,6 +49,9 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const bullet of state.bullets) {
     drawBullet(ctx, bullet);
+  }
+  for (const p of state.particles) {
+    drawParticle(ctx, p);
   }
 
   // Overlay for intro/victory/defeat
@@ -362,6 +366,17 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
     ctx.fillStyle = ratio > 0.3 ? C.HP_BAR_OK : C.HP_BAR_LOW;
     ctx.fillRect(barX, barY, barW * ratio, barH);
   }
+}
+
+function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
+  if (!p.alive) return;
+  const alpha = p.life / p.maxLife;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {

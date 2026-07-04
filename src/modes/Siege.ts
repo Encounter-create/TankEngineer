@@ -10,7 +10,8 @@ import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
-import { activateSkill, isBarrageActive, isSmokeActive } from '../systems/Commander';
+import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
+import { Particle, spawnParticles, updateParticles } from '../entities/Particle';
 
 // ============================================================
 // Siege mode — 3 minute defense
@@ -55,6 +56,7 @@ export interface SiegeState {
   pendingReward: BattleReward | null;
   skillMessage: string;
   skillMessageTime: number; // ms remaining
+  particles: Particle[];
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -85,6 +87,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     pendingReward: null,
     skillMessage: '',
     skillMessageTime: 0,
+    particles: [],
   };
 }
 
@@ -138,6 +141,10 @@ export function updateSiege(
   // Check bullet-tank collisions
   handleBulletTankCollisions(state, dt);
 
+  // Update particles
+  updateParticles(state.particles, dt);
+  state.particles = state.particles.filter(p => p.alive);
+
   // Check enemies reaching command center (must run before HP check!)
   handleEnemyReachCenter(state);
 
@@ -167,11 +174,34 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
     state.player.turretAngle = toMouse.angle();
   }
 
+  // Sprint trail particles
+  if (isSkillActive(state.player) && state.player.config.commander.id === 'commander_sprint' && input.isMoving()) {
+    state.particles.push(...spawnParticles(state.player.pos, 'sprint', 1, 30));
+  }
+
+  // Smoke cloud particles
+  if (isSmokeActive(state.player)) {
+    state.particles.push(...spawnParticles(state.player.pos, 'smoke', 1, 20));
+  }
+
   // Commander skill: E key
   if (input.wasJustPressed('KeyE')) {
     const result = activateSkill(state.player);
     state.skillMessage = result.message;
-    state.skillMessageTime = 2000; // show for 2s
+    state.skillMessageTime = 2000;
+    // Skill VFX
+    if (result.success) {
+      const id = state.player.config.commander.id;
+      if (id === 'commander_repair') {
+        state.particles.push(...spawnParticles(state.player.pos, 'repair', 10, 50));
+      } else if (id === 'commander_sprint') {
+        state.particles.push(...spawnParticles(state.player.pos, 'sprint', 6, 40));
+      } else if (id === 'commander_barrage') {
+        state.particles.push(...spawnParticles(state.player.pos, 'barrage', 6, 40));
+      } else if (id === 'commander_smoke') {
+        state.particles.push(...spawnParticles(state.player.pos, 'smoke', 12, 30));
+      }
+    }
   }
 }
 
@@ -201,6 +231,14 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
       true,
     );
     state.bullets.push(bullet);
+
+    // Muzzle flash particles
+    const muzzlePos = state.player.pos.add(Vec2.fromAngle(state.player.turretAngle, 14));
+    if (barrageActive) {
+      state.particles.push(...spawnParticles(muzzlePos, 'barrage', 2, 30));
+    } else {
+      state.particles.push(...spawnParticles(muzzlePos, 'impact', 1, 20));
+    }
 
     // Lightweight recoil (opposite to turret)
     if (state.player.config.weightClass === 'light') {
@@ -336,7 +374,10 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
 function handleBullets(state: SiegeState, dt: number): void {
   for (const bullet of state.bullets) {
     if (!bullet.alive) continue;
-    moveBullet(bullet, dt, state.map);
+    const result = moveBullet(bullet, dt, state.map);
+    if (result.hitWall) {
+      state.particles.push(...spawnParticles(bullet.pos, 'impact', 5, 60));
+    }
   }
   state.bullets = state.bullets.filter(b => b.alive);
 }
@@ -351,9 +392,11 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         if (!enemy.alive) continue;
         if (checkBulletTankHit(bullet, enemy)) {
           takeDamage(enemy, bullet.damage);
+          state.particles.push(...spawnParticles(bullet.pos, 'hit', 6, 70));
           bullet.alive = false;
           if (!enemy.alive) {
             state.enemiesKilled++;
+            state.particles.push(...spawnParticles(enemy.pos, 'explosion', 15, 120));
           }
           break;
         }
@@ -362,8 +405,10 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
       // Check against player
       if (state.player.alive && checkBulletTankHit(bullet, state.player)) {
         takeDamage(state.player, bullet.damage);
+        state.particles.push(...spawnParticles(bullet.pos, 'hit', 6, 70));
         bullet.alive = false;
         if (!state.player.alive) {
+          state.particles.push(...spawnParticles(state.player.pos, 'explosion', 20, 150));
           endSiege(state, false);
           return;
         }
