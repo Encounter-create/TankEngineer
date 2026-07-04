@@ -65,14 +65,27 @@ export interface Plane {
 
 export function createPlanes(origin: Vec2, flightDir: number, mapW: number, mapH: number): Plane[] {
   const perpDir = flightDir + Math.PI / 2;
-  const spacing = 45;
-  // Start position: behind the player (opposite to flight direction)
-  const startX = origin.x - Math.cos(flightDir) * (mapW + 40);
-  const startY = origin.y - Math.sin(flightDir) * (mapH + 40);
+  const spacing = 40;
+  const trailDist = 50; // wingmen trail behind leader
   const speed = 250;
+  const vx = Math.cos(flightDir) * speed;
+  const vy = Math.sin(flightDir) * speed;
+
+  // Leader (center, ahead)
+  const leadX = origin.x - Math.cos(flightDir) * (mapW + 40);
+  const leadY = origin.y - Math.sin(flightDir) * (mapH + 40);
+
+  // Left wingman (trails behind leader, offset perpendicular)
+  const leftX = leadX - Math.cos(flightDir) * trailDist + Math.cos(perpDir) * spacing;
+  const leftY = leadY - Math.sin(flightDir) * trailDist + Math.sin(perpDir) * spacing;
+
+  // Right wingman (trails behind leader, offset perpendicular)
+  const rightX = leadX - Math.cos(flightDir) * trailDist - Math.cos(perpDir) * spacing;
+  const rightY = leadY - Math.sin(flightDir) * trailDist - Math.sin(perpDir) * spacing;
+
   return [
-    { x: startX + Math.cos(perpDir) * spacing, y: startY + Math.sin(perpDir) * spacing, velX: Math.cos(flightDir) * speed, velY: Math.sin(flightDir) * speed, alive: true, bombCooldown: 0.3 },
-    { x: startX, y: startY, velX: Math.cos(flightDir) * speed, velY: Math.sin(flightDir) * speed, alive: true, bombCooldown: 0 },
-    { x: startX - Math.cos(perpDir) * spacing, y: startY - Math.sin(perpDir) * spacing, velX: Math.cos(flightDir) * speed, velY: Math.sin(flightDir) * speed, alive: true, bombCooldown: 0.3 },
+    { x: leftX, y: leftY, velX: vx, velY: vy, alive: true, bombCooldown: 0.3 },
+    { x: leadX, y: leadY, velX: vx, velY: vy, alive: true, bombCooldown: 0 },
+    { x: rightX, y: rightY, velX: vx, velY: vy, alive: true, bombCooldown: 0.3 },
   ];
 }
