@@ -11,7 +11,7 @@ import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
-import { Particle, spawnParticles, updateParticles } from '../entities/Particle';
+import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
 
 // ============================================================
 // Siege mode — 3 minute defense
@@ -176,12 +176,12 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
 
   // Sprint trail particles
   if (isSkillActive(state.player) && state.player.config.commander.id === 'commander_sprint' && input.isMoving()) {
-    state.particles.push(...spawnParticles(state.player.pos, 'sprint', 1, 30));
+    state.particles.push(...spawnParticles(state.player.pos, 'sprint', 2, 50));
   }
 
-  // Smoke cloud particles
+  // Smoke cloud particles (large, persistent, follows tank)
   if (isSmokeActive(state.player)) {
-    state.particles.push(...spawnParticles(state.player.pos, 'smoke', 1, 20));
+    state.particles.push(...spawnParticles(state.player.pos, 'smoke', 3, 15));
   }
 
   // Commander skill: E key
@@ -235,9 +235,9 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     // Muzzle flash particles
     const muzzlePos = state.player.pos.add(Vec2.fromAngle(state.player.turretAngle, 14));
     if (barrageActive) {
-      state.particles.push(...spawnParticles(muzzlePos, 'barrage', 2, 30));
+      state.particles.push(...spawnParticles(muzzlePos, 'barrage', 3, 50));
     } else {
-      state.particles.push(...spawnParticles(muzzlePos, 'impact', 1, 20));
+      state.particles.push(...spawnParticles(muzzlePos, 'impact', 2, 40));
     }
 
     // Lightweight recoil (opposite to turret)
@@ -376,7 +376,7 @@ function handleBullets(state: SiegeState, dt: number): void {
     if (!bullet.alive) continue;
     const result = moveBullet(bullet, dt, state.map);
     if (result.hitWall) {
-      state.particles.push(...spawnParticles(bullet.pos, 'impact', 5, 60));
+      state.particles.push(...spawnParticles(bullet.pos, 'impact', 10, 100));
     }
   }
   state.bullets = state.bullets.filter(b => b.alive);
@@ -392,11 +392,11 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         if (!enemy.alive) continue;
         if (checkBulletTankHit(bullet, enemy)) {
           takeDamage(enemy, bullet.damage);
-          state.particles.push(...spawnParticles(bullet.pos, 'hit', 6, 70));
+          state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
           bullet.alive = false;
           if (!enemy.alive) {
             state.enemiesKilled++;
-            state.particles.push(...spawnParticles(enemy.pos, 'explosion', 15, 120));
+            state.particles.push(...spawnExplosion(enemy.pos));
           }
           break;
         }
@@ -405,10 +405,10 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
       // Check against player
       if (state.player.alive && checkBulletTankHit(bullet, state.player)) {
         takeDamage(state.player, bullet.damage);
-        state.particles.push(...spawnParticles(bullet.pos, 'hit', 6, 70));
+        state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
         bullet.alive = false;
         if (!state.player.alive) {
-          state.particles.push(...spawnParticles(state.player.pos, 'explosion', 20, 150));
+          state.particles.push(...spawnExplosion(state.player.pos));
           endSiege(state, false);
           return;
         }

@@ -5,6 +5,7 @@ import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 import { SiegeState, TOTAL_WAVES } from '../modes/Siege';
 import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 import { Particle } from '../entities/Particle';
+import { isSmokeActive } from '../systems/Commander';
 
 // ============================================================
 // Color palette
@@ -44,6 +45,10 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   drawMap(ctx, state.map);
   drawCommandCenter(ctx, state);
   drawTank(ctx, state.player);
+  // Smoke skill: large obscuring cloud around player
+  if (isSmokeActive(state.player)) {
+    drawSmokeCloud(ctx, state.player);
+  }
   for (const enemy of state.enemies) {
     drawTank(ctx, enemy);
   }
@@ -371,12 +376,35 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
 function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
   if (!p.alive) return;
   const alpha = p.life / p.maxLife;
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = p.color;
-  ctx.beginPath();
-  ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
-  ctx.fill();
+  // Smoke particles drawn softer
+  if (p.smokeExpand) {
+    ctx.globalAlpha = alpha * 0.4;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.globalAlpha = 1;
+}
+
+function drawSmokeCloud(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
+  const { x, y } = tank.pos;
+  const r = TANK_RADIUS * 2.5;
+  // Large soft gray cloud obscuring the tank
+  const grad = ctx.createRadialGradient(x, y, r * 0.3, x, y, r);
+  grad.addColorStop(0, 'rgba(150,150,150,0.5)');
+  grad.addColorStop(0.5, 'rgba(130,130,130,0.3)');
+  grad.addColorStop(1, 'rgba(100,100,100,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {
