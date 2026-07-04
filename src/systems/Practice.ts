@@ -68,11 +68,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   for (const b of ps.bullets) {
     if (!b.alive) continue;
 
-    // Rocket: steer toward enemy
-    if (b.style === 'rocket') {
-      const toTarget = ps.enemy.pos.sub(b.pos);
-      b.vel = toTarget.norm().scale(b.vel.mag());
-    }
+    // Rocket flies straight in firing direction (no homing in practice)
 
     // Firework: periodic child spawn + lifetime
     if (b.style === 'firework') {
