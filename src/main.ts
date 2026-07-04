@@ -83,6 +83,8 @@ interface AppState {
   shopSelected: number;
   selectedCol: number;
   selectedRow: number;
+  garageMessage: string;
+  garageMessageTimer: number;
 }
 
 // ============================================================
@@ -116,6 +118,8 @@ const app: AppState = {
   shopSelected: 0,
   selectedCol: 0,
   selectedRow: 0,
+  garageMessage: '',
+  garageMessageTimer: 0,
 };
 
 // ============================================================
@@ -161,7 +165,7 @@ function render(_alpha: number): void {
     const config = getCurrentConfig(app.garage);
     renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid);
   } else if (app.screen === 'garage') {
-    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory);
+    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory, app.garageMessage, app.garageMessageTimer);
   } else if (app.screen === 'shop') {
     renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold);
   } else if (app.screen === 'encyclopedia') {
@@ -220,14 +224,23 @@ function updateLobby(): void {
 
 function updateGarage(): void {
   if (input.isMouseJustPressed()) {
-    // Back button
+    // Buttons: 0=Save, 1=Load, 2=Back
     const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
-    if (btnIdx === 0) { app.screen = 'lobby'; return; }
+    if (btnIdx === 0) {
+      saveToBuildSlot(app.garage, 0); saveToBuildSlot(app.garage, 1); saveToBuildSlot(app.garage, 2);
+      app.garageMessage = '✅ 已保存'; app.garageMessageTimer = 2; return;
+    }
+    if (btnIdx === 1) {
+      applyBuildSlot(app.garage, app.inventory, 1);
+      app.garageMessage = '📂 已加载'; app.garageMessageTimer = 2; return;
+    }
+    if (btnIdx === 2) { app.screen = 'lobby'; return; }
 
     // Build slot click
     const slotIdx = getBuildSlotHitIndex(input.mousePos.x, input.mousePos.y, MAP_W);
     if (slotIdx >= 0) {
       applyBuildSlot(app.garage, app.inventory, slotIdx);
+      app.garageMessage = '📂 已加载配置'; app.garageMessageTimer = 2;
       return;
     }
 
@@ -241,12 +254,13 @@ function updateGarage(): void {
     const key = `Digit${i + 1}`;
     if (input.wasJustPressed(key)) {
       if (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) {
-        saveToBuildSlot(app.garage, i);
+        saveToBuildSlot(app.garage, i); app.garageMessage = `✅ 已保存`; app.garageMessageTimer = 2;
       } else {
-        applyBuildSlot(app.garage, app.inventory, i);
+        applyBuildSlot(app.garage, app.inventory, i); app.garageMessage = `📂 已加载`; app.garageMessageTimer = 2;
       }
     }
   }
+  app.garageMessageTimer -= 0.016;
 }
 
 // ============================================================

@@ -81,9 +81,17 @@ const TYPE_TABS: { type: PartType; label: string }[] = [
 // Render
 // ============================================================
 
-export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number, garage: GarageState, inventory: Inventory): void {
+export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number, garage: GarageState, inventory: Inventory, message?: string, messageTimer?: number): void {
   ctx.fillStyle = '#1a1d23';
   ctx.fillRect(0, 0, w, h);
+
+  // Message toast
+  if (message && (messageTimer ?? 0) > 0) {
+    ctx.fillStyle = `rgba(74,224,160,${Math.min(1, (messageTimer ?? 0))})`;
+    ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, w / 2, h - 16);
+  }
 
   // Title
   ctx.fillStyle = '#e8e8e8';
@@ -192,7 +200,7 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   const previewX = RIGHT_X;
   const previewY = 46;
   const previewW = 640 - RIGHT_X - 12;
-  const previewH = 180;
+  const previewH = h - 160; // matches left panel height
 
   ctx.fillStyle = '#22252c';
   roundRect(ctx, previewX, previewY, previewW, previewH, 6);
