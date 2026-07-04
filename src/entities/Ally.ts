@@ -66,7 +66,7 @@ export interface Plane {
 export function createPlanes(origin: Vec2, flightDir: number, mapW: number, mapH: number): Plane[] {
   const perpDir = flightDir + Math.PI / 2;
   const spacing = 40;
-  const trailDist = 50; // wingmen trail behind leader
+  const trailDist = 30; // wingmen trail behind leader
   const speed = 250;
   const vx = Math.cos(flightDir) * speed;
   const vy = Math.sin(flightDir) * speed;
