@@ -52,7 +52,10 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
 
   // Overlay for intro/victory/defeat
   if (state.phase === 'intro') {
-    drawOverlay(ctx, ['🏰 围城模式', '', '保护指挥所，存活 3 分钟', '', '点击屏幕 或 按 Enter/Space 开始']);
+    const mapLabel = {
+      classic: '经典防线', arena: '角斗场', maze: '迷宫', crossfire: '交叉火力'
+    }[state.mapName] ?? state.mapName;
+    drawOverlay(ctx, ['🏰 围城模式', '', `地图: ${mapLabel}`, '保护指挥所，存活 3 分钟', '', '点击屏幕 或 按 Enter/Space 开始']);
   } else if (state.phase === 'victory') {
     drawOverlay(ctx, ['🎉 防守成功！', '', `击毁敌坦: ${state.enemiesKilled}`, ...rewardText(state)]);
     drawSiegeBackButton(ctx);

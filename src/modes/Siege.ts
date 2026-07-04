@@ -1,6 +1,6 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
-import { TileGrid, createSiegeMap } from '../entities/Map';
+import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage } from '../entities/Tank';
 import { BulletEntity, createBullet } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
@@ -40,6 +40,7 @@ export const WAVES: WaveDef[] = [
 export interface SiegeState {
   phase: SiegePhase;
   map: TileGrid;
+  mapName: MapName;
   player: TankEntity;
   enemies: TankEntity[];
   bullets: BulletEntity[];
@@ -58,7 +59,8 @@ const COMMAND_CENTER_GRID = { x: Math.floor(MAP_COLS / 2), y: Math.floor(MAP_ROW
 const ENEMY_MAX = 12;
 
 export function createSiegeState(playerConfig: TankConfig, inventory: Inventory): SiegeState {
-  const map = createSiegeMap();
+  const mapName = pickRandomMap();
+  const map = createMap(mapName);
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
   const player = createTank('player', centerPos, playerConfig, true);
@@ -66,6 +68,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory)
   return {
     phase: 'intro',
     map,
+    mapName,
     player,
     enemies: [],
     bullets: [],
@@ -230,8 +233,14 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
   if (wave.hasHeavyTank) {
     const turretHeavy = MVP_TURRETS.find(p => p.id === 'turret_heavy')!;
     const chassisInertia = MVP_CHASSIS.find(p => p.id === 'chassis_inertia')!;
+    const chassisHeavy = MVP_CHASSIS.find(p => p.id === 'chassis_heavy')!;
+    const turretReactive = MVP_TURRETS.find(p => p.id === 'turret_reactive')!;
+    const barrelPierce = MVP_BARRELS.find(p => p.id === 'barrel_pierce')!;
+    const barrelArc = MVP_BARRELS.find(p => p.id === 'barrel_arc')!;
     configs.push(assembleTank(barrelStraight, turretHeavy, chassisStandard));
     configs.push(assembleTank(barrelStraight, turretLight, chassisInertia));
+    configs.push(assembleTank(barrelPierce, turretLight, chassisHeavy));
+    configs.push(assembleTank(barrelArc, turretReactive, chassisStandard));
   }
 
   for (let i = 0; i < wave.enemyCount && state.enemies.length < ENEMY_MAX; i++) {

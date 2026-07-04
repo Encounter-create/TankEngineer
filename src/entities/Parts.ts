@@ -5,7 +5,7 @@
 export type PartType = 'barrel' | 'turret' | 'chassis' | 'commander';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type WeightClass = 'light' | 'medium' | 'heavy';
-export type BulletStyle = 'straight' | 'bounce' | 'pierce';
+export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc';
 
 /** Core part definition */
 export interface Part {
@@ -37,6 +37,11 @@ export interface PartStats {
   inertia?: number;         // 0=no slide, >0=slide distance in cells
   recoil?: number;          // 0=none, 1=1 cell kickback on fire
   crushWalls?: boolean;     // can destroy brick walls by touching
+  instantTurn?: boolean;    // body turns instantly (no angular acceleration)
+
+  // Turret specials
+  invulnDurationMs?: number; // reactive armor: invulnerability window after hit (ms)
+  invulnCooldownMs?: number; // reactive armor: cooldown between triggers (ms)
 
   // Commander (MVP phase 2, placeholder)
   skillCdMs?: number;
@@ -79,6 +84,38 @@ export const MVP_BARRELS: Part[] = [
       cooldownMs: 1000,
     },
   },
+  {
+    id: 'barrel_pierce',
+    name: '透射管',
+    type: 'barrel',
+    rarity: 'epic',
+    weight: 2,
+    description: '子弹穿透砖墙1层（穿过后伤害减半）',
+    stats: {
+      bulletStyle: 'pierce',
+      bulletDamage: 40,
+      bulletSpeed: 380,
+      bounces: 0,
+      pierces: 1,
+      cooldownMs: 1100,
+    },
+  },
+  {
+    id: 'barrel_arc',
+    name: '曲射管',
+    type: 'barrel',
+    rarity: 'epic',
+    weight: 2,
+    description: '子弹以抛物线越过砖墙，最高点伤害翻倍',
+    stats: {
+      bulletStyle: 'arc',
+      bulletDamage: 25,
+      bulletSpeed: 300,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 1200,
+    },
+  },
 ];
 
 export const MVP_TURRETS: Part[] = [
@@ -106,6 +143,20 @@ export const MVP_TURRETS: Part[] = [
       defenseRatio: 0.85,
     },
   },
+  {
+    id: 'turret_reactive',
+    name: '反应装甲',
+    type: 'turret',
+    rarity: 'epic',
+    weight: 2,
+    description: '受击后0.5s无敌，CD 8s',
+    stats: {
+      maxHp: 90,
+      defenseRatio: 1.0,
+      invulnDurationMs: 500,
+      invulnCooldownMs: 8000,
+    },
+  },
 ];
 
 export const MVP_CHASSIS: Part[] = [
@@ -129,12 +180,41 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'rare',
     weight: 1,
-    description: '松手后继续滑行3格，速度更快',
+    description: '松手后继续滑行，速度更快',
     stats: {
       speedRatio: 1.2,
       inertia: 3,
       recoil: 0,
       crushWalls: false,
+    },
+  },
+  {
+    id: 'chassis_heavy',
+    name: '重型底盘',
+    type: 'chassis',
+    rarity: 'rare',
+    weight: 3,
+    description: '速度慢但能碾碎砖墙，不受后坐力',
+    stats: {
+      speedRatio: 0.7,
+      inertia: 0,
+      recoil: 0,
+      crushWalls: true,
+    },
+  },
+  {
+    id: 'chassis_track',
+    name: '履带底盘',
+    type: 'chassis',
+    rarity: 'epic',
+    weight: 2,
+    description: '可原地旋转，方向跟随移动瞬间切换',
+    stats: {
+      speedRatio: 0.9,
+      inertia: 0,
+      recoil: 0,
+      crushWalls: false,
+      instantTurn: true,
     },
   },
 ];

@@ -6,7 +6,7 @@ import {
   ACCEL_RATE, FRICTION, MIN_SPEED,
   ANGULAR_ACCEL,
 } from '../entities/Tank';
-import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
+import { BulletEntity, BULLET_RADIUS, ARC_GRAVITY } from '../entities/Bullet';
 import { effectiveSpeed } from '../entities/Parts';
 
 // ============================================================
@@ -94,16 +94,18 @@ export function moveTank(
   // ---- Angular movement (body rotation) ----
   if (isMoving) {
     const targetAngle = moveDir.angle();
-    const angleDiff = normalizeAngle(targetAngle - tank.dir);
-
-    // Accelerate angular velocity toward target
-    const maxAngStep = ANGULAR_ACCEL * dt;
-    if (Math.abs(angleDiff) < maxAngStep) {
-      // Close enough — snap
+    // Instant turn chassis (履带底盘)
+    if (tank.config.chassis.stats.instantTurn) {
       tank.dir = targetAngle;
     } else {
-      tank.dir += Math.sign(angleDiff) * maxAngStep;
-      tank.dir = normalizeAngle(tank.dir);
+      const angleDiff = normalizeAngle(targetAngle - tank.dir);
+      const maxAngStep = ANGULAR_ACCEL * dt;
+      if (Math.abs(angleDiff) < maxAngStep) {
+        tank.dir = targetAngle;
+      } else {
+        tank.dir += Math.sign(angleDiff) * maxAngStep;
+        tank.dir = normalizeAngle(tank.dir);
+      }
     }
   }
 
@@ -189,6 +191,17 @@ export function moveBullet(
   dt: number,
   map: TileGrid,
 ): { hitWall: boolean; hitTileX: number; hitTileY: number } {
+  // ---- Arc bullet: apply gravity, track peak for damage bonus ----
+  if (bullet.style === 'arc') {
+    bullet.arcVy += ARC_GRAVITY * dt;
+    // Detect passing the peak (arcVy was negative=upward, now positive=downward)
+    if (!bullet.arcDescending && bullet.arcVy > 0) {
+      bullet.arcDescending = true;
+      // Damage bonus: 2x at peak descent
+      bullet.damage = Math.round(bullet.damage * 2);
+    }
+  }
+
   const moveAmount = bullet.vel.mag() * dt;
   const stepSize = CELL_SIZE / 4;
   const steps = Math.ceil(moveAmount / stepSize);
@@ -207,6 +220,12 @@ export function moveBullet(
     if (col.hit) {
       const gx = col.tileX;
       const gy = col.tileY;
+
+      // Arc bullets fly OVER brick walls
+      if (bullet.style === 'arc' && col.tileType === TileType.BRICK) {
+        bullet.pos = nextPos;
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
 
       if (bullet.style === 'pierce' && col.tileType === TileType.BRICK && bullet.piercesLeft > 0) {
         bullet.piercesLeft--;

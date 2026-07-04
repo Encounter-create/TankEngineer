@@ -18,6 +18,10 @@ export interface TankEntity {
   cooldownRemaining: number; // ms until can fire again
   alive: boolean;
   isPlayer: boolean;
+  /** Reactive armor: invulnerable until this timestamp (performance.now ms) */
+  invulnUntil: number;
+  /** Reactive armor: next available trigger timestamp (performance.now ms) */
+  invulnCooldownUntil: number;
 }
 
 export function createTank(
@@ -39,15 +43,33 @@ export function createTank(
     cooldownRemaining: 0,
     alive: true,
     isPlayer,
+    invulnUntil: 0,
+    invulnCooldownUntil: 0,
   };
 }
 
 export function takeDamage(tank: TankEntity, rawDamage: number): number {
+  const now = performance.now();
+
+  // Reactive armor: check invulnerability
+  if (tank.config.turret.stats.invulnDurationMs && now < tank.invulnUntil) {
+    return 0; // invulnerable
+  }
+
   const actual = Math.round(rawDamage * (tank.config.turret.stats.defenseRatio ?? 1.0));
   tank.hp = Math.max(0, tank.hp - actual);
   if (tank.hp <= 0) {
     tank.alive = false;
   }
+
+  // Reactive armor: trigger invulnerability on hit
+  if (tank.alive && tank.config.turret.stats.invulnDurationMs && tank.config.turret.stats.invulnCooldownMs) {
+    if (now >= tank.invulnCooldownUntil) {
+      tank.invulnUntil = now + tank.config.turret.stats.invulnDurationMs;
+      tank.invulnCooldownUntil = now + tank.config.turret.stats.invulnCooldownMs;
+    }
+  }
+
   return actual;
 }
 
