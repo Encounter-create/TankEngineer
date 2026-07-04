@@ -82,6 +82,13 @@ export interface SiegeState {
   comboText: string;
   comboColor: string;
   comboMultiplier: number;
+  /** Kill streak counter */
+  killStreak: number;
+  killStreakTimer: number;
+  /** Max multiplier achieved this match (for gold bonus) */
+  maxMultiplier: number;
+  /** Slow-motion timer (seconds remaining) */
+  slowMoTimer: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -130,6 +137,10 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     comboText: '',
     comboColor: '#fff',
     comboMultiplier: 1,
+    killStreak: 0,
+    killStreakTimer: 0,
+    maxMultiplier: 1,
+    slowMoTimer: 0,
   };
 }
 
@@ -259,8 +270,16 @@ export function updateSiege(
   // Wave announcement timer
   state.waveAnnouncementTime -= dt;
   state.skillMessageTime -= 16;
-  // Combo timer
+  // Combo timer + kill streak decay
   state.comboTimer -= dt;
+  state.killStreakTimer -= dt;
+  if (state.killStreakTimer <= 0) {
+    state.killStreak = 0;
+  }
+  // Slow-motion timer
+  if (state.slowMoTimer > 0) {
+    state.slowMoTimer -= dt;
+  }
 
   // Update fire zones
   handleFireZones(state, dt);
@@ -739,12 +758,54 @@ function handlePlanes(state: SiegeState, dt: number): void {
         if (!enemy.alive) continue;
         if (enemy.pos.dist(bombPos) < 40) {
           takeDamage(enemy, 30);
-          if (!enemy.alive) state.enemiesKilled++;
+          if (!enemy.alive) onEnemyKilled(state, enemy, 1.0);
         }
       }
     }
   }
   state.planes = state.planes.filter(p => p.alive);
+}
+
+// ============================================================
+// Kill chain rewards
+// ============================================================
+
+function onEnemyKilled(state: SiegeState, enemy: TankEntity, multiplier: number): void {
+  state.enemiesKilled++;
+  state.particles.push(...spawnExplosion(enemy.pos));
+  playExplosion();
+  state.screenShake = 4 + multiplier * 2;
+
+  // Track max multiplier for gold bonus
+  if (multiplier > state.maxMultiplier) {
+    state.maxMultiplier = multiplier;
+  }
+
+  // Kill streak
+  state.killStreak++;
+  state.killStreakTimer = 2.0; // reset window
+
+  // ×3.0+ : invincibility
+  if (multiplier >= 3.0) {
+    state.player.invulnUntil = performance.now() + 1500;
+  }
+
+  // ×5.0 : slow motion
+  if (multiplier >= 5.0) {
+    state.slowMoTimer = 1.0;
+  }
+
+  // Combo text
+  let streakLabel = '';
+  if (state.killStreak >= 5) streakLabel = 'MEGA KILL!';
+  else if (state.killStreak >= 3) streakLabel = 'TRIPLE KILL!';
+  else if (state.killStreak >= 2) streakLabel = 'DOUBLE KILL!';
+
+  if (streakLabel) {
+    state.comboText = state.comboText ? `${state.comboText} ${streakLabel}` : streakLabel;
+    state.comboTimer = 2.5;
+    state.comboColor = multiplier >= 5 ? '#ff4444' : multiplier >= 3 ? '#ffaa00' : '#ffcc44';
+  }
 }
 
 // ============================================================
@@ -788,9 +849,7 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
           state.comboTimer = 2.5;
         }
         if (!enemy.alive) {
-          state.enemiesKilled++;
-          state.particles.push(...spawnExplosion(enemy.pos));
-          state.screenShake = 8;
+          onEnemyKilled(state, enemy, ctx.multiplier);
         }
       }
     }
@@ -923,27 +982,27 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
       for (const enemy of state.enemies) {
         if (!enemy.alive) continue;
         if (checkBulletTankHit(bullet, enemy)) {
+          const killCtx = bullet.style === 'rocket'
+            ? calcKillMultiplier('bullet', 0, 0)
+            : calcKillMultiplier('bullet', bullet.bounceCount, 0);
+
           if (bullet.style === 'rocket') {
             explodeRocket(bullet, state);
           } else {
-            const ctx = calcKillMultiplier('bullet', bullet.bounceCount, 0);
-            const dmg = takeDamage(enemy, bullet.damage * ctx.multiplier);
-            state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, ctx.multiplier >= 3));
+            const dmg = takeDamage(enemy, bullet.damage * killCtx.multiplier);
+            state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, killCtx.multiplier >= 3));
             state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
-            if (ctx.multiplier > 1) {
-              state.comboText = ctx.label;
-              state.comboColor = ctx.color;
-              state.comboMultiplier = ctx.multiplier;
+            if (killCtx.multiplier > 1) {
+              state.comboText = killCtx.label;
+              state.comboColor = killCtx.color;
+              state.comboMultiplier = killCtx.multiplier;
               state.comboTimer = 2.0;
             }
             playHitTank();
             bullet.alive = false;
           }
           if (!enemy.alive) {
-            state.enemiesKilled++;
-            state.particles.push(...spawnExplosion(enemy.pos));
-            playExplosion();
-            state.screenShake = 8;
+            onEnemyKilled(state, enemy, killCtx.multiplier);
           }
           break;
         }
@@ -1008,6 +1067,7 @@ function endSiege(state: SiegeState, survived: boolean): void {
     TOTAL_WAVES,
     survived,
     state.inventory,
+    state.maxMultiplier,
   );
 }
 

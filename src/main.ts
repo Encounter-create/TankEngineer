@@ -141,6 +141,13 @@ function update(dt: number): void {
 }
 
 function render(_alpha: number): void {
+  // Slow-motion from siege
+  if (app.siege && app.siege.slowMoTimer > 0) {
+    loop.targetTimeScale = 0.3;
+  } else {
+    loop.targetTimeScale = 1.0;
+  }
+
   ctx.clearRect(0, 0, MAP_W, MAP_H);
 
   if (app.screen === 'siege' && app.siege) {

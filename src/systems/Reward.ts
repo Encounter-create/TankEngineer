@@ -24,13 +24,14 @@ export function generateReward(
   totalWaves: number,
   survived: boolean,
   inventory: Inventory,
+  maxMultiplier: number = 1,
 ): BattleReward {
   const rand = new Random();
 
-  // Base gold + per-wave bonus
+  // Base gold + per-wave bonus, multiplied by max combo achieved
   const baseGold = survived ? 200 : 50;
   const waveGold = wavesSurvived * 30;
-  const gold = baseGold + waveGold;
+  const gold = Math.round((baseGold + waveGold) * maxMultiplier);
 
   // Part drop chance based on performance
   const dropChance = survived ? 0.8 : Math.min(0.5, wavesSurvived / totalWaves * 0.5);

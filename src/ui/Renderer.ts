@@ -939,6 +939,43 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
     ctx.restore();
   }
 
+  // Kill streak counter (top-right)
+  if (state.killStreak > 0 && state.killStreakTimer > 0) {
+    const alpha = Math.min(1, state.killStreakTimer / 0.3);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#ffcc44';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${state.killStreak}x STREAK`, MAP_W - 12, MAP_H / 2 + 20);
+    ctx.restore();
+  }
+
+  // Invincibility shield glow
+  if (state.player.invulnUntil > performance.now()) {
+    const remaining = state.player.invulnUntil - performance.now();
+    const alpha = 0.3 * Math.min(1, remaining / 300);
+    ctx.fillStyle = `rgba(255,215,0,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(state.player.pos.x, state.player.pos.y, TANK_RADIUS + 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Slow-motion vignette
+  if (state.slowMoTimer > 0) {
+    const alpha = state.slowMoTimer * 0.4;
+    const grad = ctx.createRadialGradient(MAP_W/2, MAP_H/2, MAP_W*0.4, MAP_W/2, MAP_H/2, MAP_W*0.7);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, `rgba(0,0,0,${alpha})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+    // "SLOW" text
+    ctx.fillStyle = `rgba(255,255,255,${alpha + 0.2})`;
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⏳ SLOW', MAP_W / 2, MAP_H - 60);
+  }
+
   // Skill message
   if (state.skillMessageTime > 0 && state.skillMessage) {
     state.skillMessageTime -= 16; // ~60fps

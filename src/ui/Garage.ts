@@ -159,7 +159,15 @@ function renderPartColumn(
     // Description (truncated)
     ctx.fillStyle = '#777';
     ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(part.description.slice(0, 16), cx, cy + 70);
+    ctx.fillText(part.description.slice(0, 14), cx, cy + 70);
+
+    // Multiplier hint for barrels/chassis
+    const hint = getPartHint(part);
+    if (hint) {
+      ctx.fillStyle = hint.color;
+      ctx.font = '9px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(hint.text, cx, cy + cardH - 6);
+    }
   });
 }
 
@@ -275,6 +283,23 @@ function drawGarageButtons(ctx: CanvasRenderingContext2D, w: number, h: number):
   for (const btn of getGarageButtons(w, h)) {
     drawButton(ctx, btn);
   }
+}
+
+// ============================================================
+// Part multiplier hints
+// ============================================================
+
+function getPartHint(part: { id: string; type: string }): { text: string; color: string } | null {
+  const hints: Record<string, { text: string; color: string }> = {
+    barrel_bounce: { text: '🔵 反弹 ×1.5', color: '#4a9eff' },
+    chassis_heavy: { text: '🟠 方块 ×2.0', color: '#ff6600' },
+    chassis_inertia: { text: '🟠 滑行推块', color: '#ff6600' },
+    barrel_firework: { text: '🟡 多米诺 ×3.0', color: '#ffaa00' },
+    barrel_orbital: { text: '🟡 双子覆盖', color: '#ffaa00' },
+    barrel_pierce: { text: '🔵 穿墙袭杀', color: '#4a9eff' },
+    barrel_arc: { text: '🔵 越墙打击', color: '#4a9eff' },
+  };
+  return hints[part.id] ?? null;
 }
 
 // ============================================================

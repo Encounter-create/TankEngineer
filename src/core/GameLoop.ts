@@ -8,11 +8,20 @@ export class GameLoop {
   private accumulator = 0;
   private readonly fixedDt = 1 / 60; // 60 Hz physics
   private running = false;
+  /** Global time scale: 1.0 = normal, 0.3 = slow motion */
+  timeScale = 1.0;
+  targetTimeScale = 1.0;
 
   constructor(
     private update: UpdateFn,
     private render: RenderFn,
   ) {}
+
+  /** Trigger slow motion for duration seconds */
+  triggerSlowMo(duration: number, scale: number = 0.3): void {
+    this.targetTimeScale = scale;
+    setTimeout(() => { this.targetTimeScale = 1.0; }, duration * 1000);
+  }
 
   start() {
     if (this.running) return;
@@ -43,9 +52,12 @@ export class GameLoop {
 
     this.accumulator += frameTime;
 
-    // Fixed timestep updates
+    // Smooth timeScale interpolation
+    this.timeScale += (this.targetTimeScale - this.timeScale) * Math.min(1, frameTime * 8);
+
+    // Fixed timestep updates (scaled by timeScale)
     while (this.accumulator >= this.fixedDt) {
-      this.update(this.fixedDt);
+      this.update(this.fixedDt * this.timeScale);
       this.accumulator -= this.fixedDt;
     }
 
