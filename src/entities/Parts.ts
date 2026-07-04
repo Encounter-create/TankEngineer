@@ -74,7 +74,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'rare',
     weight: 2,
-    description: '专为反弹设计的炮管。子弹碰墙严格按入射角=反射角弹射，最多弹2次。每次反弹后子弹伤害降为原来的80%。适合在交叉火力等金属墙密集地图打出几何弹道。',
+    description: '专为反弹设计的炮管。子弹碰墙严格按入射角=反射角弹射，最多弹2次。每次反弹后子弹伤害降为原来的80%。适合在交叉火力等金属墙密集地图打出几何弹道。🪞协同「镜面分身」: 装备忍者大师时分身也使用反射弹。',
     stats: {
       bulletStyle: 'bounce',
       bulletDamage: 30,
@@ -122,7 +122,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '发射一颗缓慢飞行的母弹。母弹每0.28秒向正六边形6个方向各发射一颗子子弹，形成几何烟花图案。母弹2秒后自动消失。不可反弹。适合大范围压制和封锁敌人走位。',
+    description: '发射一颗缓慢飞行的母弹。母弹每0.28秒向正六边形6个方向各发射一颗子子弹，形成几何烟花图案。母弹2秒后自动消失。不可反弹。适合大范围压制和封锁敌人走位。🎆协同「烟花祭」: 装备弹幕指挥官时弹幕期间母弹分裂频率翻倍。',
     stats: {
       bulletStyle: 'firework',
       bulletDamage: 12,
@@ -154,7 +154,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 2,
-    description: '超高伤害(999)一击必杀。子弹速度极快(800)，可击穿木质和金属墙体后继续飞行。射速极慢(4秒一发)作为平衡。碰墙可反弹2次。适合精准狙击，一枪一个。',
+    description: '超高伤害(999)一击必杀。子弹速度极快(800)，可击穿木质和金属墙体后继续飞行。射速极慢(4秒一发)作为平衡。碰墙可反弹2次。适合精准狙击，一枪一个。🎯协同「精确打击」: 装备空军上校时飞机投弹频率翻倍。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 999,
@@ -186,7 +186,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '发射一枚火箭飞向鼠标方向。撞击任何物体(敌人/墙/方块)后爆炸，留下半径50px的火圈持续5秒。火圈内所有单位每秒受25点伤害。爆炸本身造成60点范围伤害。不可反弹。',
+    description: '发射一枚火箭飞向鼠标方向。撞击任何物体(敌人/墙/方块)后爆炸，留下半径50px的火圈持续5秒。火圈内所有单位每秒受25点伤害。爆炸本身造成60点范围伤害。不可反弹。💀协同「亡灵火箭」: 装备巫师时火箭击杀的敌人自动复活为友军。',
     stats: {
       bulletStyle: 'rocket',
       bulletDamage: 60,
@@ -274,7 +274,7 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'rare',
     weight: 3,
-    description: '梯形重装甲底盘。速度仅0.7倍但能直接碾碎接触的砖墙（无需开火）。不受开火后坐力影响。重量大(3)，配合重甲炮塔可达到重量级。适合推进式打法：碾碎掩体、推动方块砸敌人。',
+    description: '梯形重装甲底盘。速度仅0.7倍但能直接碾碎接触的砖墙（无需开火）。不受开火后坐力影响。重量大(3)，配合重甲炮塔可达到重量级。适合推进式打法：碾碎掩体、推动方块砸敌人。🏰协同「移动堡垒」: 装备炮塔工程师时炮塔HP+50%、射程+30%。',
     stats: {
       speedRatio: 0.7,
       inertia: 0,
