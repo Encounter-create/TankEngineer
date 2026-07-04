@@ -205,10 +205,9 @@ export function moveBullet(
   if (bullet.style === 'orbital') {
     // Move the virtual center forward
     bullet.orbitalCenter = bullet.orbitalCenter.add(bullet.vel.scale(dt));
-    // Compute bullet position = center + orbit offset (180° phase difference)
+    // Each bullet's natural angle gives 180° phase: idx0 starts at 0, idx1 at π
     const offset = Vec2.fromAngle(bullet.orbitalAngle, bullet.orbitalRadius);
-    const actualOffset = bullet.orbitalIndex === 1 ? offset.scale(-1) : offset;
-    bullet.pos = bullet.orbitalCenter.add(actualOffset);
+    bullet.pos = bullet.orbitalCenter.add(offset);
   }
 
   // Orbital bullets already positioned; just check single-point collision
