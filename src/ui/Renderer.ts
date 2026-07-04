@@ -61,23 +61,30 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const enemy of state.enemies) {
     drawTank(ctx, enemy);
-    // U-key debug: vision/fire radii
-    if (state.showDebug) {
-      const ctx2 = state.aiContexts?.get(enemy.id);
-      if (ctx2) {
+    // U-key debug: vision/fire radii (drawn after tank restore, in screen space)
+    if (state.showDebug && enemy.alive) {
+      const aiCtx = state.aiContexts.get(enemy.id);
+      if (aiCtx) {
         // Fire radius (inner, red)
-        ctx.strokeStyle = 'rgba(255,80,50,0.5)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(255,50,30,0.7)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
         ctx.beginPath();
-        ctx.arc(enemy.pos.x, enemy.pos.y, ctx2.fireRadius, 0, Math.PI * 2);
+        ctx.arc(enemy.pos.x, enemy.pos.y, aiCtx.fireRadius, 0, Math.PI * 2);
         ctx.stroke();
         // Vision radius (outer, blue)
-        ctx.strokeStyle = 'rgba(74,158,255,0.4)';
+        ctx.strokeStyle = 'rgba(74,180,255,0.6)';
         ctx.beginPath();
-        ctx.arc(enemy.pos.x, enemy.pos.y, ctx2.visionRadius, 0, Math.PI * 2);
+        ctx.arc(enemy.pos.x, enemy.pos.y, aiCtx.visionRadius, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
+        // Labels
+        ctx.fillStyle = 'rgba(255,50,30,0.8)';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('射程', enemy.pos.x + aiCtx.fireRadius + 4, enemy.pos.y - 4);
+        ctx.fillStyle = 'rgba(74,180,255,0.8)';
+        ctx.fillText('视野', enemy.pos.x + aiCtx.visionRadius + 4, enemy.pos.y + 14);
       }
     }
   }
