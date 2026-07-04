@@ -1,7 +1,7 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
-import { TankEntity, createTank, takeDamage, TURRET_ANGULAR_VEL } from '../entities/Tank';
+import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle } from '../core/Physics';
@@ -170,6 +170,29 @@ export function updateSiege(
   handleTurrets(state, dt);
   handlePlanes(state, dt);
 
+  // Turret collision: push tanks out
+  for (const turret of state.turrets) {
+    if (!turret.alive) continue;
+    const turretR = 14;
+    for (const tank of [state.player, ...state.enemies, ...state.allies]) {
+      if (!tank.alive) continue;
+      const diff = tank.pos.sub(turret.pos);
+      const dist = diff.mag();
+      if (dist < turretR + TANK_RADIUS) {
+        tank.pos = tank.pos.add(diff.norm().scale(turretR + TANK_RADIUS - dist + 1));
+      }
+    }
+    // Bullet collision with turret
+    for (const bullet of state.bullets) {
+      if (!bullet.alive) continue;
+      if (bullet.pos.dist(turret.pos) < turretR + BULLET_RADIUS) {
+        turret.hp -= bullet.isPlayerBullet ? 0 : bullet.damage; // only enemy bullets damage turret
+        bullet.alive = false;
+        if (turret.hp <= 0) turret.alive = false;
+      }
+    }
+  }
+
   // Tank-tank collisions
   const allCombatants = [state.player, ...state.enemies, ...state.allies];
   resolveTankCollisions(allCombatants);
@@ -257,7 +280,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         state.particles.push(...spawnParticles(state.player.pos, 'smoke', 12, 30));
         playSmoke();
       } else if (id === 'commander_colonel') {
-        state.planes.push(...createPlanes(MAP_H));
+        state.planes.push(...createPlanes(state.player.pos, state.player.turretAngle, MAP_W, MAP_H));
       } else if (id === 'commander_engineer') {
         state.turrets.push(createTurret(state.player.pos));
         state.skillMessage = '炮塔已部署';
@@ -481,8 +504,7 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     }
   }
 
-  // Remove dead enemies
-  state.enemies = state.enemies.filter(e => e.alive);
+  // Don't filter dead enemies — wizard needs them for resurrect
 }
 
 // ============================================================
@@ -547,33 +569,53 @@ function handleAllies(state: SiegeState, dt: number): void {
     if (!ally.alive) continue;
     ally.fireCooldown -= dt * 1000;
 
+    const distToPlayer = ally.pos.dist(state.player.pos);
+    const nearestEnemy = state.enemies.find(e => e.alive && e.pos.dist(ally.pos) < ally.visionRadius);
+
     if (ally.aiMode === 'follow_player') {
-      // Stay near player
-      const toPlayer = state.player.pos.sub(ally.pos);
-      if (toPlayer.mag() > 80) {
-        moveTank(ally, toPlayer.norm(), dt, state.map, state.physicsBlocks, state.physicsBlocks);
+      // ---- Ninja 3-state AI ----
+      if (nearestEnemy) {
+        // Enemy in vision → FIRE
+        ally.aiState = 'fire';
+        ally.turretAngle = nearestEnemy.pos.sub(ally.pos).angle();
+        // Fire if cooldown ready
+        if (ally.fireCooldown <= 0) {
+          const bullet = createBullet(ally.pos, ally.turretAngle, 'straight', 400, 20, 0, 0, ally.id, true);
+          state.bullets.push(bullet);
+          ally.fireCooldown = 1000;
+        }
+        // Keep distance from enemy
+        if (nearestEnemy.pos.dist(ally.pos) < 100) {
+          const away = ally.pos.sub(nearestEnemy.pos).norm();
+          moveTank(ally, away, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+        }
+      } else if (distToPlayer > ally.followRadius) {
+        // Player outside follow radius → FOLLOW
+        ally.aiState = 'follow';
+        const toPlayer = state.player.pos.sub(ally.pos).norm();
+        moveTank(ally, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+        ally.turretAngle = ally.dir;
+      } else {
+        // Near player, no enemies → SCOUT (patrol around)
+        ally.aiState = 'scout';
+        ally.turretAngle = ally.dir;
       }
-      ally.turretAngle = ally.dir;
     } else {
-      // Patrol toward nearest enemy
-      let nearest = state.enemies.find(e => e.alive);
-      if (nearest) {
-        const toEnemy = nearest.pos.sub(ally.pos);
+      // Wizard resurrect: chase nearest enemy
+      ally.aiState = 'fire';
+      const target = state.enemies.find(e => e.alive);
+      if (target) {
+        const toEnemy = target.pos.sub(ally.pos);
         if (toEnemy.mag() > 150) {
           moveTank(ally, toEnemy.norm(), dt, state.map, state.physicsBlocks, state.physicsBlocks);
         }
         ally.turretAngle = toEnemy.angle();
+        if (ally.fireCooldown <= 0 && toEnemy.mag() < ally.visionRadius) {
+          const bullet = createBullet(ally.pos, ally.turretAngle, 'straight', 400, 20, 0, 0, ally.id, true);
+          state.bullets.push(bullet);
+          ally.fireCooldown = 1000;
+        }
       }
-    }
-
-    // Auto-fire at nearest enemy
-    const target = state.enemies.find(e => e.alive && e.pos.dist(ally.pos) < 200);
-    if (target && ally.fireCooldown <= 0) {
-      const bullet = createBullet(
-        ally.pos, ally.turretAngle, 'straight', 400, 20, 0, 0, ally.id, true,
-      );
-      state.bullets.push(bullet);
-      ally.fireCooldown = 1000;
     }
   }
   state.allies = state.allies.filter(a => a.alive);
@@ -606,22 +648,24 @@ function handleTurrets(state: SiegeState, dt: number): void {
 // ============================================================
 
 function handlePlanes(state: SiegeState, dt: number): void {
-  const speed = 250;
   for (const plane of state.planes) {
     if (!plane.alive) continue;
-    plane.x += speed * dt;
+    plane.x += plane.velX * dt;
+    plane.y += plane.velY * dt;
     plane.bombCooldown -= dt;
-    if (plane.x > MAP_W + 20) { plane.alive = false; continue; }
+    // Remove if off-screen
+    if (plane.x < -40 || plane.x > MAP_W + 40 || plane.y < -40 || plane.y > MAP_H + 40) {
+      plane.alive = false; continue;
+    }
 
     // Drop bomb
-    if (plane.bombCooldown <= 0 && plane.x > 20 && plane.x < MAP_W - 20) {
+    if (plane.bombCooldown <= 0 && plane.x > 10 && plane.x < MAP_W - 10 && plane.y > 10 && plane.y < MAP_H - 10) {
       plane.bombCooldown = 1.2;
       const bombPos = new Vec2(plane.x, plane.y);
       const zone = createFireZone(bombPos, 35, 3, 20);
       state.fireZones.push(zone);
       state.particles.push(...spawnExplosion(bombPos));
       playExplosion();
-      // Damage enemies near bomb
       for (const enemy of state.enemies) {
         if (!enemy.alive) continue;
         if (enemy.pos.dist(bombPos) < 40) {

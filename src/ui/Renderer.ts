@@ -104,6 +104,28 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const ally of state.allies) {
     drawTank(ctx, ally);
+    // U-key debug: ninja clone circles
+    if (state.showDebug && ally.aiMode === 'follow_player' && ally.alive) {
+      // Follow radius (inner, green)
+      ctx.strokeStyle = 'rgba(74,224,160,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(ally.pos.x, ally.pos.y, ally.followRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      // Vision radius (outer, yellow)
+      ctx.strokeStyle = 'rgba(255,200,50,0.5)';
+      ctx.beginPath();
+      ctx.arc(ally.pos.x, ally.pos.y, ally.visionRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // State label
+      const labels: Record<string, string> = { follow: '追随', scout: '侦察', fire: '开火' };
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(labels[ally.aiState] ?? '', ally.pos.x + ally.visionRadius + 4, ally.pos.y);
+    }
   }
   for (const turret of state.turrets) {
     drawTurret(ctx, turret);
@@ -675,20 +697,21 @@ function drawTurret(ctx: CanvasRenderingContext2D, t: TurretEntity): void {
 
 function drawPlane(ctx: CanvasRenderingContext2D, p: Plane): void {
   if (!p.alive) return;
+  const angle = Math.atan2(p.velY, p.velX);
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(angle);
   ctx.fillStyle = '#889988';
   ctx.beginPath();
-  ctx.moveTo(p.x + 12, p.y);
-  ctx.lineTo(p.x - 8, p.y - 6);
-  ctx.lineTo(p.x - 12, p.y);
-  ctx.lineTo(p.x - 8, p.y + 6);
+  ctx.moveTo(12, 0); ctx.lineTo(-8, -6); ctx.lineTo(-12, 0); ctx.lineTo(-8, 6);
   ctx.closePath();
   ctx.fill();
   ctx.strokeStyle = '#445544';
   ctx.lineWidth = 1;
   ctx.stroke();
-  // Wings
   ctx.fillStyle = '#667766';
-  ctx.fillRect(p.x - 2, p.y - 10, 6, 20);
+  ctx.fillRect(-2, -10, 6, 20);
+  ctx.restore();
 }
 
 function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): void {
