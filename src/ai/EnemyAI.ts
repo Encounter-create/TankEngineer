@@ -76,10 +76,15 @@ export function updateAI(ctx: AIContext, playerPos: Vec2, map: TileGrid, dt: num
     ctx.state = AIState.FIRE;
   } else if (distToPlayer <= ctx.visionRadius) {
     ctx.state = AIState.CHASE;
-  } else if (ctx.stuckTimer > 1500) {
+  } else {
+    // Player outside vision → go back to patrol
     ctx.state = AIState.PATROL;
+  }
+
+  if (ctx.stuckTimer > 2000) {
+    // Give up current direction, pick new one
     ctx.patrolDir = rand.pick(DIR4);
-    ctx.stateTimer = 1500 + Math.random() * 1500;
+    ctx.stateTimer = 1000 + Math.random() * 1000;
     ctx.stuckTimer = 0;
   }
 
