@@ -69,9 +69,9 @@ export function getCurrentConfig(garage: GarageState): TankConfig | null {
 const LEFT_W = 260;
 const LEFT_X = 12;
 const CENTER_X = LEFT_X + LEFT_W + 12;
-const CENTER_W = 300;
-const DETAIL_X = CENTER_X + CENTER_W + 12;
-const DETAIL_W = 960 - DETAIL_X - 12; // ~364px, same width as center+
+const CENTER_W = 470;
+const DETAIL_W = 180;
+const DETAIL_X = 960 - DETAIL_W - 12;
 
 const TYPE_TABS: { type: PartType; label: string }[] = [
   { type: 'barrel', label: '🔫 炮管' },
