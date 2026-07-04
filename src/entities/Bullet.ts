@@ -28,6 +28,8 @@ export interface BulletEntity {
   orbitalIndex: number;
   /** Orbital only: virtual center position (moves forward, bullets orbit around it) */
   orbitalCenter: Vec2;
+  /** Rocket only: target position to fly toward */
+  targetPos: Vec2;
 }
 
 let bulletIdCounter = 0;
@@ -71,6 +73,7 @@ export function createBullet(
     orbitalRadius: orbitalRadius ?? 16,
     orbitalIndex: orbitalIndex ?? 0,
     orbitalCenter: pos,
+    targetPos: pos,
   };
 }
 

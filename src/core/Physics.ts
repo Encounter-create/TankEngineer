@@ -343,6 +343,12 @@ export function moveBullet(
     const col = checkTileCollision(nextPos, BULLET_RADIUS, map);
     if (col.hit) {
       const gx = col.tileX, gy = col.tileY;
+      // Rocket blows up on any wall hit
+      if (bullet.style === 'rocket') {
+        bullet.alive = false; bullet.pos = nextPos;
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
+
       if (bullet.style === 'firework') {
         bullet.alive = false; bullet.pos = nextPos;
         return { hitWall: true, hitTileX: gx, hitTileY: gy };

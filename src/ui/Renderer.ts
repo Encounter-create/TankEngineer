@@ -6,6 +6,7 @@ import { SiegeState, TOTAL_WAVES } from '../modes/Siege';
 import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 import { Particle } from '../entities/Particle';
 import { PhysicsBlock } from '../entities/PhysicsBlock';
+import { FireZone } from '../entities/FireZone';
 import { isSmokeActive } from '../systems/Commander';
 
 // ============================================================
@@ -96,6 +97,9 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const p of state.particles) {
     drawParticle(ctx, p);
+  }
+  for (const zone of state.fireZones) {
+    drawFireZone(ctx, zone);
   }
 
   ctx.restore(); // end screen shake — UI below is stable
@@ -549,6 +553,41 @@ function drawBarrel(
         ctx.fillRect(w * 0.85, -4.5, w * 0.4, 2);
       },
     },
+    barrel_gatling: {
+      color: '#667788',
+      draw: () => {
+        // Multiple rotating barrels
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI * 2 / 6) * i;
+          const by = Math.sin(a) * 3;
+          ctx.fillRect(w * 0.3, -2 + by, w * 1.1, 2);
+        }
+        // Barrel shroud
+        ctx.strokeStyle = '#445566';
+        ctx.lineWidth = 1;
+        roundRect(ctx, w * 0.25, -4, w * 0.3, 8, 2);
+        ctx.stroke();
+      },
+    },
+    barrel_rocket: {
+      color: '#44aa44',
+      draw: () => {
+        // Wide rocket tube
+        ctx.fillRect(w * 0.3, -5, w * 1.0, 10);
+        // Rocket inside
+        ctx.fillStyle = '#cc3333';
+        ctx.beginPath();
+        ctx.moveTo(w * 1.4, 0);
+        ctx.lineTo(w * 0.8, -4);
+        ctx.lineTo(w * 0.8, 4);
+        ctx.closePath();
+        ctx.fill();
+        // Fins
+        ctx.fillStyle = '#226622';
+        ctx.fillRect(w * 0.4, -7, 4, 3);
+        ctx.fillRect(w * 0.4, 4, 4, 3);
+      },
+    },
   };
 
   const spec = barrelSpecs[barrelId] ?? barrelSpecs.barrel_straight;
@@ -598,6 +637,28 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
     ctx.fillStyle = ratio > 0.3 ? C.HP_BAR_OK : C.HP_BAR_LOW;
     ctx.fillRect(barX, barY, barW * ratio, barH);
   }
+}
+
+function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): void {
+  if (!zone.alive) return;
+  const alpha = zone.lifetime / zone.maxLifetime;
+  // Outer glow
+  const grad = ctx.createRadialGradient(zone.pos.x, zone.pos.y, zone.radius * 0.3, zone.pos.x, zone.pos.y, zone.radius);
+  grad.addColorStop(0, `rgba(255,80,0,${0.15 * alpha})`);
+  grad.addColorStop(0.5, `rgba(255,40,0,${0.08 * alpha})`);
+  grad.addColorStop(1, `rgba(255,0,0,0)`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(zone.pos.x, zone.pos.y, zone.radius, 0, Math.PI * 2);
+  ctx.fill();
+  // Border ring
+  ctx.strokeStyle = `rgba(255,60,0,${0.5 * alpha})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 4]);
+  ctx.beginPath();
+  ctx.arc(zone.pos.x, zone.pos.y, zone.radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {

@@ -13,6 +13,7 @@ import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
 import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
+import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -66,6 +67,7 @@ export interface SiegeState {
   /** U-key debug: show enemy vision/fire radii */
   showDebug: boolean;
   frictionMul: number;
+  fireZones: FireZone[];
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -101,6 +103,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     physicsBlocks: [],
     showDebug: false,
     frictionMul: getMapFriction(mapName),
+    fireZones: [],
   };
 }
 
@@ -170,6 +173,9 @@ export function updateSiege(
   // Update particles
   updateParticles(state.particles, dt);
   state.particles = state.particles.filter(p => p.alive);
+
+  // Update fire zones
+  handleFireZones(state, dt);
 
   // Check enemies reaching command center (must run before HP check!)
   handleEnemyReachCenter(state);
@@ -263,7 +269,16 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     const bounces = cfg.barrel.stats.bounces ?? 0;
     const pierces = cfg.barrel.stats.pierces ?? 0;
 
-    if (bulletStyle === 'orbital') {
+    // Rocket: fire toward mouse click position
+    if (bulletStyle === 'rocket') {
+      const bullet = createBullet(
+        state.player.pos, state.player.turretAngle,
+        'rocket', bulletSpeed, bulletDamage, 0, 0,
+        state.player.id, true,
+      );
+      bullet.targetPos = input.mousePos;
+      state.bullets.push(bullet);
+    } else if (bulletStyle === 'orbital') {
       // Create pair of orbiting bullets
       for (let idx = 0; idx < 2; idx++) {
         const bullet = createBullet(
@@ -434,6 +449,59 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
 }
 
 // ============================================================
+// Rocket + Fire zones
+// ============================================================
+
+function explodeRocket(bullet: BulletEntity, state: SiegeState): void {
+  bullet.alive = false;
+  state.particles.push(...spawnExplosion(bullet.pos));
+  playExplosion();
+  state.screenShake = 6;
+  // Create fire zone
+  const zone = createFireZone(bullet.pos, 50, 5, 25);
+  state.fireZones.push(zone);
+  // Damage tanks in blast radius
+  for (const tank of [state.player, ...state.enemies]) {
+    if (!tank.alive) continue;
+    if (tank.pos.dist(bullet.pos) < zone.radius) {
+      takeDamage(tank, bullet.isPlayerBullet ? 60 : 40);
+    }
+  }
+}
+
+function handleFireZones(state: SiegeState, dt: number): void {
+  for (const zone of state.fireZones) {
+    if (!zone.alive) continue;
+    updateFireZone(zone, dt);
+    // Spawn fire particles
+    if (zone.lifetime > 0 && Math.random() < 0.5) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = zone.radius * Math.sqrt(Math.random());
+      const px = zone.pos.x + Math.cos(angle) * r;
+      const py = zone.pos.y + Math.sin(angle) * r;
+      state.particles.push({
+        pos: new Vec2(px, py), vel: new Vec2((Math.random()-0.5)*20, (Math.random()-0.5)*20 - 10),
+        life: 0.5 + Math.random() * 0.5, maxLife: 1,
+        color: ['#ff4400','#ff6600','#ffaa00','#ff2200'][Math.floor(Math.random()*4)],
+        radius: 2 + Math.random() * 4, alive: true, smokeExpand: false, isCross: false,
+      });
+    }
+    // Damage tanks inside
+    for (const tank of [state.player, ...state.enemies]) {
+      if (!tank.alive) continue;
+      if (tank.pos.dist(zone.pos) < zone.radius) {
+        tank.hp -= zone.dps * dt;
+        if (tank.hp <= 0) {
+          tank.alive = false;
+          state.particles.push(...spawnExplosion(tank.pos));
+        }
+      }
+    }
+  }
+  state.fireZones = state.fireZones.filter(z => z.alive);
+}
+
+// ============================================================
 // Physics blocks
 // ============================================================
 
@@ -482,13 +550,29 @@ function handleBullets(state: SiegeState, dt: number): void {
   for (const bullet of state.bullets) {
     if (!bullet.alive) continue;
 
+    // Rocket: steer toward target
+    if (bullet.style === 'rocket') {
+      const toTarget = bullet.targetPos.sub(bullet.pos);
+      if (toTarget.mag() < 10) {
+        // Reached target — explode
+        explodeRocket(bullet, state);
+        continue;
+      }
+      // Steer toward target
+      bullet.vel = toTarget.norm().scale(bullet.vel.mag());
+    }
+
     // Check collision with physics blocks
     let hitBlock = false;
     for (const block of state.physicsBlocks) {
       if (!block.alive) continue;
       if (bullet.pos.dist(block.pos) < BLOCK_RADIUS + BULLET_RADIUS) {
-        bullet.alive = false;
-        state.particles.push(...spawnParticles(bullet.pos, 'impact', 6, 80));
+        if (bullet.style === 'rocket') {
+          explodeRocket(bullet, state);
+        } else {
+          bullet.alive = false;
+          state.particles.push(...spawnParticles(bullet.pos, 'impact', 6, 80));
+        }
         hitBlock = true;
         break;
       }
@@ -537,8 +621,12 @@ function handleBullets(state: SiegeState, dt: number): void {
 
     const result = moveBullet(bullet, dt, state.map);
     if (result.hitWall) {
-      state.particles.push(...spawnParticles(bullet.pos, 'impact', 10, 100));
-      playHitWall();
+      if (bullet.style === 'rocket') {
+        explodeRocket(bullet, state);
+      } else {
+        state.particles.push(...spawnParticles(bullet.pos, 'impact', 10, 100));
+        playHitWall();
+      }
     }
   }
 
@@ -561,14 +649,17 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
     if (!bullet.alive) continue;
 
     if (bullet.isPlayerBullet) {
-      // Check against enemies
       for (const enemy of state.enemies) {
         if (!enemy.alive) continue;
         if (checkBulletTankHit(bullet, enemy)) {
-          takeDamage(enemy, bullet.damage);
-          state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
-          playHitTank();
-          bullet.alive = false;
+          if (bullet.style === 'rocket') {
+            explodeRocket(bullet, state);
+          } else {
+            takeDamage(enemy, bullet.damage);
+            state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
+            playHitTank();
+            bullet.alive = false;
+          }
           if (!enemy.alive) {
             state.enemiesKilled++;
             state.particles.push(...spawnExplosion(enemy.pos));
@@ -579,12 +670,15 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         }
       }
     } else {
-      // Check against player
       if (state.player.alive && checkBulletTankHit(bullet, state.player)) {
-        takeDamage(state.player, bullet.damage);
-        state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
-        playHitTank();
-        bullet.alive = false;
+        if (bullet.style === 'rocket') {
+          explodeRocket(bullet, state);
+        } else {
+          takeDamage(state.player, bullet.damage);
+          state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
+          playHitTank();
+          bullet.alive = false;
+        }
         if (!state.player.alive) {
           state.particles.push(...spawnExplosion(state.player.pos));
           playExplosion();

@@ -21,6 +21,8 @@ function defaultInventory(): InventoryData {
       'barrel_firework',
       'barrel_orbital',
       'barrel_sniper',
+      'barrel_gatling',
+      'barrel_rocket',
       'turret_light',
       'turret_heavy',
       'turret_reactive',

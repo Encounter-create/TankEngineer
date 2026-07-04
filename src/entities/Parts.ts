@@ -5,7 +5,7 @@
 export type PartType = 'barrel' | 'turret' | 'chassis' | 'commander';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type WeightClass = 'light' | 'medium' | 'heavy';
-export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc' | 'firework' | 'orbital';
+export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc' | 'firework' | 'orbital' | 'rocket';
 
 /** Core part definition */
 export interface Part {
@@ -162,6 +162,38 @@ export const MVP_BARRELS: Part[] = [
       bounces: 0,
       pierces: 0,
       cooldownMs: 4000,
+    },
+  },
+  {
+    id: 'barrel_gatling',
+    name: '加特林机枪',
+    type: 'barrel',
+    rarity: 'epic',
+    weight: 2,
+    description: '超高射速，弹幕倾泻，每发伤害低但射速极快',
+    stats: {
+      bulletStyle: 'straight',
+      bulletDamage: 6,
+      bulletSpeed: 550,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 70,
+    },
+  },
+  {
+    id: 'barrel_rocket',
+    name: '火箭炮',
+    type: 'barrel',
+    rarity: 'legendary',
+    weight: 3,
+    description: '发射火箭飞向瞄准点爆炸，留下火圈持续灼烧',
+    stats: {
+      bulletStyle: 'rocket',
+      bulletDamage: 60,
+      bulletSpeed: 250,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 2500,
     },
   },
 ];
