@@ -228,11 +228,11 @@ function updateGarage(): void {
     const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
     if (btnIdx === 0) {
       saveToBuildSlot(app.garage, 0); saveToBuildSlot(app.garage, 1); saveToBuildSlot(app.garage, 2);
-      app.garageMessage = '✅ 已保存'; app.garageMessageTimer = 2; return;
+      app.garageMessage = '✅ 已保存全部配置'; app.garageMessageTimer = 2; return;
     }
     if (btnIdx === 1) {
       applyBuildSlot(app.garage, app.inventory, 1);
-      app.garageMessage = '📂 已加载'; app.garageMessageTimer = 2; return;
+      app.garageMessage = '📂 已加载配置1'; app.garageMessageTimer = 2; return;
     }
     if (btnIdx === 2) { app.screen = 'lobby'; return; }
 
@@ -254,9 +254,9 @@ function updateGarage(): void {
     const key = `Digit${i + 1}`;
     if (input.wasJustPressed(key)) {
       if (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) {
-        saveToBuildSlot(app.garage, i); app.garageMessage = `✅ 已保存`; app.garageMessageTimer = 2;
+        saveToBuildSlot(app.garage, i); app.garageMessage = `✅ 已保存配置${i + 1}`; app.garageMessageTimer = 2;
       } else {
-        applyBuildSlot(app.garage, app.inventory, i); app.garageMessage = `📂 已加载`; app.garageMessageTimer = 2;
+        applyBuildSlot(app.garage, app.inventory, i); app.garageMessage = `📂 已加载配置${i + 1}`; app.garageMessageTimer = 2;
       }
     }
   }

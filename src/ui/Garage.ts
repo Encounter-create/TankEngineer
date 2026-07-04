@@ -66,9 +66,12 @@ export function getCurrentConfig(garage: GarageState): TankConfig | null {
 // Layout constants
 // ============================================================
 
-const LEFT_W = 260;
+const LEFT_W = 240;
 const LEFT_X = 12;
-const RIGHT_X = LEFT_X + LEFT_W + 16;
+const CENTER_X = LEFT_X + LEFT_W + 12;
+const CENTER_W = 280;
+const DETAIL_X = CENTER_X + CENTER_W + 12;
+const DETAIL_W = 640 - DETAIL_X - 12; // ~96px, right panel
 
 const TYPE_TABS: { type: PartType; label: string }[] = [
   { type: 'barrel', label: '🔫 炮管' },
@@ -85,12 +88,12 @@ export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.fillStyle = '#1a1d23';
   ctx.fillRect(0, 0, w, h);
 
-  // Message toast
+  // Message toast (above buttons)
   if (message && (messageTimer ?? 0) > 0) {
     ctx.fillStyle = `rgba(74,224,160,${Math.min(1, (messageTimer ?? 0))})`;
     ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(message, w / 2, h - 16);
+    ctx.fillText(message, w / 2, h - 60);
   }
 
   // Title
@@ -197,9 +200,9 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
 
 function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, garage: GarageState, _inventory: Inventory): void {
   // Preview area
-  const previewX = RIGHT_X;
+  const previewX = CENTER_X;
   const previewY = 46;
-  const previewW = 640 - RIGHT_X - 12;
+  const previewW = CENTER_W;
   const previewH = h - 160; // matches left panel height
 
   ctx.fillStyle = '#22252c';
@@ -311,67 +314,80 @@ function drawTankPreview(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
 // Detail tooltip
 // ============================================================
 
-function drawDetailTooltip(ctx: CanvasRenderingContext2D, w: number, h: number, partId: string): void {
+function drawDetailTooltip(ctx: CanvasRenderingContext2D, _w: number, h: number, partId: string): void {
   const part = Inventory.getPart(partId);
   if (!part) return;
 
-  const tx = 12, ty = h - 140, tw = w - 24, th = 120;
+  // Right panel detail area
+  const tx = DETAIL_X + 4, ty = 46, tw = DETAIL_W - 8, th = h - 160;
 
-  ctx.fillStyle = '#2a2d35';
+  ctx.fillStyle = '#22252c';
   ctx.strokeStyle = rarityColor(part.rarity);
   ctx.lineWidth = 2;
-  roundRect(ctx, tx, ty, tw, th, 8);
+  roundRect(ctx, tx, ty, tw, th, 6);
   ctx.fill(); ctx.stroke();
 
-  // Name + rarity + weight
+  // Header
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(`${part.name}`, tx + 14, ty + 22);
+  ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('📋 零件详情', tx + tw / 2, ty + 22);
+
+  // Rarity circle
   ctx.fillStyle = rarityColor(part.rarity);
-  ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.fillText(`${part.rarity.toUpperCase()} · 重量: ${part.weight}`, tx + 14, ty + 40);
+  ctx.beginPath();
+  ctx.arc(tx + tw / 2, ty + 46, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Name
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(part.name, tx + tw / 2, ty + 66);
+
+  // Rarity + weight
+  ctx.fillStyle = rarityColor(part.rarity);
+  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText(`${part.rarity.toUpperCase()} · 重${part.weight}`, tx + tw / 2, ty + 82);
+
+  // Stats line by line
+  const stats = part.stats;
+  let lineY = ty + 104;
+  ctx.fillStyle = '#aaa';
+  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+
+  if (part.type === 'barrel') {
+    ctx.fillText(`伤害: ${stats.bulletDamage}`, tx + tw / 2, lineY); lineY += 16;
+    ctx.fillText(`射速: ${stats.bulletSpeed}`, tx + tw / 2, lineY); lineY += 16;
+    ctx.fillText(`CD: ${(stats.cooldownMs ?? 0) / 1000}s`, tx + tw / 2, lineY); lineY += 16;
+    if (stats.bounces) { ctx.fillText(`反弹 ×${stats.bounces}`, tx + tw / 2, lineY); lineY += 16; }
+    if (stats.pierces) { ctx.fillText(`穿透 ×${stats.pierces}`, tx + tw / 2, lineY); lineY += 16; }
+  } else if (part.type === 'turret') {
+    ctx.fillText(`HP: ${stats.maxHp}`, tx + tw / 2, lineY); lineY += 16;
+    ctx.fillText(`防御: ${Math.round((1 - (stats.defenseRatio ?? 1)) * 100)}%`, tx + tw / 2, lineY); lineY += 16;
+    if (stats.invulnDurationMs) { ctx.fillText(`无敌 ${stats.invulnDurationMs/1000}s`, tx + tw / 2, lineY); lineY += 16; }
+  } else if (part.type === 'chassis') {
+    ctx.fillText(`速度: ${Math.round((stats.speedRatio ?? 1) * 100)}%`, tx + tw / 2, lineY); lineY += 16;
+    if (stats.crushWalls) { ctx.fillText('碾墙', tx + tw / 2, lineY); lineY += 16; }
+    if (stats.instantTurn) { ctx.fillText('瞬转', tx + tw / 2, lineY); lineY += 16; }
+    if ((stats.inertia ?? 0) > 0) { ctx.fillText('滑行', tx + tw / 2, lineY); lineY += 16; }
+  } else if (part.type === 'commander') {
+    ctx.fillText(`CD: ${(stats.skillCdMs ?? 0) / 1000}s`, tx + tw / 2, lineY); lineY += 16;
+  }
 
   // Description
-  ctx.fillStyle = '#aaa';
-  ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.fillText(part.description, tx + 14, ty + 58);
-
-  // Stats
-  const stats = part.stats;
-  let statLine = '';
-  if (part.type === 'barrel') {
-    statLine = `伤害:${stats.bulletDamage} 射速:${stats.bulletSpeed} CD:${(stats.cooldownMs ?? 0) / 1000}s`;
-    if (stats.bounces) statLine += ` 反弹×${stats.bounces}`;
-    if (stats.pierces) statLine += ` 穿透×${stats.pierces}`;
-  } else if (part.type === 'turret') {
-    statLine = `HP:${stats.maxHp} 防御:${Math.round((1 - (stats.defenseRatio ?? 1)) * 100)}%`;
-    if (stats.invulnDurationMs) statLine += ` 无敌${stats.invulnDurationMs/1000}s CD${(stats.invulnCooldownMs??0)/1000}s`;
-  } else if (part.type === 'chassis') {
-    statLine = `速度:${Math.round((stats.speedRatio ?? 1) * 100)}%`;
-    if (stats.crushWalls) statLine += ' 碾墙';
-    if (stats.instantTurn) statLine += ' 瞬转';
-    if ((stats.inertia ?? 0) > 0) statLine += ' 滑行';
-  } else if (part.type === 'commander') {
-    statLine = `CD:${(stats.skillCdMs ?? 0) / 1000}s`;
-  }
   ctx.fillStyle = '#888';
-  ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.fillText(statLine, tx + 14, ty + 76);
+  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText(part.description.slice(0, 12), tx + tw / 2, lineY + 12);
 
   // Synergy hint
   const hint = getPartHint(part);
   if (hint) {
     ctx.fillStyle = hint.color;
-    ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(`适配: ${hint.text}`, tx + 14, ty + 96);
+    ctx.font = 'bold 10px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(hint.text, tx + tw / 2, lineY + 30);
   }
-
-  // Close hint
-  ctx.fillStyle = '#555';
-  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('再次点击关闭', tx + tw - 14, ty + th - 10);
 }
 
 // ============================================================
@@ -419,7 +435,7 @@ export function hitTestGarage(px: number, py: number, _w: number, inventory: Inv
 }
 
 export function hitTestGarageButtons(px: number, py: number, _w: number, h: number): number {
-  const previewX = RIGHT_X;
+  const previewX = CENTER_X;
   const btnY = h - 50;
   const btns: ButtonDef[] = [
     { x: previewX, y: btnY, w: 100, h: 32, label: '', color: '' },
