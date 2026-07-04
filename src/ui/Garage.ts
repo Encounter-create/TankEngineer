@@ -66,12 +66,12 @@ export function getCurrentConfig(garage: GarageState): TankConfig | null {
 // Layout constants
 // ============================================================
 
-const LEFT_W = 240;
+const LEFT_W = 260;
 const LEFT_X = 12;
 const CENTER_X = LEFT_X + LEFT_W + 12;
-const CENTER_W = 280;
+const CENTER_W = 300;
 const DETAIL_X = CENTER_X + CENTER_W + 12;
-const DETAIL_W = 640 - DETAIL_X - 12; // ~96px, right panel
+const DETAIL_W = 960 - DETAIL_X - 12; // ~364px, same width as center+
 
 const TYPE_TABS: { type: PartType; label: string }[] = [
   { type: 'barrel', label: '🔫 炮管' },

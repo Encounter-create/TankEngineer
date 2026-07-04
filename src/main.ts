@@ -228,10 +228,10 @@ function updateGarage(): void {
     const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
     if (btnIdx === 0) {
       saveToBuildSlot(app.garage, 0); saveToBuildSlot(app.garage, 1); saveToBuildSlot(app.garage, 2);
-      app.garageMessage = '✅ 已保存全部配置'; app.garageMessageTimer = 2; return;
+      app.garageMessage = '✅ 已保存到配置1/2/3'; app.garageMessageTimer = 2; return;
     }
     if (btnIdx === 1) {
-      applyBuildSlot(app.garage, app.inventory, 1);
+      applyBuildSlot(app.garage, app.inventory, 0);
       app.garageMessage = '📂 已加载配置1'; app.garageMessageTimer = 2; return;
     }
     if (btnIdx === 2) { app.screen = 'lobby'; return; }
