@@ -232,7 +232,7 @@ function updateGarage(): void {
     }
 
     // Part cards
-    const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
+    const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory, app.garage);
     if (hit) { selectPart(app.garage, hit.type, hit.partId, app.inventory); }
   }
 
