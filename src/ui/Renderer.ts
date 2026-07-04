@@ -376,9 +376,22 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
 function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
   if (!p.alive) return;
   const alpha = p.life / p.maxLife;
-  // Smoke particles drawn softer
-  if (p.smokeExpand) {
-    ctx.globalAlpha = alpha * 0.4;
+
+  if (p.isCross) {
+    // Green + cross for repair
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = 2;
+    const s = p.radius;
+    ctx.beginPath();
+    ctx.moveTo(p.pos.x - s, p.pos.y);
+    ctx.lineTo(p.pos.x + s, p.pos.y);
+    ctx.moveTo(p.pos.x, p.pos.y - s);
+    ctx.lineTo(p.pos.x, p.pos.y + s);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  } else if (p.smokeExpand) {
+    ctx.globalAlpha = alpha * 0.35;
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);

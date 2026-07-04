@@ -12,6 +12,8 @@ export interface Particle {
   alive: boolean;
   /** Smoke particles expand over time instead of shrinking */
   smokeExpand: boolean;
+  /** Repair particles drawn as + crosses */
+  isCross: boolean;
 }
 
 const COLORS: Record<ParticleType, string[]> = {
@@ -38,8 +40,9 @@ export function spawnParticles(
     const isExplosion = type === 'explosion';
 
     let life: number;
-    if (isSmoke) life = 2.0 + Math.random() * 1.5;
+    if (isSmoke) life = 0.6 + Math.random() * 0.5; // short-lived to avoid screen fill
     else if (isExplosion) life = 0.5 + Math.random() * 0.6;
+    else if (type === 'repair') life = 0.6 + Math.random() * 0.3;
     else life = 0.4 + Math.random() * 0.5;
 
     let radius: number;
@@ -58,6 +61,7 @@ export function spawnParticles(
       radius,
       alive: true,
       smokeExpand: isSmoke,
+      isCross: type === 'repair',
     });
   }
   return particles;
@@ -74,11 +78,11 @@ export function updateParticles(particles: Particle[], dt: number): void {
     p.pos = p.pos.add(p.vel.scale(dt));
     // Friction
     p.vel = p.vel.scale(Math.pow(0.08, dt));
-    // Smoke expands, other particles shrink slowly
+    // Smoke expands slightly then fades; other particles shrink slowly
     if (p.smokeExpand) {
-      p.radius *= 1 + dt * 1.5; // smoke grows
+      p.radius *= 1 + dt * 0.6; // smoke grows slowly, won't fill screen
     } else {
-      p.radius *= Math.pow(0.5, dt); // slower shrink
+      p.radius *= Math.pow(0.5, dt);
     }
   }
 }
@@ -100,6 +104,7 @@ export function spawnExplosion(pos: Vec2): Particle[] {
       radius: 3 + Math.random() * 8,
       alive: true,
       smokeExpand: false,
+      isCross: false,
     });
   }
   return particles;
