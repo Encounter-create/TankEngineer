@@ -3,6 +3,7 @@ import { TankEntity, createTank, takeDamage, TANK_RADIUS } from '../entities/Tan
 import { TankConfig } from '../entities/Parts';
 import { BulletEntity, createBullet, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
+import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
 import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS } from '../utils/Grid';
 import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
@@ -15,7 +16,7 @@ import { drawTank, drawFireZone } from '../ui/Renderer';
 export interface PracticeState {
   player: TankEntity; enemy: TankEntity;
   bullets: BulletEntity[]; blocks: PhysicsBlock[];
-  fireZones: FireZone[];
+  fireZones: FireZone[]; particles: Particle[];
   map: TileGrid;
   arenaX: number; arenaY: number; arenaW: number; arenaH: number;
   skillMessage: string; skillMessageTime: number;
@@ -31,12 +32,11 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
   }
   const player = createTank('practice_p', new Vec2(ax + aw * 0.2, ay + ah * 0.5), config, true);
   const enemy = createTank('practice_e', new Vec2(ax + aw * 0.75, ay + ah * 0.35), config, false);
-  return { player, enemy, bullets: [], blocks: [], fireZones: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
+  return { player, enemy, bullets: [], blocks: [], fireZones: [], particles: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
 }
 
 export function updatePractice(ps: PracticeState, input: Input, dt: number): void {
   if (!ps.player.alive) { ps.player.alive = true; ps.player.hp = ps.player.maxHp; }
-  if (!ps.enemy.alive) { ps.enemy.alive = true; ps.enemy.hp = ps.enemy.maxHp; }
 
   const md = input.getMoveDir();
   moveTank(ps.player, md, dt, ps.map, ps.blocks, ps.blocks);
@@ -100,14 +100,22 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     // Rocket/arc already handled by moveBullet above
 
     // Hit enemy
-    if (b.isPlayerBullet && checkBulletTankHit(b, ps.enemy)) {
+    if (ps.enemy.alive && b.isPlayerBullet && checkBulletTankHit(b, ps.enemy)) {
       takeDamage(ps.enemy, b.damage);
+      ps.particles.push(...spawnParticles(b.pos, 'hit', 8, 80));
       b.alive = false;
+      if (!ps.enemy.alive) {
+        ps.particles.push(...spawnExplosion(ps.enemy.pos));
+      }
       // Rocket explosion
       if (b.style === 'rocket') {
         ps.fireZones.push(createFireZone(b.pos, 40, 2, 15));
         takeDamage(ps.enemy, 40);
       }
+    }
+    // Hit wall → impact particles
+    if (!b.alive) {
+      ps.particles.push(...spawnParticles(b.pos, 'impact', 6, 60));
     }
   }
   for (const nb of newBullets) ps.bullets.push(nb);
@@ -138,6 +146,18 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     if (ps.enemy.alive && ps.enemy.pos.dist(b.pos) < TANK_RADIUS + BLOCK_RADIUS + 4) takeDamage(ps.enemy, Math.round(b.vel.mag() * b.mass * 0.06));
     if (b.vel.mag() < 2) b.vel = Vec2.zero();
   }
+  // Particles
+  updateParticles(ps.particles, dt);
+  ps.particles = ps.particles.filter(p => p.alive);
+  // Fire zone particles
+  for (const z of ps.fireZones) {
+    if (z.alive && Math.random() < 0.4) {
+      const a = Math.random() * Math.PI * 2;
+      const r = z.radius * Math.sqrt(Math.random());
+      ps.particles.push({ pos: new Vec2(z.pos.x + Math.cos(a) * r, z.pos.y + Math.sin(a) * r), vel: new Vec2((Math.random()-0.5)*20, (Math.random()-0.5)*20 - 10), life: 0.5 + Math.random() * 0.5, maxLife: 1, color: ['#ff4400','#ff6600','#ffaa00'][Math.floor(Math.random()*3)], radius: 2 + Math.random() * 3, alive: true, smokeExpand: false, isCross: false });
+    }
+  }
+
   ps.skillMessageTime -= dt;
   ps.player.pos = new Vec2(Math.max(ps.arenaX + TANK_RADIUS, Math.min(ps.arenaX + ps.arenaW - TANK_RADIUS, ps.player.pos.x)), Math.max(ps.arenaY + TANK_RADIUS, Math.min(ps.arenaY + ps.arenaH - TANK_RADIUS, ps.player.pos.y)));
 }
@@ -157,6 +177,7 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
 
   for (const b of ps.blocks) { if (!b.alive) continue; const s = b.radius; ctx.fillStyle = b.tileType === TileType.METAL ? '#666' : '#8B7355'; ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(b.pos.x - s, b.pos.y - s, s * 2, s * 2, 3); ctx.fill(); ctx.stroke(); }
 
+  for (const p of ps.particles) { if (p.alive) { ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; } }
   for (const z of ps.fireZones) { drawFireZone(ctx, z); }
   drawTank(ctx, ps.enemy); drawTank(ctx, ps.player);
 
@@ -169,6 +190,16 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
 
   ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
   ctx.fillText('🎯 靶子', ps.enemy.pos.x, ps.enemy.pos.y - 20);
+  // Respawn button (only when enemy dead)
+  if (!ps.enemy.alive) {
+    const rx = ax + aw / 2 - 50, ry = ay + ah / 2 + 20;
+    ctx.fillStyle = '#3a6a3a'; ctx.strokeStyle = '#4ae0a0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(rx, ry, 100, 28, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🔄 复活靶子', rx + 50, ry + 14);
+  }
+
   ctx.fillText('WASD 鼠标 左键 E技能', ax + aw / 2, ay + ah - 6);
   if (ps.skillMessageTime > 0) { ctx.fillStyle = '#4ae0a0'; ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.fillText(ps.skillMessage, ax + aw / 2, ay + ah / 2); }
 }

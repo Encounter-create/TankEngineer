@@ -63,6 +63,7 @@ import {
   pixelToChessGrid,
 } from './modes/Chess';
 import { renderChess, hitTestChessBackButton, hitTestChessGearButton } from './ui/ChessRenderer';
+import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 
 // ============================================================
@@ -139,12 +140,18 @@ function update(dt: number): void {
     updateLobby();
   } else if (app.screen === 'garage') {
     if (app.practice) {
-      updatePractice(app.practice, input, dt);
+      const ps = app.practice;
+      updatePractice(ps, input, dt);
       if (input.isMouseJustPressed()) {
-        const ax = 284, ay = 46, aw = 470;
+        const ax = 284, ay = 46, aw = 470, ah = 640 - 160;
         const bx = ax + aw - 82, by = ay + 6;
         if (input.mousePos.x >= bx && input.mousePos.x <= bx + 76 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
-          app.practice = null; app.garage.practiceMode = false;
+          app.practice = null; app.garage.practiceMode = false; return;
+        }
+        const rx = ax + aw / 2 - 50, ry = ay + ah / 2 + 20;
+        if (!ps.enemy.alive && input.mousePos.x >= rx && input.mousePos.x <= rx + 100 && input.mousePos.y >= ry && input.mousePos.y <= ry + 28) {
+          ps.enemy.alive = true; ps.enemy.hp = ps.enemy.maxHp;
+          ps.enemy.pos = new Vec2(ax + aw * (0.5 + Math.random() * 0.4), ay + ah * (0.2 + Math.random() * 0.5));
         }
       }
     } else {
