@@ -4,7 +4,8 @@ import { TankConfig } from '../entities/Parts';
 import { BulletEntity, createBullet } from '../entities/Bullet';
 import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS } from '../utils/Grid';
-import { moveTank, moveBullet, checkBulletTankHit } from '../core/Physics';
+import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
+import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { activateSkill } from '../systems/Commander';
 import { Input } from '../core/Input';
 import { Vec2 } from '../utils/Vector';
@@ -13,6 +14,7 @@ export interface PracticeState {
   player: TankEntity;
   enemy: TankEntity;
   bullets: BulletEntity[];
+  blocks: PhysicsBlock[];
   map: TileGrid;
   arenaX: number; arenaY: number; arenaW: number; arenaH: number;
   skillMessage: string; skillMessageTime: number;
@@ -33,7 +35,7 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
   const enemy = createTank('practice_e', new Vec2(ax + aw * 0.75, ay + ah * 0.35), config, false);
   enemy.hp = enemy.maxHp;
 
-  return { player, enemy, bullets: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
+  return { player, enemy, bullets: [], blocks: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
 }
 
 export function updatePractice(ps: PracticeState, input: Input, dt: number): void {
@@ -42,7 +44,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
 
   // Player movement
   const md = input.getMoveDir();
-  moveTank(ps.player, md, dt, ps.map, [], []);
+  moveTank(ps.player, md, dt, ps.map, ps.blocks, ps.blocks);
 
   // Turret follows mouse
   const m = input.mousePos;
@@ -80,6 +82,28 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     }
   }
   ps.bullets = ps.bullets.filter(b => b.alive);
+
+  // Physics block updates
+  for (const block of ps.blocks) {
+    if (!block.alive) continue;
+    updatePhysicsBlock(block, dt, 1);
+    block.pos = block.pos.add(block.vel.scale(dt));
+  }
+  resolveBlockWallCollisions(ps.blocks, ps.map, ps.blocks);
+  resolveBlockTankCollisions(ps.blocks, [ps.player, ps.enemy]);
+  resolveBlockBlockCollisions(ps.blocks);
+  // Block damage to enemy
+  for (const block of ps.blocks) {
+    if (!block.alive || block.vel.mag() < 30) continue;
+    if (ps.enemy.alive && ps.enemy.pos.dist(block.pos) < TANK_RADIUS + BLOCK_RADIUS + 4) {
+      takeDamage(ps.enemy, Math.round(block.vel.mag() * block.mass * 0.06));
+    }
+  }
+  // Freeze stopped blocks
+  for (const block of ps.blocks) {
+    if (block.vel.mag() < 2) block.vel = Vec2.zero();
+  }
+
   ps.skillMessageTime -= dt;
 
   // Clamp player to arena
@@ -127,10 +151,27 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
   drawSimpleTank(ctx, ps.enemy, '#ff6b4a', '#cc4422');
   drawSimpleTank(ctx, ps.player, '#4a9eff', '#2a6ecc');
 
+  // Physics blocks
+  for (const block of ps.blocks) {
+    if (!block.alive) continue;
+    const s = block.radius;
+    ctx.fillStyle = block.tileType === TileType.METAL ? '#666' : '#8B7355';
+    ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(block.pos.x - s, block.pos.y - s, s * 2, s * 2, 3); ctx.fill(); ctx.stroke();
+  }
+
+  // Exit button (visible)
+  const exitX = ax + aw - 82, exitY = ay + 6, exitW = 76, exitH = 24;
+  ctx.fillStyle = '#6a3a3a'; ctx.strokeStyle = '#ff6b4a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(exitX, exitY, exitW, exitH, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('⏹ 退出演习', exitX + exitW / 2, exitY + exitH / 2);
+
   // Labels
   ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
   ctx.fillText('🎯 靶子', ps.enemy.pos.x, ps.enemy.pos.y - 20);
-  ctx.fillText('WASD 鼠标 E技能', ax + aw / 2, ay + ah - 6);
+  ctx.fillText('WASD 鼠标 左键 E技能', ax + aw / 2, ay + ah - 6);
   if (ps.skillMessageTime > 0) {
     ctx.fillStyle = '#4ae0a0'; ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillText(ps.skillMessage, ax + aw / 2, ay + ah / 2);

@@ -138,7 +138,18 @@ function update(dt: number): void {
   } else if (app.screen === 'lobby') {
     updateLobby();
   } else if (app.screen === 'garage') {
-    updateGarage();
+    if (app.practice) {
+      updatePractice(app.practice, input, dt);
+      if (input.isMouseJustPressed()) {
+        const ax = 284, ay = 46, aw = 470;
+        const bx = ax + aw - 82, by = ay + 6;
+        if (input.mousePos.x >= bx && input.mousePos.x <= bx + 76 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
+          app.practice = null; app.garage.practiceMode = false;
+        }
+      }
+    } else {
+      updateGarage();
+    }
   } else if (app.screen === 'shop') {
     updateShop();
   } else if (app.screen === 'encyclopedia') {
@@ -227,26 +238,11 @@ function updateLobby(): void {
 // ============================================================
 
 function updateGarage(): void {
-  // Practice mode active — bypass normal garage UI
-  if (app.practice) {
-    updatePractice(app.practice, input, 0.016);
-    if (input.isMouseJustPressed()) {
-      // Check practice exit button (top-right of preview)
-      const px = 284, py = 46, pw = 470;
-      const bx = px + pw - 76, by = py + 4;
-      if (input.mousePos.x >= bx && input.mousePos.x <= bx + 70 && input.mousePos.y >= by && input.mousePos.y <= by + 22) {
-        app.practice = null;
-        app.garage.practiceMode = false;
-      }
-    }
-    return;
-  }
-
   if (input.isMouseJustPressed()) {
     // Practice button (top-right of preview area)
     const px = 284, py = 46, pw = 470;
-    const bx = px + pw - 76, by = py + 4;
-    if (input.mousePos.x >= bx && input.mousePos.x <= bx + 70 && input.mousePos.y >= by && input.mousePos.y <= by + 22) {
+    const bx = px + pw - 82, by = py + 6;
+    if (input.mousePos.x >= bx && input.mousePos.x <= bx + 76 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
       const config = getCurrentConfig(app.garage);
       if (config && app.garage.assemblyResult.valid) {
         app.garage.practiceMode = true;
