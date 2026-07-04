@@ -7,7 +7,7 @@ import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARREL
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
-import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
+import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
@@ -63,6 +63,8 @@ export interface SiegeState {
   screenShake: number;
   /** Pushed-out physics blocks (brick/metal sliding freely) */
   physicsBlocks: PhysicsBlock[];
+  /** U-key debug: show enemy vision/fire radii */
+  showDebug: boolean;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -96,6 +98,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     particles: [],
     screenShake: 0,
     physicsBlocks: [],
+    showDebug: false,
   };
 }
 
@@ -124,6 +127,10 @@ export function updateSiege(
   }
 
   state.elapsedTime += dt;
+  // U-key: toggle debug visualization
+  if (input.wasJustPressed('KeyU')) {
+    state.showDebug = !state.showDebug;
+  }
   // Decay screen shake
   state.screenShake = Math.max(0, state.screenShake - dt * 50);
   if (state.screenShake < 0.5) state.screenShake = 0;
@@ -354,7 +361,7 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
     state.enemies.push(enemy);
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    state.aiContexts.set(enemy.id, createAIContext(enemy, centerPos));
+    state.aiContexts.set(enemy.id, createAIContext(enemy, centerPos, 220, 150));
   }
 }
 
@@ -379,24 +386,21 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
       enemy.turretAngle = toTarget.angle();
     }
 
-    // Enemy fire logic
-    if (ctx.fireCooldown <= 0 && moveDir.x === 0 && moveDir.y === 0) {
-      // Enemy is aiming — fire toward target
-      if (toTarget.mag() < 400) {
-        const bullet = createBullet(
-          enemy.pos,
-          enemy.turretAngle,
-          enemy.config.barrel.stats.bulletStyle ?? 'straight',
-          enemy.config.barrel.stats.bulletSpeed ?? 350,
-          enemy.config.barrel.stats.bulletDamage ?? 25,
-          enemy.config.barrel.stats.bounces ?? 0,
-          enemy.config.barrel.stats.pierces ?? 0,
-          enemy.id,
-          false,
-        );
-        state.bullets.push(bullet);
-        ctx.fireCooldown = 2000 + Math.random() * 1000; // Enemies fire slower
-      }
+    // Enemy fire logic (AI state machine driven)
+    if (shouldFire(ctx, target)) {
+      const bullet = createBullet(
+        enemy.pos,
+        enemy.turretAngle,
+        enemy.config.barrel.stats.bulletStyle ?? 'straight',
+        enemy.config.barrel.stats.bulletSpeed ?? 350,
+        enemy.config.barrel.stats.bulletDamage ?? 25,
+        enemy.config.barrel.stats.bounces ?? 0,
+        enemy.config.barrel.stats.pierces ?? 0,
+        enemy.id,
+        false,
+      );
+      state.bullets.push(bullet);
+      ctx.fireCooldown = enemy.config.barrel.stats.cooldownMs ?? 2000;
     }
   }
 

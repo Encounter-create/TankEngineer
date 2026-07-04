@@ -1,233 +1,203 @@
 import { Vec2, Dir, DIR4 } from '../utils/Vector';
-import { CELL_SIZE, inBounds, pixelToGrid, manhattan } from '../utils/Grid';
+import { inBounds, pixelToGrid } from '../utils/Grid';
 import { TankEntity } from '../entities/Tank';
 import { TileGrid } from '../entities/Map';
 import { TileType } from '../utils/Grid';
 import { Random } from '../utils/Random';
 
-/** Behavior state for enemy tanks */
+// ============================================================
+// Enemy AI — patrol / chase / fire state machine
+// ============================================================
+
 export enum AIState {
-  MOVING_TO_TARGET,   // Path toward command center or player
-  AIMING,             // Lined up, about to fire
-  EVADING,            // Dodging after being hit
-  STUCK,              // Try to wiggle free
+  PATROL,   // Random wandering when player outside vision
+  CHASE,    // Move toward player when in vision but out of fire range
+  FIRE,     // Aim and shoot when player in fire range
 }
 
 export interface AIContext {
   tank: TankEntity;
   state: AIState;
-  stateTimer: number;        // ms remaining in current state
-  targetPos: Vec2;           // where it's trying to go
-  lastSeenPlayerPos: Vec2;   // last known player position
-  fireCooldown: number;      // ms until next fire check
-  stuckTimer: number;        // how long stuck
-  lastPos: Vec2;             // for stuck detection
+  stateTimer: number;          // ms remaining in current patrol direction
+  targetPos: Vec2;
+  lastSeenPlayerPos: Vec2;
+  fireCooldown: number;        // ms until next shot
+  stuckTimer: number;
+  lastPos: Vec2;
+  patrolDir: Vec2;             // current patrol direction
+  /** Vision radius — detects player within this range */
+  visionRadius: number;
+  /** Fire radius — starts shooting within this range */
+  fireRadius: number;
 }
 
-export function createAIContext(tank: TankEntity, targetPos: Vec2): AIContext {
+const rand = new Random();
+
+export function createAIContext(
+  tank: TankEntity,
+  targetPos: Vec2,
+  visionRadius: number = 220,
+  fireRadius: number = 150,
+): AIContext {
   return {
     tank,
-    state: AIState.MOVING_TO_TARGET,
-    stateTimer: 0,
+    state: AIState.PATROL,
+    stateTimer: 2000 + Math.random() * 2000,
     targetPos,
     lastSeenPlayerPos: targetPos,
     fireCooldown: 500 + Math.random() * 1000,
     stuckTimer: 0,
     lastPos: tank.pos,
+    patrolDir: rand.pick(DIR4),
+    visionRadius,
+    fireRadius,
   };
 }
 
-const rand = new Random();
+// ============================================================
+// Main update
+// ============================================================
 
-/** Update AI decision-making. Returns the desired move direction. */
 export function updateAI(ctx: AIContext, playerPos: Vec2, map: TileGrid, dt: number): Vec2 {
   const tank = ctx.tank;
-  // Only update last-seen position when player is visible (no wallhack)
-  if (hasLineOfSight(ctx.tank.pos, playerPos, map)) {
-    ctx.lastSeenPlayerPos = playerPos;
-  }
 
-  // Update stuck detection
+  // Stuck detection
   const moved = tank.pos.dist(ctx.lastPos);
   ctx.lastPos = tank.pos;
-  if (moved < 0.5) {
-    ctx.stuckTimer += dt * 1000;
-  } else {
-    ctx.stuckTimer = 0;
-  }
+  ctx.stuckTimer = moved < 1 ? ctx.stuckTimer + dt * 1000 : 0;
 
   ctx.fireCooldown -= dt * 1000;
   ctx.stateTimer -= dt * 1000;
 
-  // State transitions
-  if (ctx.stuckTimer > 1000) {
-    ctx.state = AIState.STUCK;
-    ctx.stateTimer = 500;
+  const distToPlayer = tank.pos.dist(playerPos);
+
+  // ---- State transitions ----
+  if (distToPlayer <= ctx.fireRadius) {
+    ctx.state = AIState.FIRE;
+  } else if (distToPlayer <= ctx.visionRadius) {
+    ctx.state = AIState.CHASE;
+  } else if (ctx.stuckTimer > 1500) {
+    ctx.state = AIState.PATROL;
+    ctx.patrolDir = rand.pick(DIR4);
+    ctx.stateTimer = 1500 + Math.random() * 1500;
     ctx.stuckTimer = 0;
   }
 
+  // Update last seen position when in vision
+  if (distToPlayer <= ctx.visionRadius) {
+    ctx.lastSeenPlayerPos = playerPos;
+  }
+
+  // ---- Execute state ----
   switch (ctx.state) {
-    case AIState.MOVING_TO_TARGET:
-      return moveToward(ctx, playerPos, map);
-    case AIState.AIMING:
-      return aimAndFire(ctx, playerPos, map);
-    case AIState.EVADING:
-      return evade(ctx, map, dt);
-    case AIState.STUCK:
-      return wiggle(ctx, map);
+    case AIState.PATROL:
+      return doPatrol(ctx, map);
+    case AIState.CHASE:
+      return doChase(ctx, playerPos, map);
+    case AIState.FIRE:
+      return doFire(ctx, playerPos, map);
     default:
       return Dir.NONE;
   }
 }
 
-function moveToward(ctx: AIContext, playerPos: Vec2, map: TileGrid): Vec2 {
-  // If we have line of sight to target, switch to aiming
-  if (hasLineOfSight(ctx.tank.pos, playerPos, map)) {
-    ctx.state = AIState.AIMING;
-    ctx.stateTimer = 1500;
-    return Dir.NONE;
+// ============================================================
+// Patrol — random wandering
+// ============================================================
+
+function doPatrol(ctx: AIContext, map: TileGrid): Vec2 {
+  // Pick new random direction periodically
+  if (ctx.stateTimer <= 0) {
+    ctx.patrolDir = rand.pick(DIR4);
+    ctx.stateTimer = 2000 + Math.random() * 3000;
   }
 
-  // Simple greedy pathfinding toward target
+  // Try to move in patrol direction
+  const myGrid = pixelToGrid(ctx.tank.pos.x, ctx.tank.pos.y);
+  const nx = myGrid.x + ctx.patrolDir.x;
+  const ny = myGrid.y + ctx.patrolDir.y;
+
+  if (inBounds(nx, ny)) {
+    const tile = map[ny][nx];
+    if (tile.type === TileType.EMPTY || (tile.type === TileType.BRICK && tile.hp <= 0)) {
+      return ctx.patrolDir;
+    }
+    if (tile.type === TileType.BRICK && ctx.tank.config.chassis.stats.crushWalls) {
+      return ctx.patrolDir;
+    }
+  }
+
+  // Blocked — pick new direction
+  ctx.patrolDir = rand.pick(DIR4);
+  ctx.stateTimer = 1000;
+  return Dir.NONE;
+}
+
+// ============================================================
+// Chase — move toward player
+// ============================================================
+
+function doChase(ctx: AIContext, playerPos: Vec2, map: TileGrid): Vec2 {
   const myGrid = pixelToGrid(ctx.tank.pos.x, ctx.tank.pos.y);
   const targetGrid = pixelToGrid(playerPos.x, playerPos.y);
 
-  // Try all 4 directions, pick the one that reduces manhattan distance
-  // and is passable
+  // Greedy pathfinding toward player
   const candidates = DIR4.map(dir => {
-    const nx = myGrid.x + dir.x;
-    const ny = myGrid.y + dir.y;
+    const nx = myGrid.x + dir.x, ny = myGrid.y + dir.y;
     if (!inBounds(nx, ny)) return { dir, score: Infinity };
     const tile = map[ny][nx];
-    if (tile.type === TileType.METAL) {
+    if (tile.type === TileType.METAL) return { dir, score: Infinity };
+    if (tile.type === TileType.BRICK && tile.hp > 0) {
+      if (ctx.tank.config.chassis.stats.crushWalls) return { dir, score: Math.abs(nx - targetGrid.x) + Math.abs(ny - targetGrid.y) + 3 };
       return { dir, score: Infinity };
     }
-    if (tile.type === TileType.BRICK) {
-      if (tile.hp <= 0) {
-        return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) };
-      }
-      if (ctx.tank.config.chassis.stats.crushWalls) {
-        return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) + 2 };
-      }
-      return { dir, score: Infinity };
-    }
-    return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) };
+    return { dir, score: Math.abs(nx - targetGrid.x) + Math.abs(ny - targetGrid.y) };
   });
 
-  // Sort by score, pick best
   candidates.sort((a, b) => a.score - b.score);
-
-  // Add some randomness: if best score isn't much better than second, randomly pick
-  const bestScore = candidates[0].score;
-  const goodOptions = candidates.filter(c => c.score <= bestScore + 2);
-
-  return rand.pick(goodOptions).dir;
+  if (candidates[0].score === Infinity) return Dir.NONE;
+  return candidates[0].dir;
 }
 
-function aimAndFire(ctx: AIContext, playerPos: Vec2, _map: TileGrid): Vec2 {
-  // Turret is aimed externally in handleEnemyAI
+// ============================================================
+// Fire — aim and shoot
+// ============================================================
 
-  // Fire if cooldown allows and we have line of sight
-  if (ctx.fireCooldown <= 0 && hasLineOfSight(ctx.tank.pos, playerPos, _map)) {
-    ctx.fireCooldown = ctx.tank.config.barrel.stats.cooldownMs ?? 1000;
-    ctx.state = AIState.MOVING_TO_TARGET; // cycle after shooting
-    return Dir.NONE; // signal to fire — handled in Siege mode
-  }
+function doFire(ctx: AIContext, playerPos: Vec2, map: TileGrid): Vec2 {
+  // Face the player
+  const toPlayer = playerPos.sub(ctx.tank.pos);
+  ctx.tank.turretAngle = toPlayer.angle();
 
-  // Strafe slightly to keep distance
-  const dist = ctx.tank.pos.dist(playerPos);
-  if (dist < 5 * CELL_SIZE) {
-    // Too close, back away
+  // Strafe to maintain distance
+  const dist = toPlayer.mag();
+  if (dist < ctx.fireRadius * 0.5) {
+    // Too close — back away
     const away = ctx.tank.pos.sub(playerPos).norm();
-    return avoidWalls(away, ctx.tank.pos, _map);
-  }
-
-  if (ctx.stateTimer <= 0) {
-    ctx.state = AIState.MOVING_TO_TARGET;
+    return avoidWalls(away, ctx.tank.pos, map);
   }
 
   return Dir.NONE;
 }
 
-function evade(ctx: AIContext, map: TileGrid, _dt: number): Vec2 {
-  // Move perpendicular to line toward player
-  const toPlayer = ctx.tank.pos.sub(ctx.lastSeenPlayerPos);
-  const perp = new Vec2(-toPlayer.y, toPlayer.x).norm();
-  const result = avoidWalls(perp, ctx.tank.pos, map);
-
-  if (ctx.stateTimer <= 0) {
-    ctx.state = AIState.MOVING_TO_TARGET;
-  }
-  return result;
-}
-
-function wiggle(ctx: AIContext, _map: TileGrid): Vec2 {
-  const dirs = [Dir.UP, Dir.DOWN, Dir.LEFT, Dir.RIGHT];
-  const choice = rand.pick(dirs);
-
-  if (ctx.stateTimer <= 0) {
-    ctx.state = AIState.MOVING_TO_TARGET;
-  }
-  return choice;
-}
-
-/** Check if there's an unobstructed line between two points */
-function hasLineOfSight(from: Vec2, to: Vec2, map: TileGrid): boolean {
-  const dir = to.sub(from);
-  const dist = dir.mag();
-  // Same position — no obstruction possible
-  if (dist < 0.01) return true;
-  const step = dir.norm().scale(CELL_SIZE / 2);
-  const steps = Math.ceil(dist / (CELL_SIZE / 2));
-  let pos = from;
-
-  for (let i = 0; i < steps; i++) {
-    pos = pos.add(step);
-    const gx = Math.floor(pos.x / CELL_SIZE);
-    const gy = Math.floor(pos.y / CELL_SIZE);
-    if (!inBounds(gx, gy)) return false;
-    const tile = map[gy][gx];
-    if (tile.type === TileType.METAL || (tile.type === TileType.BRICK && tile.hp > 0)) {
-      return false;
-    }
-  }
-  return true;
-}
+// ============================================================
+// Helpers
+// ============================================================
 
 function avoidWalls(desiredDir: Vec2, pos: Vec2, map: TileGrid): Vec2 {
-  // Try desired direction; if blocked, try adjacent
   const myGrid = pixelToGrid(pos.x, pos.y);
   const nx = myGrid.x + Math.round(desiredDir.x);
   const ny = myGrid.y + Math.round(desiredDir.y);
-
   if (inBounds(nx, ny)) {
     const tile = map[ny][nx];
-    if (tile.type === TileType.EMPTY || (tile.type === TileType.BRICK && tile.hp <= 0)) {
-      return desiredDir;
-    }
+    if (tile.type === TileType.EMPTY || (tile.type === TileType.BRICK && tile.hp <= 0)) return desiredDir;
   }
-
-  // Try clockwise rotation
-  const rotCW = new Vec2(-desiredDir.y, desiredDir.x);
-  const nxCw = myGrid.x + Math.round(rotCW.x);
-  const nyCw = myGrid.y + Math.round(rotCW.y);
-  if (inBounds(nxCw, nyCw)) {
-    const tile = map[nyCw][nxCw];
-    if (tile.type === TileType.EMPTY || (tile.type === TileType.BRICK && tile.hp <= 0)) {
-      return rotCW;
-    }
-  }
-
-  // Try counter-clockwise
-  const rotCCW = new Vec2(desiredDir.y, -desiredDir.x);
-  const nxCCW = myGrid.x + Math.round(rotCCW.x);
-  const nyCCW = myGrid.y + Math.round(rotCCW.y);
-  if (inBounds(nxCCW, nyCCW)) {
-    const tile = map[nyCCW][nxCCW];
-    if (tile.type === TileType.EMPTY || (tile.type === TileType.BRICK && tile.hp <= 0)) {
-      return rotCCW;
-    }
-  }
-
-  return Dir.NONE; // completely boxed in
+  return Dir.NONE;
 }
+
+/** Check if enemy can fire (used by Siege.ts) */
+export function shouldFire(ctx: AIContext, playerPos: Vec2): boolean {
+  if (ctx.fireCooldown > 0) return false;
+  const dist = ctx.tank.pos.dist(playerPos);
+  return dist <= ctx.fireRadius;
+}
+

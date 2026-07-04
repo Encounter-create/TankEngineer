@@ -61,6 +61,25 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const enemy of state.enemies) {
     drawTank(ctx, enemy);
+    // U-key debug: vision/fire radii
+    if (state.showDebug) {
+      const ctx2 = state.aiContexts?.get(enemy.id);
+      if (ctx2) {
+        // Fire radius (inner, red)
+        ctx.strokeStyle = 'rgba(255,80,50,0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(enemy.pos.x, enemy.pos.y, ctx2.fireRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        // Vision radius (outer, blue)
+        ctx.strokeStyle = 'rgba(74,158,255,0.4)';
+        ctx.beginPath();
+        ctx.arc(enemy.pos.x, enemy.pos.y, ctx2.visionRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
   }
   for (const block of state.physicsBlocks) {
     drawPhysicsBlock(ctx, block);
