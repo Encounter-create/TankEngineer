@@ -80,7 +80,7 @@ export function takeDamage(tank: TankEntity, rawDamage: number): number {
 }
 
 /** Tank radius in pixels for collision */
-export const TANK_RADIUS = CELL_SIZE / 2 - 2; // 14px, fits inside a cell
+export const TANK_RADIUS = CELL_SIZE - 4; // 28px, doubled for visual impact
 
 // ============================================================
 // Physics constants

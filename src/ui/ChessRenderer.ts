@@ -70,23 +70,43 @@ export function renderChess(ctx: CanvasRenderingContext2D, state: ChessState): v
 function drawChessTank(ctx: CanvasRenderingContext2D, t: ChessTank, isPlayer: boolean, selected: boolean): void {
   if (!t.alive) return;
   const { x, y } = chessGridToPixel(t.gridX, t.gridY);
-  const r = CHESS_CELL * 0.35;
+  const r = CHESS_CELL * 0.4;
+  const phi = 0.618;
 
-  // Body
+  // Body (golden ratio)
+  const bw = r * 2;
+  const bh = bw * phi;
   ctx.fillStyle = isPlayer ? '#4a9eff' : '#ff6b4a';
   ctx.strokeStyle = selected ? '#fff' : (isPlayer ? '#2a6ecc' : '#cc4422');
   ctx.lineWidth = selected ? 2.5 : 1.5;
-  roundRect(ctx, x - r, y - r * 0.6, r * 2, r * 1.2, 4);
+  roundRect(ctx, x - bw/2, y - bh/2, bw, bh, bh * 0.3);
   ctx.fill();
   ctx.stroke();
 
-  // Barrel (pointing right for player, left for AI)
+  // Turret (triangle for player, pentagon for AI)
+  const turretR = r * 0.55;
+  ctx.fillStyle = isPlayer ? '#88bbee' : '#ff8866';
+  ctx.strokeStyle = isPlayer ? '#5588aa' : '#aa4422';
+  ctx.lineWidth = 1.5;
+  const sides = isPlayer ? 3 : 5;
+  ctx.beginPath();
+  for (let i = 0; i < sides; i++) {
+    const a = (Math.PI * 2 / sides) * i - Math.PI / 2;
+    const px = x + Math.cos(a) * turretR;
+    const py = y + Math.sin(a) * turretR;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Barrel
   ctx.fillStyle = '#222';
-  const barrelLen = r * 1.1;
+  const barrelLen = r * 1.2;
   if (isPlayer) {
-    ctx.fillRect(x + r * 0.2, y - 3, barrelLen, 6);
+    ctx.fillRect(x + r * 0.3, y - 3, barrelLen, 6);
   } else {
-    ctx.fillRect(x - r * 0.2 - barrelLen, y - 3, barrelLen, 6);
+    ctx.fillRect(x - r * 0.3 - barrelLen, y - 3, barrelLen, 6);
   }
 
   // Selected highlight
