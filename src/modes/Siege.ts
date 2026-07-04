@@ -88,6 +88,8 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
   const player = createTank('player', centerPos, playerConfig, true);
+  player.hp = player.maxHp * 3; // player HP buff
+  player.maxHp = player.hp;
 
   return {
     phase: 'intro',
@@ -150,7 +152,7 @@ export function updateSiege(
   if (input.wasJustPressed('KeyU')) {
     state.showDebug = !state.showDebug;
   }
-  // O-key: spawn boss
+  // O-key: spawn boss with WARNING
   if (input.wasJustPressed('KeyO')) {
     const bossConfig = assembleTank(
       MVP_BARRELS.find(p => p.id === 'barrel_gatling')!,
@@ -162,6 +164,8 @@ export function updateSiege(
     boss.hp = boss.maxHp * 2; boss.maxHp = boss.hp;
     state.enemies.push(boss);
     state.aiContexts.set(boss.id, createAIContext(boss, gridToPixel(Math.floor(MAP_COLS/2), Math.floor(MAP_ROWS/2))));
+    state.waveAnnouncement = '⚠ WARNING! WARNING! ⚠';
+    state.waveAnnouncementTime = 2.5;
   }
   // Decay screen shake
   state.screenShake = Math.max(0, state.screenShake - dt * 50);
@@ -175,6 +179,16 @@ export function updateSiege(
 
   // Spawn waves
   spawnWaves(state);
+
+  // Auto-advance if all enemies in current wave are dead
+  const noAliveEnemies = state.enemies.every(e => !e.alive);
+  if (noAliveEnemies && state.wavesSpawned < TOTAL_WAVES && state.wavesSpawned > 0) {
+    // Advance to next wave immediately
+    const nextWave = WAVES[state.wavesSpawned];
+    if (nextWave && state.elapsedTime < nextWave.timeStart) {
+      state.elapsedTime = nextWave.timeStart;
+    }
+  }
 
   // Player movement
   handlePlayerInput(state, input, dt);
@@ -352,7 +366,7 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
 
     const bulletStyle = cfg.barrel.stats.bulletStyle ?? 'straight';
     const bulletSpeed = cfg.barrel.stats.bulletSpeed ?? 400;
-    const bulletDamage = cfg.barrel.stats.bulletDamage ?? 35;
+    const bulletDamage = (cfg.barrel.stats.bulletDamage ?? 35) * 2; // player buff
     const bounces = cfg.barrel.stats.bounces ?? 0;
     const pierces = cfg.barrel.stats.pierces ?? 0;
 

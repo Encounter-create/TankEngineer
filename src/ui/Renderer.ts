@@ -645,12 +645,17 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   const primary = tank.isPlayer ? C.PLAYER : (isBoss ? '#ffaa33' : C.ENEMY);
   const dark = tank.isPlayer ? C.PLAYER_DARK : (isBoss ? '#cc7700' : C.ENEMY_DARK);
 
-  // Boss glow
+  // Boss glow + label
   if (isBoss) {
     ctx.fillStyle = 'rgba(255,170,50,0.15)';
     ctx.beginPath();
     ctx.arc(x, y, r + 6, 0, Math.PI * 2);
     ctx.fill();
+    // MONSTER label
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('MONSTER', x, y - r - 16);
   }
   const chassisId = tank.config.chassis.id;
   const turretId = tank.config.turret.id;
