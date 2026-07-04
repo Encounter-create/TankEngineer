@@ -10,7 +10,7 @@ import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/Phys
 import { activateSkill } from '../systems/Commander';
 import { Input } from '../core/Input';
 import { Vec2 } from '../utils/Vector';
-import { drawTank } from '../ui/Renderer';
+import { drawTank, drawFireZone } from '../ui/Renderer';
 
 export interface PracticeState {
   player: TankEntity; enemy: TankEntity;
@@ -157,6 +157,7 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
 
   for (const b of ps.blocks) { if (!b.alive) continue; const s = b.radius; ctx.fillStyle = b.tileType === TileType.METAL ? '#666' : '#8B7355'; ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(b.pos.x - s, b.pos.y - s, s * 2, s * 2, 3); ctx.fill(); ctx.stroke(); }
 
+  for (const z of ps.fireZones) { drawFireZone(ctx, z); }
   drawTank(ctx, ps.enemy); drawTank(ctx, ps.player);
 
   for (const b of ps.bullets) { if (b.alive) { ctx.fillStyle = '#ffcc44'; ctx.beginPath(); ctx.arc(b.pos.x, b.pos.y, 3, 0, Math.PI * 2); ctx.fill(); } }

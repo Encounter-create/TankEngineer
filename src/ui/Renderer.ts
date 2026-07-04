@@ -773,7 +773,7 @@ function drawWaveAnnouncement(ctx: CanvasRenderingContext2D, state: SiegeState):
   ctx.restore();
 }
 
-function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): void {
+export function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): void {
   if (!zone.alive) return;
   const alpha = zone.lifetime / zone.maxLifetime;
   // Outer glow
