@@ -1,11 +1,11 @@
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, inBounds, gridToPixel } from '../utils/Grid';
+import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage } from '../entities/Tank';
-import { BulletEntity, createBullet, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
+import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
-import { PhysicsBlock, updatePhysicsBlock } from '../entities/PhysicsBlock';
+import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
@@ -430,20 +430,11 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Block ↔ block
   resolveBlockBlockCollisions(state.physicsBlocks);
 
-  // Remove dead/slow blocks (reabsorb into map if near a grid center)
+  // Freeze stopped blocks at their exact position
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
     if (block.vel.mag() < 2) {
-      // Snap back to nearest empty grid cell
-      const gx = Math.round((block.pos.x - CELL_SIZE/2) / CELL_SIZE);
-      const gy = Math.round((block.pos.y - CELL_SIZE/2) / CELL_SIZE);
-      if (inBounds(gx, gy) && state.map[gy][gx].type === TileType.EMPTY) {
-        state.map[gy][gx] = {
-          type: block.tileType,
-          hp: block.tileType === TileType.BRICK ? 1 : -1,
-        };
-        block.alive = false;
-      }
+      block.vel = Vec2.zero();
     }
   }
 
@@ -459,6 +450,19 @@ function handleBullets(state: SiegeState, dt: number): void {
 
   for (const bullet of state.bullets) {
     if (!bullet.alive) continue;
+
+    // Check collision with physics blocks
+    let hitBlock = false;
+    for (const block of state.physicsBlocks) {
+      if (!block.alive) continue;
+      if (bullet.pos.dist(block.pos) < BLOCK_RADIUS + BULLET_RADIUS) {
+        bullet.alive = false;
+        state.particles.push(...spawnParticles(bullet.pos, 'impact', 6, 80));
+        hitBlock = true;
+        break;
+      }
+    }
+    if (hitBlock) continue;
 
     // Firework: timer for child spawns, auto-destruct
     if (bullet.style === 'firework') {
