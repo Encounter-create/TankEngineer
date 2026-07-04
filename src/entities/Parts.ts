@@ -161,7 +161,7 @@ export const MVP_BARRELS: Part[] = [
       bulletSpeed: 800,
       bounces: 0,
       pierces: 0,
-      cooldownMs: 4000,
+      cooldownMs: 2000,
     },
   },
   {

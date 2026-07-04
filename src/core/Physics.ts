@@ -360,6 +360,11 @@ export function moveBullet(
       if (bullet.style === 'arc' && col.tileType === TileType.BRICK) {
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
+      // Sniper (damage >= 500): ALWAYS destroys walls and continues — never bounces
+      if (bullet.damage >= 500) {
+        map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+        bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
       // Pierce: chip brick HP, bullet continues
       if (bullet.style === 'pierce' && col.tileType === TileType.BRICK && bullet.piercesLeft > 0) {
         bullet.piercesLeft--;
@@ -367,7 +372,7 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Bounce: don't damage brick, just reflect
+      // Bounce: don't damage brick, just reflect (regular bullets, NOT sniper)
       if (bullet.bouncesLeft > 0) {
         bullet.bouncesLeft--;
         bullet.bounceCount++;
@@ -375,11 +380,6 @@ export function moveBullet(
         bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
         bullet.damage = Math.round(bullet.damage * 0.8);
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
-      }
-      // Sniper (damage >= 500): destroys anything including metal
-      if (bullet.damage >= 500) {
-        map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
-        bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
       // Metal: only sniper can damage it
       if (col.tileType === TileType.METAL) {
