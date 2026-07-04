@@ -183,7 +183,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   }
 
   const moveDir = input.getMoveDir();
-  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks);
+  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
   // Turret follows mouse cursor
   const toMouse = input.mousePos.sub(state.player.pos);
@@ -371,7 +371,7 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
 
     const moveDir = updateAI(ctx, target, state.map, dt);
-    moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks);
+    moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
     // Turret follows target
     const toTarget = target.sub(enemy.pos);

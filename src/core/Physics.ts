@@ -85,6 +85,7 @@ function separateBodies(a: CollisionBody, b: CollisionBody, normal: Vec2, overla
 export function moveTank(
   tank: TankEntity, moveDir: Vec2, dt: number, map: TileGrid,
   newBlocks: PhysicsBlock[],
+  allBlocks: PhysicsBlock[],
 ): void {
   const maxSpeed = effectiveSpeed(tank.config) * getSkillSpeedMultiplier(tank);
   const isMoving = moveDir.x !== 0 || moveDir.y !== 0;
@@ -122,11 +123,42 @@ export function moveTank(
   if (tank.vel.mag() > 0) {
     const desired = tank.pos.add(tank.vel.scale(dt));
     const clamped = clampToMapBounds(desired);
-    const col = checkTileCollision(clamped, TANK_RADIUS, map);
 
-    if (!col.hit) {
+    // Check map grid
+    const col = checkTileCollision(clamped, TANK_RADIUS, map);
+    // Check physics blocks
+    let blockCol: { block: PhysicsBlock; normal: Vec2 } | null = null;
+    for (const b of allBlocks) {
+      if (!b.alive) continue;
+      const diff = clamped.sub(b.pos);
+      const dist = diff.mag();
+      if (dist < TANK_RADIUS + b.radius) {
+        blockCol = { block: b, normal: dist > 0.01 ? diff.norm() : new Vec2(1, 0) };
+        break;
+      }
+    }
+
+    if (!col.hit && !blockCol) {
       tank.pos = clamped;
+    } else if (blockCol && (!col.hit || true)) {
+      // Elastic collision with physics block
+      const normal = blockCol.normal;
+      const velDotNormal = tank.vel.dot(normal);
+      if (velDotNormal < 0) {
+        const tankMass = tank.config.totalWeight;
+        const blockMass = blockCol.block.mass;
+        const v1n = -velDotNormal;
+        const v1nPrime = (tankMass - blockMass) / (tankMass + blockMass) * v1n;
+        const v2nPrime = 2 * tankMass / (tankMass + blockMass) * v1n;
+        tank.vel = tank.vel.sub(normal.scale(velDotNormal));
+        tank.vel = tank.vel.add(normal.scale(-v1nPrime));
+        blockCol.block.vel = blockCol.block.vel.add(normal.scale(-v2nPrime));
+      }
+      // Slide
+      const slidePos = tank.pos.add(tank.vel.scale(dt));
+      tank.pos = clampToMapBounds(slidePos);
     } else {
+      // Map wall collision (momentum transfer to tile)
       const normal = col.normal;
       const velDotNormal = tank.vel.dot(normal);
       if (velDotNormal < 0) {
