@@ -44,8 +44,24 @@ export function activateSkill(tank: TankEntity): AbilityResult {
 
     case 'commander_smoke':
       tank.skillCooldownUntil = now + cdMs;
-      tank.skillActiveUntil = now + 3000; // 3s duration
+      tank.skillActiveUntil = now + 3000;
       return { success: true, message: '烟雾弹 3s' };
+
+    case 'commander_colonel':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '轰炸机出击！' };
+
+    case 'commander_engineer':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '炮塔已部署' };
+
+    case 'commander_wizard':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '亡灵复苏！' };
+
+    case 'commander_ninja':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '分身出击！' };
 
     default:
       return { success: false, message: '未知技能' };
