@@ -1,7 +1,8 @@
 // Practice mode — mini sandbox reusing real game systems
 import { TankEntity, createTank, takeDamage, TANK_RADIUS } from '../entities/Tank';
 import { TankConfig } from '../entities/Parts';
-import { BulletEntity, createBullet } from '../entities/Bullet';
+import { BulletEntity, createBullet, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
+import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
 import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS } from '../utils/Grid';
 import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
@@ -14,6 +15,7 @@ import { drawTank } from '../ui/Renderer';
 export interface PracticeState {
   player: TankEntity; enemy: TankEntity;
   bullets: BulletEntity[]; blocks: PhysicsBlock[];
+  fireZones: FireZone[];
   map: TileGrid;
   arenaX: number; arenaY: number; arenaW: number; arenaH: number;
   skillMessage: string; skillMessageTime: number;
@@ -29,7 +31,7 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
   }
   const player = createTank('practice_p', new Vec2(ax + aw * 0.2, ay + ah * 0.5), config, true);
   const enemy = createTank('practice_e', new Vec2(ax + aw * 0.75, ay + ah * 0.35), config, false);
-  return { player, enemy, bullets: [], blocks: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
+  return { player, enemy, bullets: [], blocks: [], fireZones: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
 }
 
 export function updatePractice(ps: PracticeState, input: Input, dt: number): void {
@@ -44,10 +46,14 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     if (ps.player.cooldownRemaining <= 0) {
       const cfg = ps.player.config;
       ps.player.cooldownRemaining = cfg.barrel.stats.cooldownMs ?? 800;
-      ps.bullets.push(createBullet(ps.player.pos, ps.player.turretAngle,
+      const bullet = createBullet(ps.player.pos, ps.player.turretAngle,
         cfg.barrel.stats.bulletStyle ?? 'straight', cfg.barrel.stats.bulletSpeed ?? 400,
         cfg.barrel.stats.bulletDamage ?? 35, cfg.barrel.stats.bounces ?? 0, cfg.barrel.stats.pierces ?? 0,
-        ps.player.id, true));
+        ps.player.id, true);
+      if (bullet.style === 'firework') { bullet.fireworkLife = FIREWORK_MAX_LIFE; bullet.fireworkTimer = 0.25; }
+      // Rocket: target the enemy
+      if (bullet.style === 'rocket') { bullet.targetPos = ps.enemy.pos; }
+      ps.bullets.push(bullet);
     }
   }
   ps.player.cooldownRemaining -= dt * 1000;
@@ -57,8 +63,63 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     ps.skillMessage = r.message; ps.skillMessageTime = 2;
   }
 
-  for (const b of ps.bullets) { if (b.alive) { moveBullet(b, dt, ps.map); if (b.alive && b.isPlayerBullet && checkBulletTankHit(b, ps.enemy)) { takeDamage(ps.enemy, b.damage); b.alive = false; } } }
+  // Bullets with type-specific handling (rocket, firework, orbital, arc)
+  const newBullets: BulletEntity[] = [];
+  for (const b of ps.bullets) {
+    if (!b.alive) continue;
+
+    // Rocket: steer toward enemy
+    if (b.style === 'rocket') {
+      const toTarget = ps.enemy.pos.sub(b.pos);
+      b.vel = toTarget.norm().scale(b.vel.mag());
+    }
+
+    // Firework: periodic child spawn + lifetime
+    if (b.style === 'firework') {
+      b.fireworkTimer -= dt;
+      b.fireworkLife -= dt;
+      if (b.fireworkLife <= 0) { b.alive = false; continue; }
+      if (b.fireworkTimer <= 0) {
+        b.fireworkTimer = FIREWORK_INTERVAL;
+        for (let i = 0; i < FIREWORK_CHILD_COUNT; i++) {
+          const a = (Math.PI * 2 / FIREWORK_CHILD_COUNT) * i;
+          newBullets.push(createBullet(b.pos, a, 'straight', 110, 7, 0, 0, b.ownerId, b.isPlayerBullet));
+        }
+      }
+    }
+
+    // Orbital: update rotation
+    if (b.style === 'orbital') {
+      b.orbitalAngle += dt * 14;
+    }
+
+    moveBullet(b, dt, ps.map);
+
+    if (!b.alive) continue;
+
+    // Rocket/arc already handled by moveBullet above
+
+    // Hit enemy
+    if (b.isPlayerBullet && checkBulletTankHit(b, ps.enemy)) {
+      takeDamage(ps.enemy, b.damage);
+      b.alive = false;
+      // Rocket explosion
+      if (b.style === 'rocket') {
+        ps.fireZones.push(createFireZone(b.pos, 40, 2, 15));
+        takeDamage(ps.enemy, 40);
+      }
+    }
+  }
+  for (const nb of newBullets) ps.bullets.push(nb);
   ps.bullets = ps.bullets.filter(b => b.alive);
+
+  // Fire zones
+  if (!ps.fireZones) (ps as any).fireZones = [];
+  for (const z of ps.fireZones) {
+    updateFireZone(z, dt);
+    if (z.alive && ps.enemy.alive && ps.enemy.pos.dist(z.pos) < z.radius) ps.enemy.hp -= z.dps * dt;
+  }
+  ps.fireZones = ps.fireZones.filter((z: FireZone) => z.alive);
 
   for (const b of ps.blocks) {
     if (!b.alive) continue;
