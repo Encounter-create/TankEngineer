@@ -353,17 +353,30 @@ function drawDetailTooltip(ctx: CanvasRenderingContext2D, _w: number, h: number,
     }
   }
 
-  // Description
-  ctx.fillStyle = '#888';
-  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.fillText(part.description.slice(0, 12), tx + tw / 2, lineY + 12);
+  // Description (word-wrapped)
+  const descWords = part.description.split('');
+  const charsPerLine = 14; // fit in 180px panel
+  let descLine = '';
+  let descLines: string[] = [];
+  for (const ch of descWords) {
+    descLine += ch;
+    if (descLine.length >= charsPerLine) { descLines.push(descLine); descLine = ''; }
+  }
+  if (descLine) descLines.push(descLine);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+  for (const dl of descLines) {
+    ctx.fillText(dl, tx + tw / 2, lineY + 14);
+    lineY += 16;
+  }
 
   // Synergy hint
   const hint = getPartHint(part);
   if (hint) {
     ctx.fillStyle = hint.color;
     ctx.font = 'bold 10px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(hint.text, tx + tw / 2, lineY + 30);
+    ctx.fillText(hint.text, tx + tw / 2, lineY + 4);
   }
 }
 
