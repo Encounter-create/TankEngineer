@@ -368,8 +368,7 @@ export function moveBullet(
         const tangent = new Vec2(-col.normal.y, col.normal.x);
         const vAlong = bullet.vel.dot(tangent);
         bullet.vel = tangent.scale(Math.sign(vAlong || 1) * bullet.vel.mag());
-        // Push bullet away from wall to prevent re-collision on same tile
-        bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 2));
+        bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
       // Sniper (damage >= 500): ALWAYS destroys walls and continues — never bounces
