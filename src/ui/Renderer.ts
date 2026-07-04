@@ -104,27 +104,30 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const ally of state.allies) {
     drawTank(ctx, ally);
-    // U-key debug: ninja clone circles
-    if (state.showDebug && ally.aiMode === 'follow_player' && ally.alive) {
-      // Follow radius (inner, green)
-      ctx.strokeStyle = 'rgba(74,224,160,0.5)';
+    // U-key debug: ally circles
+    if (state.showDebug && ally.alive) {
+      // Vision radius (outer, yellow for ninja / cyan for wizard)
+      const vColor = ally.aiMode === 'follow_player' ? 'rgba(255,200,50,0.5)' : 'rgba(100,200,255,0.5)';
+      ctx.strokeStyle = vColor;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.arc(ally.pos.x, ally.pos.y, ally.followRadius, 0, Math.PI * 2);
-      ctx.stroke();
-      // Vision radius (outer, yellow)
-      ctx.strokeStyle = 'rgba(255,200,50,0.5)';
-      ctx.beginPath();
       ctx.arc(ally.pos.x, ally.pos.y, ally.visionRadius, 0, Math.PI * 2);
       ctx.stroke();
+      // Follow radius for ninja clones
+      if (ally.aiMode === 'follow_player') {
+        ctx.strokeStyle = 'rgba(74,224,160,0.5)';
+        ctx.beginPath();
+        ctx.arc(ally.pos.x, ally.pos.y, ally.followRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.setLineDash([]);
-      // State label
       const labels: Record<string, string> = { follow: '追随', scout: '侦察', fire: '开火' };
       ctx.fillStyle = '#fff';
       ctx.font = '10px monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(labels[ally.aiState] ?? '', ally.pos.x + ally.visionRadius + 4, ally.pos.y);
+      const label = ally.aiMode === 'follow_player' ? labels[ally.aiState] ?? '' : ally.aiState;
+      ctx.fillText(label, ally.pos.x + ally.visionRadius + 4, ally.pos.y);
     }
   }
   for (const turret of state.turrets) {
