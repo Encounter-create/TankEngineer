@@ -78,6 +78,10 @@ export class Shop {
     const part = Inventory.getPart(partId);
     if (!part) return { success: false, reason: '零件不存在' };
 
+    if (!this.inventory.data.shopPartIds.includes(partId)) {
+      return { success: false, reason: '该零件不在今日商店中' };
+    }
+
     if (this.inventory.owns(partId)) {
       return { success: false, reason: '已拥有该零件' };
     }

@@ -37,7 +37,14 @@ export class Inventory {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        return { ...defaultInventory(), ...parsed };
+        // Validate critical fields to prevent corruption crash
+        if (
+          typeof parsed.gold === 'number' &&
+          Array.isArray(parsed.ownedPartIds) &&
+          Array.isArray(parsed.shopPartIds)
+        ) {
+          return { ...defaultInventory(), ...parsed };
+        }
       }
     } catch {
       // corrupted data, reset

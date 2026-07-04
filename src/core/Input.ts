@@ -8,6 +8,10 @@ export class Input {
 
   constructor() {
     window.addEventListener('keydown', (e) => {
+      // Mark as just-pressed immediately (no 1-frame delay)
+      if (!this.keys.has(e.code)) {
+        this.justPressed.add(e.code);
+      }
       this.keys.add(e.code);
       e.preventDefault();
     });

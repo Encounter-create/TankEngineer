@@ -42,7 +42,10 @@ const rand = new Random();
 /** Update AI decision-making. Returns the desired move direction. */
 export function updateAI(ctx: AIContext, playerPos: Vec2, map: TileGrid, dt: number): Vec2 {
   const tank = ctx.tank;
-  ctx.lastSeenPlayerPos = playerPos;
+  // Only update last-seen position when player is visible (no wallhack)
+  if (hasLineOfSight(ctx.tank.pos, playerPos, map)) {
+    ctx.lastSeenPlayerPos = playerPos;
+  }
 
   // Update stuck detection
   const moved = tank.pos.dist(ctx.lastPos);
@@ -96,12 +99,17 @@ function moveToward(ctx: AIContext, playerPos: Vec2, map: TileGrid): Vec2 {
     const ny = myGrid.y + dir.y;
     if (!inBounds(nx, ny)) return { dir, score: Infinity };
     const tile = map[ny][nx];
-    if (tile.type !== TileType.EMPTY && tile.type !== TileType.BRICK) {
+    if (tile.type === TileType.METAL) {
       return { dir, score: Infinity };
     }
-    if (tile.type === TileType.BRICK && ctx.tank.config.chassis.stats.crushWalls) {
-      // Heavy tank can crush, still prefer not to
-      return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) + 2 };
+    if (tile.type === TileType.BRICK) {
+      if (tile.hp <= 0) {
+        return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) };
+      }
+      if (ctx.tank.config.chassis.stats.crushWalls) {
+        return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) + 2 };
+      }
+      return { dir, score: Infinity };
     }
     return { dir, score: manhattan(new Vec2(nx, ny), targetGrid) };
   });
@@ -169,6 +177,8 @@ function wiggle(ctx: AIContext, _map: TileGrid): Vec2 {
 function hasLineOfSight(from: Vec2, to: Vec2, map: TileGrid): boolean {
   const dir = to.sub(from);
   const dist = dir.mag();
+  // Same position — no obstruction possible
+  if (dist < 0.01) return true;
   const step = dir.norm().scale(CELL_SIZE / 2);
   const steps = Math.ceil(dist / (CELL_SIZE / 2));
   let pos = from;

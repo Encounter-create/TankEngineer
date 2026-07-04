@@ -18,7 +18,6 @@ import {
 import {
   ShopUIState,
   createShopUIState,
-  refreshShop,
   attemptBuy,
   renderShop,
 } from './ui/ShopUI';
@@ -93,7 +92,7 @@ function update(dt: number): void {
       break;
     case 'siege':
       if (app.siege) {
-        updateSiege(app.siege, input, dt, app.inventory);
+        updateSiege(app.siege, input, dt);
         handleSiegeTransitions();
       }
       break;
@@ -166,7 +165,7 @@ function updateGarage(_dt: number): void {
   if (input.wasJustPressed('KeyB') || input.wasJustPressed('Tab')) {
     app.screen = 'shop';
     shopUI.message = '';
-    refreshShop(shopUI, app.shop);
+    shopUI.slots = app.shop.getSlots();
   }
 }
 
@@ -222,7 +221,7 @@ function updateShop(_dt: number): void {
 // ============================================================
 
 function startSiege(config: TankConfig): void {
-  app.siege = createSiegeState(config);
+  app.siege = createSiegeState(config, app.inventory);
   app.screen = 'siege';
 }
 

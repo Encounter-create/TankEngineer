@@ -1,6 +1,7 @@
 import { PartType, TankConfig } from '../entities/Parts';
 import { Inventory } from '../systems/Inventory';
 import { tryAssemble, AssemblyResult } from '../systems/Assembly';
+import { roundRect, rarityColor } from '../utils/Canvas';
 
 /** Garage screen state */
 export interface GarageState {
@@ -167,28 +168,4 @@ function renderTankStats(ctx: CanvasRenderingContext2D, w: number, h: number, ga
       ctx.fillText(`⚠ ${err}`, w / 2, y + i * 18);
     });
   }
-}
-
-function rarityColor(rarity: string): string {
-  switch (rarity) {
-    case 'common': return '#aaa';
-    case 'rare': return '#4a9eff';
-    case 'epic': return '#c04aff';
-    case 'legendary': return '#ffaa00';
-    default: return '#aaa';
-  }
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
 }

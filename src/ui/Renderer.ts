@@ -3,6 +3,7 @@ import { TileGrid } from '../entities/Map';
 import { TankEntity, TANK_RADIUS } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 import { SiegeState, TOTAL_WAVES } from '../modes/Siege';
+import { roundRect } from '../utils/Canvas';
 
 // ============================================================
 // Color palette
@@ -220,19 +221,20 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   ctx.fillStyle = dark;
   ctx.fillRect(r * 0.3, -3, r * 1.1, 6);
 
-  // HP bar (above tank)
+  ctx.restore();
+
+  // HP bar (above tank, drawn in screen space so it doesn't rotate)
   if (tank.hp < tank.maxHp) {
     const barW = r * 2;
     const barH = 3;
-    const barY = -r - 8;
+    const barX = x - barW / 2;
+    const barY = y - r - 8;
     ctx.fillStyle = C.HP_BAR_BG;
-    ctx.fillRect(-barW / 2, barY, barW, barH);
+    ctx.fillRect(barX, barY, barW, barH);
     const ratio = tank.hp / tank.maxHp;
     ctx.fillStyle = ratio > 0.3 ? C.HP_BAR_OK : C.HP_BAR_LOW;
-    ctx.fillRect(-barW / 2, barY, barW * ratio, barH);
+    ctx.fillRect(barX, barY, barW * ratio, barH);
   }
-
-  ctx.restore();
 }
 
 function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {
@@ -310,24 +312,6 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
   // Command center HP
   const ccHp = state.commandCenterHp;
   ctx.fillText(`指挥所: ${ccHp}/500`, 12, 56);
-}
-
-// ============================================================
-// Utility: rounded rectangle
-// ============================================================
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
 }
 
 export { MAP_W as W, MAP_H as H };

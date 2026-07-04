@@ -1,4 +1,5 @@
 import { Shop, ShopSlot } from '../systems/Shop';
+import { roundRect, rarityColor, partTypeLabel } from '../utils/Canvas';
 
 /** Shop screen state */
 export interface ShopUIState {
@@ -27,6 +28,8 @@ export function attemptBuy(shopUi: ShopUIState, shop: Shop, partId: string): voi
   if (result.success) {
     shopUi.message = '✅ 购买成功！';
     shopUi.messageColor = '#4ae0a0';
+    // Remove purchased slot
+    shopUi.slots = shopUi.slots.filter(s => s.part.id !== partId);
   } else {
     shopUi.message = `❌ ${result.reason}`;
     shopUi.messageColor = '#ff6b4a';
@@ -94,7 +97,7 @@ export function renderShop(
     // Type badge
     ctx.fillStyle = '#666';
     ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(typeLabel(slot.part.type), cx + cardW / 2, startY + 46);
+    ctx.fillText(partTypeLabel(slot.part.type), cx + cardW / 2, startY + 46);
 
     // Rarity color
     ctx.fillStyle = rarityColor(slot.part.rarity);
@@ -114,40 +117,4 @@ export function renderShop(
   ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('点击零件购买 | Esc 返回', w / 2, startY + cardH + 30);
-}
-
-// Helpers
-
-function typeLabel(type: string): string {
-  switch (type) {
-    case 'barrel': return '🔫 炮管';
-    case 'turret': return '🛡️ 炮塔';
-    case 'chassis': return '🏎️ 车身';
-    case 'commander': return '🎖️ 车长';
-    default: return type;
-  }
-}
-
-function rarityColor(rarity: string): string {
-  switch (rarity) {
-    case 'common': return '#aaa';
-    case 'rare': return '#4a9eff';
-    case 'epic': return '#c04aff';
-    case 'legendary': return '#ffaa00';
-    default: return '#aaa';
-  }
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
 }

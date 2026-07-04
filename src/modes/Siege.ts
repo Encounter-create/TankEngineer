@@ -44,10 +44,12 @@ export interface SiegeState {
   enemies: TankEntity[];
   bullets: BulletEntity[];
   aiContexts: Map<string, AIContext>;
+  inventory: Inventory;
   elapsedTime: number;          // seconds
   wavesSpawned: number;         // 0-6
   enemiesKilled: number;
   commandCenterHp: number;
+  playerCooldownRemaining: number; // ms
   pendingReward: BattleReward | null;
 }
 
@@ -55,7 +57,7 @@ const COMMAND_CENTER_MAX_HP = 500;
 const COMMAND_CENTER_GRID = { x: Math.floor(MAP_COLS / 2), y: Math.floor(MAP_ROWS / 2) };
 const ENEMY_MAX = 12;
 
-export function createSiegeState(playerConfig: TankConfig): SiegeState {
+export function createSiegeState(playerConfig: TankConfig, inventory: Inventory): SiegeState {
   const map = createSiegeMap();
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
@@ -68,10 +70,12 @@ export function createSiegeState(playerConfig: TankConfig): SiegeState {
     enemies: [],
     bullets: [],
     aiContexts: new Map(),
+    inventory,
     elapsedTime: 0,
     wavesSpawned: 0,
     enemiesKilled: 0,
     commandCenterHp: COMMAND_CENTER_MAX_HP,
+    playerCooldownRemaining: 0,
     pendingReward: null,
   };
 }
@@ -84,7 +88,6 @@ export function updateSiege(
   state: SiegeState,
   input: Input,
   dt: number,
-  inventory: Inventory,
 ): void {
   if (state.phase === 'victory' || state.phase === 'defeat') return;
 
@@ -100,13 +103,7 @@ export function updateSiege(
 
   // Check time limit
   if (state.elapsedTime >= MATCH_DURATION) {
-    endSiege(state, true, inventory);
-    return;
-  }
-
-  // Check command center destroyed
-  if (state.commandCenterHp <= 0) {
-    endSiege(state, false, inventory);
+    endSiege(state, true);
     return;
   }
 
@@ -128,20 +125,23 @@ export function updateSiege(
   // Check bullet-tank collisions
   handleBulletTankCollisions(state, dt);
 
-  // Check enemies reaching command center
+  // Check enemies reaching command center (must run before HP check!)
   handleEnemyReachCenter(state);
+
+  // Check command center destroyed
+  if (state.commandCenterHp <= 0) {
+    endSiege(state, false);
+    return;
+  }
 }
 
 // ============================================================
 // Player
 // ============================================================
 
-let playerCooldownRemaining = 0;
-
 function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   if (!state.player.alive) {
-    // Player can respawn? For MVP, no. Game ends.
-    endSiege(state, false, undefined!);
+    endSiege(state, false);
     return;
   }
 
@@ -155,12 +155,12 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
 }
 
 function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
-  playerCooldownRemaining -= _dt * 1000;
+  state.playerCooldownRemaining -= _dt * 1000;
 
-  if (input.isFirePressed() && playerCooldownRemaining <= 0 && state.player.alive) {
+  if (input.isFirePressed() && state.playerCooldownRemaining <= 0 && state.player.alive) {
     const cfg = state.player.config;
     const cooldown = effectiveCooldown(cfg);
-    playerCooldownRemaining = cooldown;
+    state.playerCooldownRemaining = cooldown;
 
     const bullet = createBullet(
       state.player.pos,
@@ -304,7 +304,7 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         takeDamage(state.player, bullet.damage);
         bullet.alive = false;
         if (!state.player.alive) {
-          endSiege(state, false, undefined!);
+          endSiege(state, false);
           return;
         }
       }
@@ -319,13 +319,19 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
 function handleEnemyReachCenter(state: SiegeState): void {
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
-    const dist = enemy.pos.dist(gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y));
+    const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
+    const dist = enemy.pos.dist(centerPos);
     if (dist < CELL_SIZE * 2) {
       // Enemy is at the command center — deal damage over time
       state.commandCenterHp -= 10;
-      // Push enemy away slightly
-      const away = enemy.pos.sub(gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y)).norm();
-      enemy.pos = enemy.pos.add(away.scale(CELL_SIZE * 2));
+      // Push enemy away (handle zero-distance edge case)
+      if (dist > 0.01) {
+        const away = enemy.pos.sub(centerPos).norm();
+        enemy.pos = enemy.pos.add(away.scale(CELL_SIZE * 2));
+      } else {
+        // Enemy exactly at center — push in random direction
+        enemy.pos = enemy.pos.add(new Vec2(CELL_SIZE * 2, 0));
+      }
     }
   }
 }
@@ -334,7 +340,7 @@ function handleEnemyReachCenter(state: SiegeState): void {
 // Victory / Defeat
 // ============================================================
 
-function endSiege(state: SiegeState, survived: boolean, inventory: Inventory): void {
+function endSiege(state: SiegeState, survived: boolean): void {
   if (state.pendingReward) return; // already ended
 
   state.phase = survived ? 'victory' : 'defeat';
@@ -342,7 +348,7 @@ function endSiege(state: SiegeState, survived: boolean, inventory: Inventory): v
     state.wavesSpawned,
     TOTAL_WAVES,
     survived,
-    inventory,
+    state.inventory,
   );
 }
 
