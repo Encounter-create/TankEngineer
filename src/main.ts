@@ -19,10 +19,8 @@ import {
   applyBuildSlot,
   saveToBuildSlot,
   getBuildSlotHitIndex,
-  hitTestPracticeButton,
-  isPracticeMode,
-  updatePracticeMode,
 } from './ui/Garage';
+import { PracticeState, createPractice, updatePractice, renderPractice } from './systems/Practice';
 import {
   ShopUIState,
   createShopUIState,
@@ -83,6 +81,7 @@ interface AppState {
   encyclopedia: EncyclopediaState;
   siege: SiegeState | null;
   chess: ChessState | null;
+  practice: PracticeState | null;
   shopSelected: number;
   selectedCol: number;
   selectedRow: number;
@@ -118,6 +117,7 @@ const app: AppState = {
   encyclopedia: createEncyclopediaState(),
   siege: null,
   chess: null,
+  practice: null,
   shopSelected: 0,
   selectedCol: 0,
   selectedRow: 0,
@@ -169,6 +169,7 @@ function render(_alpha: number): void {
     renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid);
   } else if (app.screen === 'garage') {
     renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory, app.garageMessage, app.garageMessageTimer);
+    if (app.practice) renderPractice(ctx, app.practice);
   } else if (app.screen === 'shop') {
     renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold);
   } else if (app.screen === 'encyclopedia') {
@@ -226,22 +227,31 @@ function updateLobby(): void {
 // ============================================================
 
 function updateGarage(): void {
-  // Practice mode: handle input exclusively
-  if (isPracticeMode(app.garage)) {
-    updatePracticeMode(app.garage, input);
-    if (input.isMouseJustPressed() && hitTestPracticeButton(input.mousePos.x, input.mousePos.y, app.garage)) {
-      app.garage.practiceMode = false;
-      app.garage.practiceBullets = [];
+  // Practice mode active — bypass normal garage UI
+  if (app.practice) {
+    updatePractice(app.practice, input, 0.016);
+    if (input.isMouseJustPressed()) {
+      // Check practice exit button (top-right of preview)
+      const px = 284, py = 46, pw = 470;
+      const bx = px + pw - 76, by = py + 4;
+      if (input.mousePos.x >= bx && input.mousePos.x <= bx + 70 && input.mousePos.y >= by && input.mousePos.y <= by + 22) {
+        app.practice = null;
+        app.garage.practiceMode = false;
+      }
     }
     return;
   }
 
   if (input.isMouseJustPressed()) {
-    // Practice button
-    if (hitTestPracticeButton(input.mousePos.x, input.mousePos.y, app.garage)) {
-      app.garage.practiceMode = true;
-      app.garage.practicePlayerX = 0; // reset position
-      app.garage.practiceEnemyHp = 100;
+    // Practice button (top-right of preview area)
+    const px = 284, py = 46, pw = 470;
+    const bx = px + pw - 76, by = py + 4;
+    if (input.mousePos.x >= bx && input.mousePos.x <= bx + 70 && input.mousePos.y >= by && input.mousePos.y <= by + 22) {
+      const config = getCurrentConfig(app.garage);
+      if (config && app.garage.assemblyResult.valid) {
+        app.garage.practiceMode = true;
+        app.practice = createPractice(config, px, py, pw, 640 - 160);
+      }
       return;
     }
     // Back button

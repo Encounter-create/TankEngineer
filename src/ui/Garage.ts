@@ -21,16 +21,8 @@ export interface GarageState {
   activeType: PartType;
   /** Part ID being inspected (shows tooltip) */
   detailPartId: string | null;
-  /** Practice mode */
+  /** Practice mode — uses real game systems */
   practiceMode: boolean;
-  practicePlayerX: number; practicePlayerY: number;
-  practicePlayerDir: number; practiceTurretAngle: number;
-  practiceEnemyHp: number;
-  practiceBullets: { x: number; y: number; vx: number; vy: number; alive: boolean; bounced: number }[];
-  practiceBricks: { x: number; y: number; vx: number; vy: number }[];
-  practiceMsg: string;
-  practiceEnemyX: number; practiceEnemyY: number;
-  _fireThrottle: boolean;
 }
 
 export function createGarageState(inventory: Inventory): GarageState {
@@ -49,14 +41,6 @@ export function createGarageState(inventory: Inventory): GarageState {
     activeType: 'barrel',
     detailPartId: null,
     practiceMode: false,
-    practicePlayerX: 0, practicePlayerY: 0,
-    practicePlayerDir: 0, practiceTurretAngle: 0,
-    practiceEnemyHp: 100,
-    practiceBullets: [],
-    practiceBricks: [],
-    practiceMsg: '',
-    practiceEnemyX: 0, practiceEnemyY: 0,
-    _fireThrottle: false,
   };
 
   state.assemblyResult = tryAssemble(
@@ -241,10 +225,8 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(garage.practiceMode ? '⏹ 结束' : '🎯 演习', pBtnX + practiceBtnW / 2, pBtnY + practiceBtnH / 2);
 
-  if (garage.practiceMode && garage.assemblyResult.valid) {
-    drawPracticeArena(ctx, previewX, previewY, previewW, previewH, garage);
-  } else if (!garage.practiceMode) {
-    // Normal tank preview
+  // Normal tank preview (practice mode renders via main.ts)
+  if (!garage.practiceMode) {
     if (garage.assemblyResult.valid && garage.assemblyResult.config) {
       drawTankPreview(ctx, previewX + previewW / 2, previewY + previewH / 2, garage.assemblyResult.config);
     } else {
@@ -278,234 +260,6 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   const btnY = h - 50;
   drawButton(ctx, { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32, label: '← 返回大厅', color: '#444' });
 }
-
-// ============================================================
-// Practice arena
-// ============================================================
-
-function drawPracticeArena(
-  ctx: CanvasRenderingContext2D, px: number, py: number, pw: number, ph: number,
-  garage: GarageState,
-): void {
-  // Init practice state once
-  if (garage.practicePlayerX === 0) {
-    garage.practicePlayerX = px + pw * 0.2;
-    garage.practicePlayerY = py + ph * 0.5;
-    garage.practiceEnemyX = px + pw * 0.75;
-    garage.practiceEnemyY = py + ph * 0.35;
-    garage.practiceEnemyHp = 100;
-    garage.practiceBullets = [];
-    garage.practiceBricks = [];
-    // Spawn bricks in a row
-    for (let i = 0; i < 6; i++) {
-      garage.practiceBricks.push({
-        x: px + pw * 0.35 + i * 24,
-        y: py + ph * 0.65,
-        vx: 0, vy: 0,
-      });
-    }
-  }
-
-  // Arena background
-  ctx.fillStyle = '#1a1d15';
-  ctx.fillRect(px, py, pw, ph);
-
-  // Grid lines
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 0.5;
-  for (let gx = px; gx < px + pw; gx += 32) {
-    ctx.beginPath(); ctx.moveTo(gx, py); ctx.lineTo(gx, py + ph); ctx.stroke();
-  }
-  for (let gy = py; gy < py + ph; gy += 32) {
-    ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px + pw, gy); ctx.stroke();
-  }
-
-  // Draw bricks (physics objects)
-  for (const b of garage.practiceBricks) {
-    ctx.fillStyle = '#8B7355';
-    ctx.strokeStyle = '#6B5335'; ctx.lineWidth = 1;
-    roundRect(ctx, b.x - 9, b.y - 7, 18, 14, 2);
-    ctx.fill(); ctx.stroke();
-  }
-
-  // Enemy target
-  const ex = garage.practiceEnemyX, ey = garage.practiceEnemyY;
-  if (garage.practiceEnemyHp > 0) {
-    const er = 14;
-    ctx.fillStyle = '#ff6b4a'; ctx.strokeStyle = '#cc4422'; ctx.lineWidth = 1.5;
-    roundRect(ctx, ex - er, ey - er * 0.6, er * 2, er * 1.2, 4);
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#882222';
-    ctx.fillRect(ex + er * 0.3, ey - 3, er * 1.1, 6);
-    // HP bar
-    ctx.fillStyle = '#333';
-    ctx.fillRect(ex - er, ey - er - 10, er * 2, 3);
-    ctx.fillStyle = '#ff4444';
-    ctx.fillRect(ex - er, ey - er - 10, er * 2 * (garage.practiceEnemyHp / 100), 3);
-    ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('🎯 靶子', ex, ey - er - 14);
-  }
-
-  // Player tank
-  const pr = 14, ppx = garage.practicePlayerX, ppy = garage.practicePlayerY;
-  ctx.save(); ctx.translate(ppx, ppy);
-  ctx.fillStyle = '#4a9eff'; ctx.strokeStyle = '#2a6ecc'; ctx.lineWidth = 1.5;
-  roundRect(ctx, -pr, -pr * 0.6, pr * 2, pr * 1.2, 4);
-  ctx.fill(); ctx.stroke();
-  ctx.rotate(garage.practiceTurretAngle);
-  ctx.fillStyle = '#88bbee';
-  ctx.beginPath(); ctx.arc(0, 0, pr * 0.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#556677';
-  ctx.fillRect(pr * 0.3, -3, pr * 1.2, 6);
-  ctx.restore();
-
-  // Bullets
-  for (const b of garage.practiceBullets) {
-    if (!b.alive) continue;
-    ctx.fillStyle = '#ffcc44';
-    ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill();
-  }
-
-  // Controls hint
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('WASD移动 鼠标瞄准 左键射击 E技能  ⏹点右上退出', px + pw / 2, py + ph - 6);
-
-  // Message
-  if (garage.practiceMsg) {
-    ctx.fillStyle = '#ffcc44';
-    ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(garage.practiceMsg, px + pw / 2, py + ph / 2 - 30);
-  }
-}
-
-export function hitTestPracticeButton(px: number, py: number, garage: GarageState): boolean {
-  if (!garage.assemblyResult.valid) return false;
-  const previewX = CENTER_X, previewY = 46;
-  const previewW = CENTER_W;
-  const btnW = 70, btnH = 22;
-  const bx = previewX + previewW - btnW - 6;
-  const by = previewY + 4;
-  return px >= bx && px <= bx + btnW && py >= by && py <= by + btnH;
-}
-
-export function isPracticeMode(garage: GarageState): boolean {
-  return garage.practiceMode;
-}
-
-export function updatePracticeMode(garage: GarageState, input: { getMoveDir: () => {x:number;y:number}; mousePos: {x:number;y:number}; isMouseDown: () => boolean; isFirePressed: () => boolean; wasJustPressed: (k: string) => boolean; isDown: (k: string) => boolean }): void {
-  if (!garage.practiceMode) return;
-
-  const px = CENTER_X, py = 46, pw = CENTER_W, ph = 640 - 160;
-  const dt = 0.016;
-
-  // Movement
-  const md = input.getMoveDir();
-  const speed = 140;
-  garage.practicePlayerX += md.x * speed * dt;
-  garage.practicePlayerY += md.y * speed * dt;
-  garage.practicePlayerX = Math.max(px + 20, Math.min(px + pw - 20, garage.practicePlayerX));
-  garage.practicePlayerY = Math.max(py + 20, Math.min(py + ph - 20, garage.practicePlayerY));
-
-  // Push bricks on contact
-  for (const b of garage.practiceBricks) {
-    const dx = b.x - garage.practicePlayerX, dy = b.y - garage.practicePlayerY;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 24) {
-      const nx = dx / (dist || 1), ny = dy / (dist || 1);
-      b.vx += nx * 200 * dt;
-      b.vy += ny * 200 * dt;
-      garage.practicePlayerX -= nx * 2;
-      garage.practicePlayerY -= ny * 2;
-    }
-  }
-
-  if (md.x !== 0 || md.y !== 0) garage.practicePlayerDir = Math.atan2(md.y, md.x);
-
-  // Turret
-  const mx = input.mousePos.x, my = input.mousePos.y;
-  garage.practiceTurretAngle = Math.atan2(my - garage.practicePlayerY, mx - garage.practicePlayerX);
-
-  // Skill
-  if (input.wasJustPressed('KeyE')) {
-    garage.practiceEnemyHp = Math.max(0, garage.practiceEnemyHp - 40);
-    garage.practiceMsg = garage.practiceEnemyHp <= 0 ? '💀 击杀!' : '⚡ 技能!';
-    setTimeout(() => { garage.practiceMsg = ''; }, 1000);
-  }
-
-  // Fire (throttled)
-  if ((input.isMouseDown() || input.isFirePressed()) && !garage._fireThrottle) {
-    const cooldown = Math.max(100, (garage.assemblyResult.config!.barrel.stats.cooldownMs ?? 800));
-    garage._fireThrottle = true;
-    setTimeout(() => { garage._fireThrottle = false; }, cooldown);
-    const spd = 400;
-    const angle = garage.practiceTurretAngle;
-    garage.practiceBullets.push({
-      x: garage.practicePlayerX + Math.cos(angle) * 16,
-      y: garage.practicePlayerY + Math.sin(angle) * 16,
-      vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd,
-      alive: true, bounced: 0,
-    });
-  }
-
-  // Update bullets
-  for (const b of garage.practiceBullets) {
-    if (!b.alive) continue;
-    b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.x < px + 4 || b.x > px + pw - 4) { b.vx *= -1; b.bounced++; }
-    if (b.y < py + 4 || b.y > py + ph - 4) { b.vy *= -1; b.bounced++; }
-    if (b.bounced > 2) { b.alive = false; continue; }
-    if (b.x < px - 20 || b.x > px + pw + 20 || b.y < py - 20 || b.y > py + ph + 20) b.alive = false;
-    // Hit bricks
-    for (const bk of garage.practiceBricks) {
-      if (Math.hypot(b.x - bk.x, b.y - bk.y) < 12) {
-        b.alive = false;
-        const angle = Math.atan2(b.vy, b.vx);
-        bk.vx += Math.cos(angle) * 60;
-        bk.vy += Math.sin(angle) * 60;
-        break;
-      }
-    }
-    // Hit enemy
-    if (garage.practiceEnemyHp > 0 && Math.hypot(b.x - garage.practiceEnemyX, b.y - garage.practiceEnemyY) < 16) {
-      b.alive = false;
-      const cfg = garage.assemblyResult.config!;
-      const dmg = (cfg.barrel.stats.bulletDamage ?? 35) * 2;
-      garage.practiceEnemyHp = Math.max(0, garage.practiceEnemyHp - dmg);
-      if (garage.practiceEnemyHp <= 0) {
-        garage.practiceMsg = '💀 击杀! 演习成功!';
-        setTimeout(() => { garage.practiceEnemyHp = 100; garage.practiceMsg = ''; }, 1500);
-      }
-    }
-  }
-
-  // Update bricks (physics)
-  for (const b of garage.practiceBricks) {
-    b.x += b.vx * dt; b.y += b.vy * dt;
-    // Bounce off arena walls
-    if (b.x < px + 12 || b.x > px + pw - 12) { b.vx *= -0.8; b.x = Math.max(px + 12, Math.min(px + pw - 12, b.x)); }
-    if (b.y < py + 10 || b.y > py + ph - 10) { b.vy *= -0.8; b.y = Math.max(py + 10, Math.min(py + ph - 10, b.y)); }
-    // Friction
-    b.vx *= 0.95;
-    b.vy *= 0.95;
-    // Hit enemy (brick damage)
-    if (garage.practiceEnemyHp > 0 && Math.hypot(b.x - garage.practiceEnemyX, b.y - garage.practiceEnemyY) < 20) {
-      if (Math.hypot(b.vx, b.vy) > 30) {
-        garage.practiceEnemyHp = Math.max(0, garage.practiceEnemyHp - 20);
-        b.vx *= -0.5; b.vy *= -0.5;
-        if (garage.practiceEnemyHp <= 0) {
-          garage.practiceMsg = '🧱 方块击杀! 多米诺!';
-          setTimeout(() => { garage.practiceEnemyHp = 100; garage.practiceMsg = ''; }, 1500);
-        }
-      }
-    }
-  }
-
-  // Limit arrays
-  if (garage.practiceBullets.length > 30) garage.practiceBullets = garage.practiceBullets.slice(-20);
-}
-
 
 // ============================================================
 // Tank preview renderer
