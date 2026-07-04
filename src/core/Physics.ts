@@ -213,18 +213,28 @@ function elasticBounce(
   const diff = b.pos.sub(a.pos);
   const dist = diff.mag();
   const minDist = aRadius + bRadius;
-  if (dist >= minDist || dist < 0.01) return;
-  const normal = diff.norm();
-  const vRel = a.vel.dot(normal) - b.vel.dot(normal);
-  if (vRel <= 0) return;
-  const J = 2 * vRel / (1 / aMass + 1 / bMass);
-  a.vel = a.vel.sub(normal.scale(J / aMass));
-  b.vel = b.vel.add(normal.scale(J / bMass));
-  // Separate
+  if (dist >= minDist) return;
+  // Handle exact overlap (dist ≈ 0) by using arbitrary separation direction
+  const normal = dist < 0.01 ? new Vec2(1, 0) : diff.norm();
   const overlap = minDist - dist + 0.5;
-  const totalMass = aMass + bMass;
-  a.pos = a.pos.sub(normal.scale(overlap * (bMass / totalMass)));
-  b.pos = b.pos.add(normal.scale(overlap * (aMass / totalMass)));
+
+  // Apply velocity change (elastic collision along normal)
+  const vRel = a.vel.dot(normal) - b.vel.dot(normal);
+  if (vRel > 0) {
+    // Approaching: apply elastic impulse
+    const totalMass = aMass + bMass;
+    const J = 2 * vRel / (1 / aMass + 1 / bMass);
+    a.vel = a.vel.sub(normal.scale(J / aMass));
+    b.vel = b.vel.add(normal.scale(J / bMass));
+    // Mass-weighted separation
+    a.pos = a.pos.sub(normal.scale(overlap * (bMass / totalMass)));
+    b.pos = b.pos.add(normal.scale(overlap * (aMass / totalMass)));
+  } else {
+    // Separating or stationary but overlapping: just push apart (no velocity change)
+    const totalMass = aMass + bMass;
+    a.pos = a.pos.sub(normal.scale(overlap * (bMass / totalMass)));
+    b.pos = b.pos.add(normal.scale(overlap * (aMass / totalMass)));
+  }
 }
 
 /** Tank-tank collisions */

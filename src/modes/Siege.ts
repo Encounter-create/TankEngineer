@@ -422,13 +422,15 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
     );
   }
 
-  // Block ↔ wall
-  resolveBlockWallCollisions(state.physicsBlocks, state.map);
+  // Block collisions (block-block first, multi-pass to prevent wall interference)
+  for (let pass = 0; pass < 3; pass++) {
+    resolveBlockBlockCollisions(state.physicsBlocks);
+  }
   // Block ↔ tank
   const allTanks = [state.player, ...state.enemies];
   resolveBlockTankCollisions(state.physicsBlocks, allTanks);
-  // Block ↔ block
-  resolveBlockBlockCollisions(state.physicsBlocks);
+  // Block ↔ wall (last, after block-block resolved)
+  resolveBlockWallCollisions(state.physicsBlocks, state.map);
 
   // Freeze stopped blocks at their exact position
   for (const block of state.physicsBlocks) {
