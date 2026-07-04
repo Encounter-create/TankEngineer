@@ -242,7 +242,7 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
         const bullet = createBullet(
           state.player.pos, state.player.turretAngle,
           'orbital', bulletSpeed, bulletDamage, 0, 0,
-          state.player.id, true, idx, 16,
+          state.player.id, true, idx, 5,
         );
         state.bullets.push(bullet);
       }
@@ -407,11 +407,11 @@ function handleBullets(state: SiegeState, dt: number): void {
       bullet.fireworkTimer -= dt;
       bullet.fireworkLife += dt;
       if (bullet.fireworkLife >= FIREWORK_MAX_LIFE) {
-        // Final burst
+        // Final burst — 12 uniform directions
         for (let i = 0; i < 12; i++) {
-          const angle = Math.random() * Math.PI * 2;
+          const angle = (Math.PI * 2 / 12) * i;
           const child = createBullet(
-            bullet.pos, angle, 'straight', 250, 8, 0, 0,
+            bullet.pos, angle, 'straight', 120, 8, 0, 0,
             bullet.ownerId, bullet.isPlayerBullet,
           );
           child.fireworkLife = 999; // mark as short-lived child
@@ -423,11 +423,11 @@ function handleBullets(state: SiegeState, dt: number): void {
       }
       if (bullet.fireworkTimer <= 0) {
         bullet.fireworkTimer = FIREWORK_INTERVAL;
-        // Spawn radial children
+        // Spawn 6 children uniformly at 60° intervals (geometric pattern)
         for (let i = 0; i < FIREWORK_CHILD_COUNT; i++) {
-          const angle = (Math.PI * 2 / FIREWORK_CHILD_COUNT) * i + Math.random() * 0.5;
+          const angle = (Math.PI * 2 / FIREWORK_CHILD_COUNT) * i;
           const child = createBullet(
-            bullet.pos, angle, 'straight', 220, 8, 0, 0,
+            bullet.pos, angle, 'straight', 110, 7, 0, 0,
             bullet.ownerId, bullet.isPlayerBullet,
           );
           child.fireworkLife = 999;

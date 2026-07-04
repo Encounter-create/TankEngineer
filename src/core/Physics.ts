@@ -255,6 +255,12 @@ export function moveBullet(
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
 
+      // Sniper (damage >= 500): destroys metal and keeps going
+      if (bullet.damage >= 500 && col.tileType === TileType.METAL) {
+        map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+        bullet.pos = nextPos;
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp = 0;
       }

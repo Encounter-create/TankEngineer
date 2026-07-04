@@ -122,11 +122,11 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '母子弹飞行中不断向四周分裂子子弹，如烟花绽放',
+    description: '母弹缓缓飞行，每0.22s向6个方向均匀绽放子子弹',
     stats: {
       bulletStyle: 'firework',
-      bulletDamage: 15,
-      bulletSpeed: 200,
+      bulletDamage: 12,
+      bulletSpeed: 100,
       bounces: 0,
       pierces: 0,
       cooldownMs: 3000,
@@ -138,7 +138,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '发射一对双子子弹，彼此环绕旋转前进，几何对称之美',
+    description: '双子星子弹，紧密环绕旋转，几何对称之美',
     stats: {
       bulletStyle: 'orbital',
       bulletDamage: 22,
@@ -154,7 +154,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 2,
-    description: '一击必杀，子弹极快但射速极低',
+    description: '一击必杀，超高速子弹可击穿金属墙',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 999,

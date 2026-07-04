@@ -47,8 +47,8 @@ export function createBullet(
 ): BulletEntity {
   let vel = Vec2.fromAngle(dir, speed);
   if (style === 'arc') vel = vel.scale(0.7);
-  // Firework: slower mother bullet
-  if (style === 'firework') vel = vel.scale(0.6);
+  // Firework: slower mother bullet (already 100 speed in config)
+  if (style === 'firework') vel = vel.scale(0.5);
 
   return {
     id: `bullet_${++bulletIdCounter}`,
@@ -74,8 +74,8 @@ export function createBullet(
 export const BULLET_RADIUS = 3;
 export const ARC_GRAVITY = 600;
 /** Firework: interval between child spawns */
-export const FIREWORK_INTERVAL = 0.22;
-/** Firework: child bullet count per burst */
-export const FIREWORK_CHILD_COUNT = 5;
+export const FIREWORK_INTERVAL = 0.28;
+/** Firework: child bullet count per burst (uniformly spaced) */
+export const FIREWORK_CHILD_COUNT = 6;
 /** Firework: mother bullet max lifetime */
-export const FIREWORK_MAX_LIFE = 1.8;
+export const FIREWORK_MAX_LIFE = 2.0;
