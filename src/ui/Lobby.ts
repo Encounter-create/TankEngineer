@@ -36,6 +36,8 @@ const MAP_LABELS: Record<MapName, string> = {
   rivers: '两河流域',
   fortress: '堡垒',
   spiral: '螺旋',
+  icerink: '溜冰场',
+  colosseum: '修罗场',
 };
 
 const MAP_DESCS: Record<MapName, string> = {
@@ -46,6 +48,8 @@ const MAP_DESCS: Record<MapName, string> = {
   rivers: '两条金属河流分割战场，桥梁争夺战',
   fortress: '重装防御工事，攻城拔寨',
   spiral: '螺旋金属阵，弹道轨迹的几何艺术',
+  icerink: '冰面零摩擦，方块永动，多米诺骨牌天堂',
+  colosseum: '完全空旷，无任何掩体，硬碰硬死斗',
 };
 
 export function renderLobby(

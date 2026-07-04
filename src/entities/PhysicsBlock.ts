@@ -32,13 +32,12 @@ export function createPhysicsBlock(
   };
 }
 
-export function updatePhysicsBlock(block: PhysicsBlock, dt: number): void {
+export function updatePhysicsBlock(block: PhysicsBlock, dt: number, frictionMul: number = 1): void {
   if (!block.alive) return;
-  // Apply friction
   const speed = block.vel.mag();
   if (speed > 0) {
-    const friction = GROUND_FRICTION * dt;
-    const newSpeed = Math.max(0, speed - friction * 60); // friction deceleration
+    const friction = GROUND_FRICTION * frictionMul * dt;
+    const newSpeed = Math.max(0, speed - friction * 60);
     if (newSpeed < 2) {
       block.vel = Vec2.zero();
     } else {

@@ -1,6 +1,6 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, gridToPixel } from '../utils/Grid';
-import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
+import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage, TURRET_ANGULAR_VEL } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
@@ -65,6 +65,7 @@ export interface SiegeState {
   physicsBlocks: PhysicsBlock[];
   /** U-key debug: show enemy vision/fire radii */
   showDebug: boolean;
+  frictionMul: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -99,6 +100,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     screenShake: 0,
     physicsBlocks: [],
     showDebug: false,
+    frictionMul: getMapFriction(mapName),
   };
 }
 
@@ -439,7 +441,7 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Update movement + friction
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
-    updatePhysicsBlock(block, dt);
+    updatePhysicsBlock(block, dt, state.frictionMul);
     block.pos = block.pos.add(block.vel.scale(dt));
     // Clamp to map
     const r = block.radius;

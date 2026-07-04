@@ -3,9 +3,9 @@ import { rand } from '../utils/Random';
 
 export type TileGrid = Tile[][];
 
-export type MapName = 'classic' | 'arena' | 'maze' | 'crossfire' | 'rivers' | 'fortress' | 'spiral';
+export type MapName = 'classic' | 'arena' | 'maze' | 'crossfire' | 'rivers' | 'fortress' | 'spiral' | 'icerink' | 'colosseum';
 
-export const ALL_MAPS: MapName[] = ['classic', 'arena', 'maze', 'crossfire', 'rivers', 'fortress', 'spiral'];
+export const ALL_MAPS: MapName[] = ['classic', 'arena', 'maze', 'crossfire', 'rivers', 'fortress', 'spiral', 'icerink', 'colosseum'];
 
 export function pickRandomMap(): MapName {
   return rand.pick(ALL_MAPS);
@@ -31,7 +31,14 @@ export function createMap(name: MapName): TileGrid {
     case 'rivers': return createRiversMap();
     case 'fortress': return createFortressMap();
     case 'spiral': return createSpiralMap();
+    case 'icerink': return createIceRinkMap();
+    case 'colosseum': return createColosseumMap();
   }
+}
+
+/** Get ground friction multiplier for a map (0 = ice, 1 = normal) */
+export function getMapFriction(name: MapName): number {
+  return name === 'icerink' ? 0 : 1;
 }
 
 // ============================================================
@@ -264,6 +271,46 @@ function createSpiralMap(): TileGrid {
     placeBrick(map, cx + dx * 2, cy + dy);
   }
 
+  return map;
+}
+
+// ============================================================
+// 8. Ice Rink — many blocks, zero friction
+// ============================================================
+
+function createIceRinkMap(): TileGrid {
+  const map = createEmptyMap();
+  addBorders(map);
+  const midX = Math.floor(MAP_COLS / 2);
+  const midY = Math.floor(MAP_ROWS / 2);
+
+  // Dense brick blocks in a grid pattern, open center
+  for (let x = 2; x < MAP_COLS - 2; x += 3) {
+    for (let y = 2; y < MAP_ROWS - 2; y += 2) {
+      // Leave center open
+      if (Math.abs(x - midX) < 3 && Math.abs(y - midY) < 3) continue;
+      placeBrick(map, x, y);
+    }
+  }
+  // Metal pillars scattered
+  for (let x = 3; x < MAP_COLS - 3; x += 6) {
+    for (let y = 3; y < MAP_ROWS - 3; y += 5) {
+      if (Math.abs(x - midX) < 2 && Math.abs(y - midY) < 2) continue;
+      placeMetal(map, x, y);
+    }
+  }
+
+  return map;
+}
+
+// ============================================================
+// 9. Colosseum — completely empty, no cover
+// ============================================================
+
+function createColosseumMap(): TileGrid {
+  const map = createEmptyMap();
+  addBorders(map);
+  // Nothing else — pure arena
   return map;
 }
 
