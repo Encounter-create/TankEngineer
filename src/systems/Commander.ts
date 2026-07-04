@@ -63,6 +63,22 @@ export function activateSkill(tank: TankEntity): AbilityResult {
       tank.skillCooldownUntil = now + cdMs;
       return { success: true, message: '分身出击！' };
 
+    case 'commander_gravity':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '重力井！' };
+
+    case 'commander_time':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '时间扭曲！' };
+
+    case 'commander_lightning':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '连锁闪电！' };
+
+    case 'commander_restore':
+      tank.skillCooldownUntil = now + cdMs;
+      return { success: true, message: '砖墙复苏！' };
+
     default:
       return { success: false, message: '未知技能' };
   }

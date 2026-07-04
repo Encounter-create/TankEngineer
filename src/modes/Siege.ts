@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, gridToPixel } from '../utils/Grid';
+import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
@@ -265,6 +265,26 @@ export function updateSiege(
   // Check bullet-tank collisions
   handleBulletTankCollisions(state, dt);
 
+  // Gravity well: pull entities toward gravity center
+  if ((state as any).gravityTimer > 0) {
+    (state as any).gravityTimer -= dt;
+    const gPos = (state as any).gravityPos as Vec2;
+    const pull = (e: TankEntity) => {
+      if (!e.alive) return;
+      const to = gPos.sub(e.pos);
+      const d = to.mag();
+      if (d > 20) e.vel = e.vel.add(to.norm().scale(200 * dt));
+      if (d < 30) takeDamage(e, 10 * dt, state.player);
+    };
+    for (const enemy of state.enemies) pull(enemy);
+    for (const block of state.physicsBlocks) {
+      if (!block.alive) continue;
+      const to = gPos.sub(block.pos);
+      block.vel = block.vel.add(to.norm().scale(300 * dt));
+    }
+    state.particles.push(...spawnParticles(gPos, 'hit', 1, 30));
+  }
+
   // Update particles
   updateParticles(state.particles, dt);
   state.particles = state.particles.filter(p => p.alive);
@@ -412,7 +432,6 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
           state.skillMessageTime = 2000;
         }
       } else if (id === 'commander_ninja') {
-        // 镜面分身 synergy: clone gets bounce barrel
         const cloneCfg = hasSynergy(state.player.config, 'mirror_clone')
           ? { ...state.player.config, barrel: MVP_BARRELS.find(p => p.id === 'barrel_bounce')! }
           : state.player.config;
@@ -420,6 +439,53 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         clone.followTarget = state.player.pos;
         state.allies.push(clone);
         state.skillMessage = '分身已出击';
+        state.skillMessageTime = 2000;
+      } else if (id === 'commander_gravity') {
+        // Gravity well at mouse position, active for 3s
+        (state as any).gravityPos = input.mousePos;
+        (state as any).gravityTimer = 3;
+      } else if (id === 'commander_time') {
+        // Time slow: 3s of 0.3x speed for enemies
+        state.slowMoTimer = 3;
+      } else if (id === 'commander_lightning') {
+        // Chain lightning between up to 5 nearest enemies
+        const aliveEnemies = state.enemies.filter(e => e.alive);
+        let current = state.player.pos;
+        const hit: Set<string> = new Set();
+        for (let step = 0; step < 5 && aliveEnemies.length > hit.size; step++) {
+          let nearest: TankEntity | null = null;
+          let nearestDist = 250;
+          for (const e of aliveEnemies) {
+            if (hit.has(e.id)) continue;
+            const d = e.pos.dist(current);
+            if (d < nearestDist) { nearestDist = d; nearest = e; }
+          }
+          if (!nearest) break;
+          hit.add(nearest.id);
+          const dmg = Math.round(40 * Math.pow(0.8, step));
+          takeDamage(nearest, dmg, state.player);
+          state.damageNumbers.push(spawnDamageNumber(nearest.pos, dmg, false));
+          state.particles.push(...spawnParticles(nearest.pos, 'hit', 5, 60));
+          if (!nearest.alive) onEnemyKilled(state, nearest, 1);
+          current = nearest.pos;
+        }
+      } else if (id === 'commander_restore') {
+        // Restore destroyed bricks within 150px
+        let count = 0;
+        for (let gy = 0; gy < MAP_ROWS; gy++) {
+          for (let gx = 0; gx < MAP_COLS; gx++) {
+            const tile = state.map[gy][gx];
+            if (tile.type === TileType.BRICK && tile.hp <= 0) {
+              const tx = gx * CELL_SIZE + CELL_SIZE / 2;
+              const ty = gy * CELL_SIZE + CELL_SIZE / 2;
+              if (Math.hypot(tx - state.player.pos.x, ty - state.player.pos.y) < 150) {
+                state.map[gy][gx] = { type: TileType.BRICK, hp: 50 };
+                count++;
+              }
+            }
+          }
+        }
+        state.skillMessage = `恢复了${count}块砖墙`;
         state.skillMessageTime = 2000;
       }
     }
