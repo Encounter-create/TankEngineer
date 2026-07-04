@@ -28,7 +28,7 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
     const gx = Math.round((ax + aw * 0.4) / CELL_SIZE) + (x - 3);
     const gy = Math.round((ay + ah * 0.6) / CELL_SIZE);
     if (gx >= 0 && gx < MAP_COLS && gy >= 0 && gy < MAP_ROWS)
-      map[gy][gx] = { type: TileType.BRICK, hp: 1 };
+      map[gy][gx] = { type: TileType.BRICK, hp: 50 };
   }
   const player = createTank('practice_p', new Vec2(ax + aw * 0.2, ay + ah * 0.5), config, true);
   const enemy = createTank('practice_e', new Vec2(ax + aw * 0.75, ay + ah * 0.35), config, false);

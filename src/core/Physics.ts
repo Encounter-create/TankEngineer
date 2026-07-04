@@ -360,23 +360,37 @@ export function moveBullet(
       if (bullet.style === 'arc' && col.tileType === TileType.BRICK) {
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
+      // Pierce: chip brick HP, bullet continues
       if (bullet.style === 'pierce' && col.tileType === TileType.BRICK && bullet.piercesLeft > 0) {
-        bullet.piercesLeft--; map[gy][gx].hp = 0;
+        bullet.piercesLeft--;
+        map[gy][gx].hp -= bullet.damage;
+        if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
+      // Bounce: don't damage brick, just reflect
       if (bullet.bouncesLeft > 0) {
         bullet.bouncesLeft--;
-        bullet.bounceCount++; // track for multiplier
+        bullet.bounceCount++;
         bullet.vel = bullet.vel.reflect(col.normal);
         bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
         bullet.damage = Math.round(bullet.damage * 0.8);
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
+      // Sniper (damage >= 500): destroys anything including metal
       if (bullet.damage >= 500) {
         map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      if (col.tileType === TileType.BRICK) map[gy][gx].hp = 0;
+      // Metal: only sniper can damage it
+      if (col.tileType === TileType.METAL) {
+        bullet.alive = false; bullet.pos = nextPos;
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
+      // Brick: subtract bullet damage from HP
+      if (col.tileType === TileType.BRICK) {
+        map[gy][gx].hp -= bullet.damage;
+        if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+      }
       bullet.alive = false; bullet.pos = nextPos;
       return { hitWall: true, hitTileX: gx, hitTileY: gy };
     }

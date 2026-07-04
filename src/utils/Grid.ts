@@ -22,11 +22,11 @@ export function createEmptyTile(): Tile {
 }
 
 export function createBrickTile(): Tile {
-  return { type: TileType.BRICK, hp: 1 };
+  return { type: TileType.BRICK, hp: 50 }; // 50 HP, bullets chip away
 }
 
 export function createMetalTile(): Tile {
-  return { type: TileType.METAL, hp: -1 }; // -1 = infinite
+  return { type: TileType.METAL, hp: 200 }; // only sniper (>=500 dmg) can destroy
 }
 
 /** Convert pixel position to grid cell coordinate */
