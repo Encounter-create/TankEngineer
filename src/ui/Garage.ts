@@ -4,7 +4,7 @@ import { tryAssemble, AssemblyResult } from '../systems/Assembly';
 import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 import { loadBuildSlots, saveBuildSlot } from '../systems/BuildSlots';
 import { checkSynergies } from '../systems/Synergy';
-import { TANK_RADIUS } from '../entities/Tank';
+import { drawTank } from './Renderer';
 
 // ============================================================
 // Garage state
@@ -225,10 +225,17 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(garage.practiceMode ? '⏹ 结束' : '🎯 演习', pBtnX + practiceBtnW / 2, pBtnY + practiceBtnH / 2);
 
-  // Normal tank preview (practice mode renders via main.ts)
+  // Normal tank preview (using real drawTank from Renderer)
   if (!garage.practiceMode) {
     if (garage.assemblyResult.valid && garage.assemblyResult.config) {
-      drawTankPreview(ctx, previewX + previewW / 2, previewY + previewH / 2, garage.assemblyResult.config);
+      const cfg = garage.assemblyResult.config;
+      const pTank: any = {
+        pos: { x: previewX + previewW / 2, y: previewY + previewH / 2 },
+        vel: { x: 0, y: 0 }, dir: 0, turretAngle: Math.PI / 4,
+        config: cfg, hp: 100, maxHp: 100, alive: true, isPlayer: true,
+        invulnUntil: 0, invulnCooldownUntil: 0, skillCooldownUntil: 0, skillActiveUntil: 0,
+      };
+      drawTank(ctx, pTank);
     } else {
       ctx.fillStyle = '#555';
       ctx.font = '14px "PingFang SC", "Microsoft YaHei", sans-serif';
@@ -265,63 +272,6 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
 // Tank preview renderer
 // ============================================================
 
-function drawTankPreview(ctx: CanvasRenderingContext2D, cx: number, cy: number, config: TankConfig): void {
-  const r = TANK_RADIUS * 1.5;
-  const phi = 0.618;
-  const bw = r * 2;
-  const bh = bw * phi;
-
-  // Chassis
-  const chassisColors: Record<string, string> = {
-    chassis_standard: '#4a9eff', chassis_inertia: '#66aadd', chassis_heavy: '#8B7355', chassis_track: '#88aa66',
-  };
-  ctx.fillStyle = chassisColors[config.chassis.id] ?? '#4a9eff';
-  ctx.strokeStyle = '#222';
-  ctx.lineWidth = 1.5;
-  roundRect(ctx, cx - bw/2, cy - bh/2, bw, bh, bh * 0.3);
-  ctx.fill(); ctx.stroke();
-
-  // Turret
-  const turretR = r * 0.55;
-  if (config.turret.id === 'turret_reactive') {
-    const sides = 6;
-    ctx.fillStyle = '#55aa77'; ctx.strokeStyle = '#337744'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < sides; i++) {
-      const a = (Math.PI * 2 / sides) * i - Math.PI / 2;
-      const px = cx + Math.cos(a) * turretR, py = cy + Math.sin(a) * turretR;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-  } else if (config.turret.id === 'turret_heavy') {
-    ctx.fillStyle = '#335577'; ctx.strokeStyle = '#1a3344'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
-      const px = cx + Math.cos(a) * turretR, py = cy + Math.sin(a) * turretR;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-  } else {
-    ctx.fillStyle = '#88bbee'; ctx.strokeStyle = '#5588aa'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const a = (Math.PI * 2 / 3) * i - Math.PI / 2;
-      const px = cx + Math.cos(a) * turretR, py = cy + Math.sin(a) * turretR;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-  }
-
-  // Barrel
-  const barrelColors: Record<string, string> = {
-    barrel_straight: '#667788', barrel_bounce: '#99aabb', barrel_pierce: '#5588cc', barrel_arc: '#dd8844',
-    barrel_firework: '#ffaa33', barrel_orbital: '#9966cc', barrel_sniper: '#cc3333',
-    barrel_gatling: '#667788', barrel_rocket: '#44aa44',
-  };
-  ctx.fillStyle = barrelColors[config.barrel.id] ?? '#667788';
-  ctx.fillRect(cx + turretR * 0.5, cy - 3, r * 1.1, 6);
-}
 
 // ============================================================
 // Detail tooltip
