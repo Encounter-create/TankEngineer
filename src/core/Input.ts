@@ -17,6 +17,8 @@ export class Input {
     window.addEventListener('keydown', (e) => {
       if (!this.keys.has(e.code)) {
         this.justPressed.add(e.code);
+        // Also mark prevKeys so endFrame doesn't re-add
+        this.prevKeys.add(e.code);
       }
       this.keys.add(e.code);
       e.preventDefault();
