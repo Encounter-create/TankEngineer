@@ -1,5 +1,5 @@
 import { Shop, ShopSlot } from '../systems/Shop';
-import { roundRect, rarityColor, partTypeLabel } from '../utils/Canvas';
+import { roundRect, rarityColor, partTypeLabel, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 
 /** Shop screen state */
 export interface ShopUIState {
@@ -112,15 +112,36 @@ export function renderShop(
     ctx.fillText(`🪙 ${slot.price}`, cx + cardW / 2, btnY + 6);
   });
 
-  // Hint
-  ctx.fillStyle = '#666';
-  ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('点击零件购买 | Esc 返回', w / 2, startY + cardH + 30);
+  // Back button
+  drawShopButtons(ctx, w, h);
 }
 
 // ============================================================
-// Mouse hit-testing
+// Shop buttons
+// ============================================================
+
+const SHOP_BTN_W = 150;
+const SHOP_BTN_H = 36;
+
+export function getShopButtons(w: number, h: number): ButtonDef[] {
+  return [
+    { x: (w - SHOP_BTN_W) / 2, y: h - SHOP_BTN_H - 16, w: SHOP_BTN_W, h: SHOP_BTN_H, label: '← 返回车间', color: '#444' },
+  ];
+}
+
+function drawShopButtons(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  for (const btn of getShopButtons(w, h)) {
+    drawButton(ctx, btn);
+  }
+}
+
+export function hitTestShopButtons(px: number, py: number, w: number, h: number): boolean {
+  const buttons = getShopButtons(w, h);
+  return buttons.some(b => hitTestButton(px, py, b));
+}
+
+// ============================================================
+// Mouse hit-testing (shop slots)
 // ============================================================
 
 const SHOP_CARD_W = 160;

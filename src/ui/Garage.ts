@@ -1,7 +1,7 @@
 import { PartType, TankConfig } from '../entities/Parts';
 import { Inventory } from '../systems/Inventory';
 import { tryAssemble, AssemblyResult } from '../systems/Assembly';
-import { roundRect, rarityColor } from '../utils/Canvas';
+import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 
 /** Garage screen state */
 export interface GarageState {
@@ -85,11 +85,8 @@ export function renderGarage(ctx: CanvasRenderingContext2D, _w: number, _h: numb
   // Bottom: tank stats
   renderTankStats(ctx, _w, _h, garage);
 
-  // Navigation hint
-  ctx.fillStyle = '#666';
-  ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('点击零件选择 | Enter 确认并开始对战', _w / 2, _h - 16);
+  // Buttons
+  drawGarageButtons(ctx, _w, _h);
 }
 
 function renderPartColumn(
@@ -171,7 +168,37 @@ function renderTankStats(ctx: CanvasRenderingContext2D, w: number, h: number, ga
 }
 
 // ============================================================
-// Mouse hit-testing
+// Garage buttons
+// ============================================================
+
+const BTN_W = 150;
+const BTN_H = 36;
+
+export function getGarageButtons(w: number, h: number): ButtonDef[] {
+  const btnY = h - BTN_H - 12;
+  const startX = (w - (BTN_W * 2 + 16)) / 2;
+  return [
+    { x: startX, y: btnY, w: BTN_W, h: BTN_H, label: '⚔️  开始对战', color: '#3a6a3a' },
+    { x: startX + BTN_W + 16, y: btnY, w: BTN_W, h: BTN_H, label: '🏪  商店', color: '#2a4a6a' },
+  ];
+}
+
+function drawGarageButtons(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  for (const btn of getGarageButtons(w, h)) {
+    drawButton(ctx, btn);
+  }
+}
+
+export function hitTestGarageButtons(px: number, py: number, w: number, h: number): number {
+  const buttons = getGarageButtons(w, h);
+  for (let i = 0; i < buttons.length; i++) {
+    if (hitTestButton(px, py, buttons[i])) return i;
+  }
+  return -1; // 0 = start game, 1 = shop
+}
+
+// ============================================================
+// Mouse hit-testing (part cards)
 // ============================================================
 
 export interface GarageClickResult {

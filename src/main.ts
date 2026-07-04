@@ -15,6 +15,7 @@ import {
   getCurrentConfig,
   renderGarage,
   hitTestGarage,
+  hitTestGarageButtons,
 } from './ui/Garage';
 import {
   ShopUIState,
@@ -22,13 +23,14 @@ import {
   attemptBuy,
   renderShop,
   hitTestShop,
+  hitTestShopButtons,
 } from './ui/ShopUI';
+import { renderSiege, drawHUD, hitTestSiegeBackButton } from './ui/Renderer';
 import {
   SiegeState,
   createSiegeState,
   updateSiege,
 } from './modes/Siege';
-import { renderSiege, drawHUD } from './ui/Renderer';
 import { MAP_W, MAP_H } from './utils/Grid';
 
 // ============================================================
@@ -130,8 +132,26 @@ function render(_alpha: number): void {
 // ============================================================
 
 function updateGarage(_dt: number): void {
-  // ---- Mouse click on part cards ----
+  // ---- Mouse click ----
   if (input.isMouseJustPressed()) {
+    // Check buttons first
+    const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
+    if (btnIdx === 0) {
+      // Start game
+      const config = getCurrentConfig(app.garage);
+      if (config && app.garage.assemblyResult.valid) {
+        startSiege(config);
+        return;
+      }
+    }
+    if (btnIdx === 1) {
+      // Open shop
+      app.screen = 'shop';
+      shopUI.message = '';
+      shopUI.slots = app.shop.getSlots();
+      return;
+    }
+    // Check part cards
     const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
     if (hit) {
       selectPart(app.garage, hit.type, hit.partId, app.inventory);
@@ -194,8 +214,15 @@ function getPartsForCol(col: number) {
 // ============================================================
 
 function updateShop(_dt: number): void {
-  // ---- Mouse click on shop slots ----
+  // ---- Mouse click ----
   if (input.isMouseJustPressed()) {
+    // Check back button first
+    if (hitTestShopButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
+      app.screen = 'garage';
+      shopUI.message = '';
+      return;
+    }
+    // Check shop slots
     const idx = hitTestShop(input.mousePos.x, input.mousePos.y, MAP_W, shopUI.slots.length);
     if (idx >= 0 && shopUI.slots[idx]) {
       attemptBuy(shopUI, app.shop, shopUI.slots[idx].part.id);
@@ -247,15 +274,23 @@ function startSiege(config: TankConfig): void {
 function handleSiegeTransitions(): void {
   if (!app.siege) return;
 
-  // Return to garage after seeing results
-  if (
-    (app.siege.phase === 'victory' || app.siege.phase === 'defeat') &&
-    input.isConfirmPressed()
-  ) {
-    app.screen = 'garage';
-    // Refresh garage to show new parts
-    app.garage = createGarageState(app.inventory);
-    app.siege = null;
+  const phase = app.siege.phase;
+
+  // Intro screen: click to start
+  if (phase === 'intro' && input.isMouseJustPressed()) {
+    app.siege.phase = 'playing';
+    return;
+  }
+
+  // Result screens: back button or Enter to return
+  if (phase === 'victory' || phase === 'defeat') {
+    const clickedBack = input.isMouseJustPressed() &&
+      hitTestSiegeBackButton(input.mousePos.x, input.mousePos.y);
+    if (clickedBack || input.isConfirmPressed()) {
+      app.screen = 'garage';
+      app.garage = createGarageState(app.inventory);
+      app.siege = null;
+    }
   }
 }
 

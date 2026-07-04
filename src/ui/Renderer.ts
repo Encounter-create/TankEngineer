@@ -3,7 +3,7 @@ import { TileGrid } from '../entities/Map';
 import { TankEntity, TANK_RADIUS } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 import { SiegeState, TOTAL_WAVES } from '../modes/Siege';
-import { roundRect } from '../utils/Canvas';
+import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 
 // ============================================================
 // Color palette
@@ -52,12 +52,40 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
 
   // Overlay for intro/victory/defeat
   if (state.phase === 'intro') {
-    drawOverlay(ctx, ['🏰 围城模式', '', '保护指挥所，存活 3 分钟', '', '按 Enter 或 Space 开始']);
+    drawOverlay(ctx, ['🏰 围城模式', '', '保护指挥所，存活 3 分钟', '', '点击屏幕 或 按 Enter/Space 开始']);
   } else if (state.phase === 'victory') {
     drawOverlay(ctx, ['🎉 防守成功！', '', `击毁敌坦: ${state.enemiesKilled}`, ...rewardText(state)]);
+    drawSiegeBackButton(ctx);
   } else if (state.phase === 'defeat') {
     drawOverlay(ctx, ['💀 指挥所沦陷', '', `坚持了 ${Math.floor(state.elapsedTime)} 秒`, ...rewardText(state)]);
+    drawSiegeBackButton(ctx);
   }
+}
+
+// ============================================================
+// Siege result button
+// ============================================================
+
+const SIEGE_BTN_W = 160;
+const SIEGE_BTN_H = 40;
+
+export function getSiegeBackButton(): ButtonDef {
+  return {
+    x: (MAP_W - SIEGE_BTN_W) / 2,
+    y: MAP_H - SIEGE_BTN_H - 30,
+    w: SIEGE_BTN_W,
+    h: SIEGE_BTN_H,
+    label: '← 返回车间',
+    color: '#3a6a3a',
+  };
+}
+
+function drawSiegeBackButton(ctx: CanvasRenderingContext2D): void {
+  drawButton(ctx, getSiegeBackButton());
+}
+
+export function hitTestSiegeBackButton(px: number, py: number): boolean {
+  return hitTestButton(px, py, getSiegeBackButton());
 }
 
 function rewardText(state: SiegeState): string[] {

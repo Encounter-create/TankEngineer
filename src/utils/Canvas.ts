@@ -45,3 +45,39 @@ export function partTypeLabel(type: PartType | string): string {
     default: return type;
   }
 }
+
+// ============================================================
+// Shared button rendering + hit-test
+// ============================================================
+
+export interface ButtonDef {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label: string;
+  color: string;     // fill color
+  textColor?: string; // defaults to white
+}
+
+/** Draw a clickable button */
+export function drawButton(ctx: CanvasRenderingContext2D, btn: ButtonDef): void {
+  ctx.fillStyle = btn.color;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = btn.textColor ?? '#fff';
+  ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+}
+
+/** Check if a point hits a button. Returns true if clicked. */
+export function hitTestButton(px: number, py: number, btn: ButtonDef): boolean {
+  return px >= btn.x && px <= btn.x + btn.w &&
+         py >= btn.y && py <= btn.y + btn.h;
+}
