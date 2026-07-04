@@ -36,36 +36,35 @@ export function createSiegeMap(): TileGrid {
   // Open spawn gates at midpoints of each edge
   const midX = Math.floor(MAP_COLS / 2);
   const midY = Math.floor(MAP_ROWS / 2);
-  map[0][midX] = createEmptyTile();           // top gate
-  map[MAP_ROWS - 1][midX] = createEmptyTile(); // bottom gate
-  map[midY][0] = createEmptyTile();            // left gate
-  map[midY][MAP_COLS - 1] = createEmptyTile(); // right gate
+  map[0][midX] = createEmptyTile();
+  map[MAP_ROWS - 1][midX] = createEmptyTile();
+  map[midY][0] = createEmptyTile();
+  map[midY][MAP_COLS - 1] = createEmptyTile();
 
-  // Inner defensive walls (brick — provide cover near command center)
-  // 4 diagonal-ish walls forming a diamond around center
   const cx = midX, cy = midY;
 
-  // Top-left defense cluster
+  // ---- Inner defensive ring (brick walls) ----
+  // Diamond-shaped ring with openings at corners — protects CC but leaves firing lanes
+
+  // Top-left brick L
   placeBrick(map, cx - 3, cy - 2);
   placeBrick(map, cx - 2, cy - 2);
   placeBrick(map, cx - 2, cy - 3);
-
-  // Top-right defense cluster
+  // Top-right brick L
   placeBrick(map, cx + 3, cy - 2);
   placeBrick(map, cx + 2, cy - 2);
   placeBrick(map, cx + 2, cy - 3);
-
-  // Bottom-left defense cluster
+  // Bottom-left brick L
   placeBrick(map, cx - 3, cy + 2);
   placeBrick(map, cx - 2, cy + 2);
   placeBrick(map, cx - 2, cy + 3);
-
-  // Bottom-right defense cluster
+  // Bottom-right brick L
   placeBrick(map, cx + 3, cy + 2);
   placeBrick(map, cx + 2, cy + 2);
   placeBrick(map, cx + 2, cy + 3);
 
-  // Scattered cover walls
+  // ---- Outer scattered cover (brick) ----
+  // Provides cover for player to maneuver outside the inner ring
   placeBrick(map, cx - 5, cy - 1);
   placeBrick(map, cx + 5, cy - 1);
   placeBrick(map, cx - 5, cy + 1);
@@ -75,11 +74,24 @@ export function createSiegeMap(): TileGrid {
   placeBrick(map, cx - 1, cy + 4);
   placeBrick(map, cx + 1, cy + 4);
 
-  // Some metal pillars for cover near spawn gates
-  placeMetal(map, cx - 4, 2);
-  placeMetal(map, cx + 4, 2);
-  placeMetal(map, cx - 4, MAP_ROWS - 3);
-  placeMetal(map, cx + 4, MAP_ROWS - 3);
+  // Extra scattered singles for geometric shooting angles
+  placeBrick(map, cx - 4, cy);
+  placeBrick(map, cx + 4, cy);
+  placeBrick(map, cx, cy - 4);
+  placeBrick(map, cx, cy + 4);
+
+  // ---- Metal pillars (indestructible — great for bounce shots) ----
+  // Near each spawn gate — provides cover for newly-spawned enemies AND the player
+  placeMetal(map, cx - 3, 2);
+  placeMetal(map, cx + 3, 2);
+  placeMetal(map, cx - 3, MAP_ROWS - 3);
+  placeMetal(map, cx + 3, MAP_ROWS - 3);
+
+  // Mid-lane metal pillars — create bounce shot opportunities
+  placeMetal(map, cx - 6, cy - 3);
+  placeMetal(map, cx + 6, cy - 3);
+  placeMetal(map, cx - 6, cy + 3);
+  placeMetal(map, cx + 6, cy + 3);
 
   return map;
 }

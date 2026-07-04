@@ -3,7 +3,7 @@ import { CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
 import { TileGrid, createSiegeMap } from '../entities/Map';
 import { TankEntity, createTank, takeDamage } from '../entities/Tank';
 import { BulletEntity, createBullet } from '../entities/Bullet';
-import { TankConfig, effectiveSpeed, effectiveCooldown } from '../entities/Parts';
+import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit } from '../core/Physics';
 import { Input } from '../core/Input';
 import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
@@ -203,25 +203,47 @@ function spawnWaves(state: SiegeState): void {
 function spawnWave(state: SiegeState, wave: WaveDef): void {
   const rand = new Random();
   const spawnEdges = [
-    { x: Math.floor(MAP_COLS / 2), y: 1 },                          // top gate
-    { x: Math.floor(MAP_COLS / 2), y: MAP_ROWS - 2 },                // bottom gate
-    { x: 1, y: Math.floor(MAP_ROWS / 2) },                           // left gate
-    { x: MAP_COLS - 2, y: Math.floor(MAP_ROWS / 2) },                // right gate
+    { x: Math.floor(MAP_COLS / 2), y: 1 },
+    { x: Math.floor(MAP_COLS / 2), y: MAP_ROWS - 2 },
+    { x: 1, y: Math.floor(MAP_ROWS / 2) },
+    { x: MAP_COLS - 2, y: Math.floor(MAP_ROWS / 2) },
   ];
 
   const shuffledEdges = rand.shuffle([...spawnEdges]);
+
+  // Build enemy config pool based on wave type
+  const configs: TankConfig[] = [];
+
+  // Basic config — always available
+  const barrelStraight = MVP_BARRELS.find(p => p.id === 'barrel_straight')!;
+  const turretLight = MVP_TURRETS.find(p => p.id === 'turret_light')!;
+  const chassisStandard = MVP_CHASSIS.find(p => p.id === 'chassis_standard')!;
+  configs.push(assembleTank(barrelStraight, turretLight, chassisStandard));
+
+  // Bounce barrel variant
+  if (wave.hasBounceBarrel) {
+    const barrelBounce = MVP_BARRELS.find(p => p.id === 'barrel_bounce')!;
+    configs.push(assembleTank(barrelBounce, turretLight, chassisStandard));
+  }
+
+  // Heavy tank variant
+  if (wave.hasHeavyTank) {
+    const turretHeavy = MVP_TURRETS.find(p => p.id === 'turret_heavy')!;
+    const chassisInertia = MVP_CHASSIS.find(p => p.id === 'chassis_inertia')!;
+    configs.push(assembleTank(barrelStraight, turretHeavy, chassisStandard));
+    configs.push(assembleTank(barrelStraight, turretLight, chassisInertia));
+  }
 
   for (let i = 0; i < wave.enemyCount && state.enemies.length < ENEMY_MAX; i++) {
     const edge = shuffledEdges[i % shuffledEdges.length];
     const spawnPos = gridToPixel(edge.x, edge.y);
 
-    // Build enemy config (simple variations)
-    // TODO: varied enemy configs per wave type
+    const config = configs[i % configs.length];
 
     const enemy = createTank(
       `enemy_${state.enemies.length}_${Date.now()}`,
       spawnPos,
-      state.player.config, // Reuse player's config as base — TODO: varied enemy configs
+      config,
       false,
     );
     state.enemies.push(enemy);

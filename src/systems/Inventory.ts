@@ -12,11 +12,14 @@ const STORAGE_KEY = 'tank_engineer_inventory';
 
 function defaultInventory(): InventoryData {
   return {
-    gold: 500,
+    gold: 50000,
     ownedPartIds: [
       'barrel_straight',
+      'barrel_bounce',
       'turret_light',
+      'turret_heavy',
       'chassis_standard',
+      'chassis_inertia',
     ],
     lastShopRefresh: 0,
     shopPartIds: [],
