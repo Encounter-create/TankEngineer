@@ -22,6 +22,10 @@ export interface TankEntity {
   invulnUntil: number;
   /** Reactive armor: next available trigger timestamp (performance.now ms) */
   invulnCooldownUntil: number;
+  /** Commander skill: cooldown until timestamp (performance.now ms) */
+  skillCooldownUntil: number;
+  /** Commander skill: active effect until timestamp (performance.now ms) */
+  skillActiveUntil: number;
 }
 
 export function createTank(
@@ -45,6 +49,8 @@ export function createTank(
     isPlayer,
     invulnUntil: 0,
     invulnCooldownUntil: 0,
+    skillCooldownUntil: 0,
+    skillActiveUntil: 0,
   };
 }
 

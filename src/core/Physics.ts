@@ -8,6 +8,7 @@ import {
 } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS, ARC_GRAVITY } from '../entities/Bullet';
 import { effectiveSpeed } from '../entities/Parts';
+import { getSkillSpeedMultiplier } from '../systems/Commander';
 
 // ============================================================
 // Collision helpers
@@ -88,7 +89,7 @@ export function moveTank(
   dt: number,
   map: TileGrid,
 ): void {
-  const maxSpeed = effectiveSpeed(tank.config);
+  const maxSpeed = effectiveSpeed(tank.config) * getSkillSpeedMultiplier(tank);
   const isMoving = moveDir.x !== 0 || moveDir.y !== 0;
 
   // ---- Angular movement (body rotation) ----

@@ -8,8 +8,8 @@ export interface GarageState {
   selectedBarrelId: string;
   selectedTurretId: string;
   selectedChassisId: string;
+  selectedCommanderId: string;
   assemblyResult: AssemblyResult;
-  /** Whether we're currently showing the garage */
   visible: boolean;
 }
 
@@ -17,20 +17,22 @@ export function createGarageState(inventory: Inventory): GarageState {
   const barrels = inventory.getOwnedByType('barrel');
   const turrets = inventory.getOwnedByType('turret');
   const chassis = inventory.getOwnedByType('chassis');
+  const commanders = inventory.getOwnedByType('commander');
 
   const state: GarageState = {
     selectedBarrelId: barrels[0]?.id ?? '',
     selectedTurretId: turrets[0]?.id ?? '',
     selectedChassisId: chassis[0]?.id ?? '',
+    selectedCommanderId: commanders[0]?.id ?? '',
     assemblyResult: { valid: false, config: null, errors: ['请选择零件'] },
     visible: false,
   };
 
-  // Auto-validate initial selection
   state.assemblyResult = tryAssemble(
     state.selectedBarrelId,
     state.selectedTurretId,
     state.selectedChassisId,
+    state.selectedCommanderId,
     inventory,
   );
   return state;
@@ -41,11 +43,13 @@ export function selectPart(garage: GarageState, type: PartType, partId: string, 
     case 'barrel': garage.selectedBarrelId = partId; break;
     case 'turret': garage.selectedTurretId = partId; break;
     case 'chassis': garage.selectedChassisId = partId; break;
+    case 'commander': garage.selectedCommanderId = partId; break;
   }
   garage.assemblyResult = tryAssemble(
     garage.selectedBarrelId,
     garage.selectedTurretId,
     garage.selectedChassisId,
+    garage.selectedCommanderId,
     inventory,
   );
 }
@@ -69,14 +73,15 @@ export function renderGarage(ctx: CanvasRenderingContext2D, _w: number, _h: numb
   ctx.textAlign = 'center';
   ctx.fillText('🔧 坦克组装车间', _w / 2, 30);
 
-  // Three columns: Barrel | Turret | Chassis
+  // Four columns: Barrel | Turret | Chassis | Commander
   const types: { type: PartType; label: string; selectedId: string }[] = [
     { type: 'barrel', label: '🔫 炮管', selectedId: garage.selectedBarrelId },
     { type: 'turret', label: '🛡️ 炮塔', selectedId: garage.selectedTurretId },
     { type: 'chassis', label: '🏎️ 车身', selectedId: garage.selectedChassisId },
+    { type: 'commander', label: '🎖️ 车长', selectedId: garage.selectedCommanderId },
   ];
 
-  const colW = _w / 3;
+  const colW = _w / 4;
   types.forEach((col, ci) => {
     const cx = colW * ci + colW / 2;
     renderPartColumn(ctx, cx, col.label, col.type, col.selectedId, inventory, garage);

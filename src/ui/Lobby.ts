@@ -153,7 +153,7 @@ export function renderLobby(
     ctx.font = '13px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(
-      `${wcEmoji} ${config.barrel.name} | ${config.turret.name} | ${config.chassis.name}  (总重:${config.totalWeight})`,
+      `${wcEmoji} ${config.barrel.name} | ${config.turret.name} | ${config.chassis.name} | ${config.commander.name}  (总重:${config.totalWeight})`,
       12,
       barY + 28,
     );

@@ -1,4 +1,4 @@
-import { Part, PartType, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
+import { Part, PartType, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS, MVP_COMMANDERS } from '../entities/Parts';
 
 /** Persisted player inventory */
 export interface InventoryData {
@@ -25,6 +25,10 @@ function defaultInventory(): InventoryData {
       'chassis_inertia',
       'chassis_heavy',
       'chassis_track',
+      'commander_repair',
+      'commander_sprint',
+      'commander_barrage',
+      'commander_smoke',
     ],
     lastShopRefresh: 0,
     shopPartIds: [],
@@ -107,9 +111,9 @@ export class Inventory {
     this.save();
   }
 
-  /** Get all parts (for shop generation) */
+  /** Get all parts (for shop generation and encyclopedia) */
   static getAllParts(): Part[] {
-    return [...MVP_BARRELS, ...MVP_TURRETS, ...MVP_CHASSIS];
+    return [...MVP_BARRELS, ...MVP_TURRETS, ...MVP_CHASSIS, ...MVP_COMMANDERS];
   }
 
   /** Get a part by ID */

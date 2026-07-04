@@ -219,14 +219,53 @@ export const MVP_CHASSIS: Part[] = [
   },
 ];
 
-/** Placeholder commander for MVP (no effect) */
+export const MVP_COMMANDERS: Part[] = [
+  {
+    id: 'commander_repair',
+    name: '维修专家',
+    type: 'commander',
+    rarity: 'common',
+    weight: 1,
+    description: '立即恢复 40 HP',
+    stats: { skillCdMs: 60000 },
+  },
+  {
+    id: 'commander_sprint',
+    name: '冲刺指挥官',
+    type: 'commander',
+    rarity: 'common',
+    weight: 1,
+    description: '2秒内速度翻倍',
+    stats: { skillCdMs: 30000 },
+  },
+  {
+    id: 'commander_barrage',
+    name: '弹幕指挥官',
+    type: 'commander',
+    rarity: 'rare',
+    weight: 1,
+    description: '3秒内弹药无限',
+    stats: { skillCdMs: 45000 },
+  },
+  {
+    id: 'commander_smoke',
+    name: '烟雾指挥官',
+    type: 'commander',
+    rarity: 'rare',
+    weight: 1,
+    description: '释放烟雾阻挡敌人视线 3 秒',
+    stats: { skillCdMs: 25000 },
+  },
+];
+
+/** Default commander (no skill) */
 export const DEFAULT_COMMANDER: Part = {
   id: 'commander_none',
   name: '无车长',
   type: 'commander',
   rarity: 'common',
   weight: 0,
-  description: 'MVP版本暂不开放车长系统',
+  description: '无特殊技能',
   stats: {},
 };
 

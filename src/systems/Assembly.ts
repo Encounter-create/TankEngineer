@@ -12,6 +12,7 @@ export function tryAssemble(
   barrelId: string,
   turretId: string,
   chassisId: string,
+  commanderId: string,
   inventory: Inventory,
 ): AssemblyResult {
   const errors: string[] = [];
@@ -19,12 +20,13 @@ export function tryAssemble(
   const barrel = validatePart(barrelId, 'barrel', inventory, errors);
   const turret = validatePart(turretId, 'turret', inventory, errors);
   const chassis = validatePart(chassisId, 'chassis', inventory, errors);
+  const commander = validatePart(commanderId, 'commander', inventory, errors);
 
   if (errors.length > 0) {
     return { valid: false, config: null, errors };
   }
 
-  const config = assembleTank(barrel!, turret!, chassis!, DEFAULT_COMMANDER);
+  const config = assembleTank(barrel!, turret!, chassis!, commander ?? DEFAULT_COMMANDER);
   return { valid: true, config, errors: [] };
 }
 

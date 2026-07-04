@@ -19,6 +19,7 @@ const TYPES: { type: PartType; label: string }[] = [
   { type: 'barrel', label: '🔫 炮管' },
   { type: 'turret', label: '🛡️ 炮塔' },
   { type: 'chassis', label: '🏎️ 车身' },
+  { type: 'commander', label: '🎖️ 车长' },
 ];
 
 export function renderEncyclopedia(
@@ -130,6 +131,9 @@ export function renderEncyclopedia(
       if (stats.crushWalls) statText += '  碾墙';
       if (stats.instantTurn) statText += '  瞬间转向';
       if ((stats.inertia ?? 0) > 0) statText += '  惯性滑行';
+    } else if (part.type === 'commander') {
+      const cd = (stats.skillCdMs ?? 0) / 1000;
+      statText = `技能CD: ${cd}s`;
     }
     ctx.fillStyle = '#888';
     ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
@@ -157,7 +161,7 @@ export function hitTestEncyclopediaTabs(px: number, py: number, w: number): Part
   const tabH = 30;
   const tabY = 50;
   const tabStartX = (w - TYPES.length * (tabW + 8)) / 2;
-  const TYPES_LIST: PartType[] = ['barrel', 'turret', 'chassis'];
+  const TYPES_LIST: PartType[] = ['barrel', 'turret', 'chassis', 'commander'];
 
   for (let i = 0; i < TYPES.length; i++) {
     const tx = tabStartX + i * (tabW + 8);

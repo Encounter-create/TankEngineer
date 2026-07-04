@@ -10,6 +10,7 @@ import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
+import { activateSkill, isBarrageActive, isSmokeActive } from '../systems/Commander';
 
 // ============================================================
 // Siege mode — 3 minute defense
@@ -52,6 +53,8 @@ export interface SiegeState {
   commandCenterHp: number;
   playerCooldownRemaining: number; // ms
   pendingReward: BattleReward | null;
+  skillMessage: string;
+  skillMessageTime: number; // ms remaining
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -80,6 +83,8 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     commandCenterHp: COMMAND_CENTER_MAX_HP,
     playerCooldownRemaining: 0,
     pendingReward: null,
+    skillMessage: '',
+    skillMessageTime: 0,
   };
 }
 
@@ -161,16 +166,27 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   if (toMouse.mag() > 1) {
     state.player.turretAngle = toMouse.angle();
   }
+
+  // Commander skill: E key
+  if (input.wasJustPressed('KeyE')) {
+    const result = activateSkill(state.player);
+    state.skillMessage = result.message;
+    state.skillMessageTime = 2000; // show for 2s
+  }
 }
 
 function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
-  state.playerCooldownRemaining -= _dt * 1000;
+  const barrageActive = isBarrageActive(state.player);
+  if (!barrageActive) {
+    state.playerCooldownRemaining -= _dt * 1000;
+  }
 
   // Left-click or Space to fire
-  const wantFire = input.isMouseJustPressed() || input.isFirePressed();
-  if (wantFire && state.playerCooldownRemaining <= 0 && state.player.alive) {
+  const wantFire = input.isMouseDown() || input.isFirePressed();
+  const canFire = barrageActive || state.playerCooldownRemaining <= 0;
+  if (wantFire && canFire && state.player.alive) {
     const cfg = state.player.config;
-    const cooldown = effectiveCooldown(cfg);
+    const cooldown = barrageActive ? 50 : effectiveCooldown(cfg); // 50ms during barrage
     state.playerCooldownRemaining = cooldown;
 
     const bullet = createBullet(
@@ -275,8 +291,9 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     if (!ctx) continue;
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    // AI can chase either the player or the command center
-    const target = state.player.alive ? state.player.pos : centerPos;
+    // Smoke: if player has smoke active, enemies can't see player → target CC instead
+    const playerVisible = !isSmokeActive(state.player);
+    const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
 
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map);

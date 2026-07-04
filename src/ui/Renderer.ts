@@ -415,7 +415,7 @@ function drawOverlay(ctx: CanvasRenderingContext2D, lines: string[]): void {
 }
 
 export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void {
-  // Timer
+  // Timer (center)
   const remaining = Math.max(0, 180 - state.elapsedTime);
   const mins = Math.floor(remaining / 60);
   const secs = Math.floor(remaining % 60);
@@ -423,8 +423,8 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
 
   ctx.fillStyle = remaining <= 30 ? '#ff4444' : C.TEXT;
   ctx.font = 'bold 16px monospace';
-  ctx.textAlign = 'right';
-  ctx.fillText(`⏱ ${timeStr}`, MAP_W - 12, 20);
+  ctx.textAlign = 'center';
+  ctx.fillText(`⏱ ${timeStr}`, MAP_W / 2, 20);
 
   // Wave info
   const currentWave = state.wavesSpawned;
@@ -435,6 +435,16 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
 
   // Kill count
   ctx.fillText(`击毁: ${state.enemiesKilled}`, 12, 38);
+
+  // Skill message
+  if (state.skillMessageTime > 0 && state.skillMessage) {
+    state.skillMessageTime -= 16; // ~60fps
+    const alpha = Math.min(1, state.skillMessageTime / 500);
+    ctx.fillStyle = `rgba(74, 224, 160, ${alpha})`;
+    ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(state.skillMessage, MAP_W - 60, 38);
+  }
 
   // Command center HP
   const ccHp = state.commandCenterHp;
