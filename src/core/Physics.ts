@@ -7,7 +7,7 @@ import {
   ANGULAR_ACCEL,
 } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS, ARC_GRAVITY } from '../entities/Bullet';
-import { PhysicsBlock, createPhysicsBlock, BLOCK_RADIUS, BRICK_MASS, METAL_MASS } from '../entities/PhysicsBlock';
+import { PhysicsBlock, createPhysicsBlock, BRICK_MASS, METAL_MASS } from '../entities/PhysicsBlock';
 import { effectiveSpeed } from '../entities/Parts';
 import { getSkillSpeedMultiplier } from '../systems/Commander';
 
@@ -46,36 +46,6 @@ export function checkTileCollision(pos: Vec2, radius: number, map: TileGrid): Co
     }
   }
   return { hit: false, normal: Vec2.zero(), tileX: -1, tileY: -1, tileType: TileType.EMPTY };
-}
-
-// ============================================================
-// Generic elastic collision (momentum + kinetic energy conserved)
-// ============================================================
-
-interface CollisionBody {
-  pos: Vec2;
-  vel: Vec2;
-  radius: number;
-  mass: number;
-  alive: boolean;
-}
-
-/** Apply 1D elastic collision along the normal between two bodies */
-export function applyElasticCollision(a: CollisionBody, b: CollisionBody, normal: Vec2): void {
-  const vRel = a.vel.dot(normal) - b.vel.dot(normal);
-  if (vRel <= 0) return; // separating
-  const ma = a.mass, mb = b.mass;
-  const J = 2 * vRel / (1 / ma + 1 / mb);
-  a.vel = a.vel.sub(normal.scale(J / ma));
-  b.vel = b.vel.add(normal.scale(J / mb));
-}
-
-function separateBodies(a: CollisionBody, b: CollisionBody, normal: Vec2, overlap: number): void {
-  const totalMass = a.mass + b.mass;
-  const sepA = overlap * (b.mass / totalMass) + 0.5;
-  const sepB = overlap * (a.mass / totalMass) + 0.5;
-  a.pos = a.pos.sub(normal.scale(sepA));
-  b.pos = b.pos.add(normal.scale(sepB));
 }
 
 // ============================================================
@@ -219,50 +189,84 @@ export function resolveBlockWallCollisions(blocks: PhysicsBlock[], map: TileGrid
 // Generic body-to-body collision resolver
 // ============================================================
 
-function bodyCollisions(bodies: CollisionBody[], minDist: number): void {
-  for (let i = 0; i < bodies.length; i++) {
-    for (let j = i + 1; j < bodies.length; j++) {
-      const a = bodies[i], b = bodies[j];
-      if (!a.alive || !b.alive) continue;
-      const diff = b.pos.sub(a.pos);
-      const dist = diff.mag();
-      if (dist >= minDist || dist < 0.01) continue;
-      const normal = diff.norm();
-      const overlap = minDist - dist;
-      applyElasticCollision(a, b, normal);
-      separateBodies(a, b, normal, overlap);
-    }
-  }
+/** Wrapper for an entity with mutable pos/vel via reassignment */
+interface BodyRef {
+  get pos(): Vec2;
+  set pos(v: Vec2);
+  get vel(): Vec2;
+  set vel(v: Vec2);
 }
 
-function collisionBody(tank: TankEntity): CollisionBody {
-  return { pos: tank.pos, vel: tank.vel, radius: TANK_RADIUS, mass: tank.config.totalWeight, alive: tank.alive };
+function bodyRef(pos: Vec2, vel: Vec2): BodyRef {
+  let p = pos, v = vel;
+  return {
+    get pos() { return p; }, set pos(v2: Vec2) { p = v2; },
+    get vel() { return v; }, set vel(v2: Vec2) { v = v2; },
+  };
 }
 
-function blockBody(b: PhysicsBlock): CollisionBody {
-  return { pos: b.pos, vel: b.vel, radius: b.radius, mass: b.mass, alive: b.alive };
+/** Generic elastic collision: directly updates vel and pos on a and b */
+function elasticBounce(
+  a: BodyRef, aMass: number, aRadius: number,
+  b: BodyRef, bMass: number, bRadius: number,
+): void {
+  const diff = b.pos.sub(a.pos);
+  const dist = diff.mag();
+  const minDist = aRadius + bRadius;
+  if (dist >= minDist || dist < 0.01) return;
+  const normal = diff.norm();
+  const vRel = a.vel.dot(normal) - b.vel.dot(normal);
+  if (vRel <= 0) return;
+  const J = 2 * vRel / (1 / aMass + 1 / bMass);
+  a.vel = a.vel.sub(normal.scale(J / aMass));
+  b.vel = b.vel.add(normal.scale(J / bMass));
+  // Separate
+  const overlap = minDist - dist + 0.5;
+  const totalMass = aMass + bMass;
+  a.pos = a.pos.sub(normal.scale(overlap * (bMass / totalMass)));
+  b.pos = b.pos.add(normal.scale(overlap * (aMass / totalMass)));
 }
 
 /** Tank-tank collisions */
 export function resolveTankCollisions(tanks: TankEntity[]): void {
-  const alive = tanks.filter(t => t.alive);
-  bodyCollisions(alive.map(collisionBody), TANK_RADIUS * 2);
+  for (let i = 0; i < tanks.length; i++) {
+    for (let j = i + 1; j < tanks.length; j++) {
+      const a = tanks[i], b = tanks[j];
+      if (!a.alive || !b.alive) continue;
+      const ra = bodyRef(a.pos, a.vel), rb = bodyRef(b.pos, b.vel);
+      elasticBounce(ra, a.config.totalWeight, TANK_RADIUS, rb, b.config.totalWeight, TANK_RADIUS);
+      a.pos = ra.pos; a.vel = ra.vel;
+      b.pos = rb.pos; b.vel = rb.vel;
+    }
+  }
 }
 
 /** Block-tank collisions */
 export function resolveBlockTankCollisions(blocks: PhysicsBlock[], tanks: TankEntity[]): void {
-  const aliveTanks = tanks.filter(t => t.alive).map(collisionBody);
-  const aliveBlocks = blocks.filter(b => b.alive).map(blockBody);
-  const all: CollisionBody[] = [];
-  for (const t of aliveTanks) all.push(t);
-  for (const b of aliveBlocks) all.push(b);
-  bodyCollisions(all, BLOCK_RADIUS + TANK_RADIUS);
+  for (const block of blocks) {
+    if (!block.alive) continue;
+    for (const tank of tanks) {
+      if (!tank.alive) continue;
+      const rb = bodyRef(block.pos, block.vel), rt = bodyRef(tank.pos, tank.vel);
+      elasticBounce(rb, block.mass, block.radius, rt, tank.config.totalWeight, TANK_RADIUS);
+      block.pos = rb.pos; block.vel = rb.vel;
+      tank.pos = rt.pos; tank.vel = rt.vel;
+    }
+  }
 }
 
 /** Block-block collisions */
 export function resolveBlockBlockCollisions(blocks: PhysicsBlock[]): void {
-  const alive = blocks.filter(b => b.alive).map(blockBody);
-  bodyCollisions(alive, BLOCK_RADIUS * 2);
+  for (let i = 0; i < blocks.length; i++) {
+    for (let j = i + 1; j < blocks.length; j++) {
+      const a = blocks[i], b = blocks[j];
+      if (!a.alive || !b.alive) continue;
+      const ra = bodyRef(a.pos, a.vel), rb = bodyRef(b.pos, b.vel);
+      elasticBounce(ra, a.mass, a.radius, rb, b.mass, b.radius);
+      a.pos = ra.pos; a.vel = ra.vel;
+      b.pos = rb.pos; b.vel = rb.vel;
+    }
+  }
 }
 
 // ============================================================
