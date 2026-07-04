@@ -1,0 +1,194 @@
+import { PartType, TankConfig } from '../entities/Parts';
+import { Inventory } from '../systems/Inventory';
+import { tryAssemble, AssemblyResult } from '../systems/Assembly';
+
+/** Garage screen state */
+export interface GarageState {
+  selectedBarrelId: string;
+  selectedTurretId: string;
+  selectedChassisId: string;
+  assemblyResult: AssemblyResult;
+  /** Whether we're currently showing the garage */
+  visible: boolean;
+}
+
+export function createGarageState(inventory: Inventory): GarageState {
+  const barrels = inventory.getOwnedByType('barrel');
+  const turrets = inventory.getOwnedByType('turret');
+  const chassis = inventory.getOwnedByType('chassis');
+
+  const state: GarageState = {
+    selectedBarrelId: barrels[0]?.id ?? '',
+    selectedTurretId: turrets[0]?.id ?? '',
+    selectedChassisId: chassis[0]?.id ?? '',
+    assemblyResult: { valid: false, config: null, errors: ['请选择零件'] },
+    visible: false,
+  };
+
+  // Auto-validate initial selection
+  state.assemblyResult = tryAssemble(
+    state.selectedBarrelId,
+    state.selectedTurretId,
+    state.selectedChassisId,
+    inventory,
+  );
+  return state;
+}
+
+export function selectPart(garage: GarageState, type: PartType, partId: string, inventory: Inventory): void {
+  switch (type) {
+    case 'barrel': garage.selectedBarrelId = partId; break;
+    case 'turret': garage.selectedTurretId = partId; break;
+    case 'chassis': garage.selectedChassisId = partId; break;
+  }
+  garage.assemblyResult = tryAssemble(
+    garage.selectedBarrelId,
+    garage.selectedTurretId,
+    garage.selectedChassisId,
+    inventory,
+  );
+}
+
+export function getCurrentConfig(garage: GarageState): TankConfig | null {
+  return garage.assemblyResult.config;
+}
+
+// ============================================================
+// Canvas rendering for garage screen
+// ============================================================
+
+export function renderGarage(ctx: CanvasRenderingContext2D, _w: number, _h: number, garage: GarageState, inventory: Inventory): void {
+  // Background
+  ctx.fillStyle = '#1a1d23';
+  ctx.fillRect(0, 0, _w, _h);
+
+  // Title
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = 'bold 20px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🔧 坦克组装车间', _w / 2, 30);
+
+  // Three columns: Barrel | Turret | Chassis
+  const types: { type: PartType; label: string; selectedId: string }[] = [
+    { type: 'barrel', label: '🔫 炮管', selectedId: garage.selectedBarrelId },
+    { type: 'turret', label: '🛡️ 炮塔', selectedId: garage.selectedTurretId },
+    { type: 'chassis', label: '🏎️ 车身', selectedId: garage.selectedChassisId },
+  ];
+
+  const colW = _w / 3;
+  types.forEach((col, ci) => {
+    const cx = colW * ci + colW / 2;
+    renderPartColumn(ctx, cx, col.label, col.type, col.selectedId, inventory, garage);
+  });
+
+  // Bottom: tank stats
+  renderTankStats(ctx, _w, _h, garage);
+
+  // Navigation hint
+  ctx.fillStyle = '#666';
+  ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('点击零件选择 | Enter 确认并开始对战', _w / 2, _h - 16);
+}
+
+function renderPartColumn(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  label: string,
+  type: PartType,
+  selectedId: string,
+  inventory: Inventory,
+  _garage: GarageState,
+): void {
+  const parts = inventory.getOwnedByType(type);
+
+  // Column header
+  ctx.fillStyle = '#ccc';
+  ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, cx, 60);
+
+  // Part cards
+  const cardW = 140;
+  const cardH = 80;
+  const startY = 80;
+  const gap = 12;
+
+  parts.forEach((part, i) => {
+    const cy = startY + i * (cardH + gap);
+    const selected = part.id === selectedId;
+
+    // Card background
+    ctx.fillStyle = selected ? '#2a4a6a' : '#2a2d35';
+    ctx.strokeStyle = selected ? '#4a9eff' : '#444';
+    ctx.lineWidth = selected ? 2 : 1;
+    roundRect(ctx, cx - cardW / 2, cy, cardW, cardH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Part name
+    ctx.fillStyle = selected ? '#fff' : '#ccc';
+    ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(part.name, cx, cy + 22);
+
+    // Rarity
+    ctx.fillStyle = rarityColor(part.rarity);
+    ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(part.rarity, cx, cy + 40);
+
+    // Weight
+    ctx.fillStyle = '#888';
+    ctx.fillText(`重量: ${part.weight}`, cx, cy + 56);
+
+    // Description (truncated)
+    ctx.fillStyle = '#777';
+    ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(part.description.slice(0, 16), cx, cy + 70);
+  });
+}
+
+function renderTankStats(ctx: CanvasRenderingContext2D, w: number, h: number, garage: GarageState): void {
+  const result = garage.assemblyResult;
+  const y = h - 80;
+
+  if (result.valid && result.config) {
+    const c = result.config;
+    const wcLabel = { light: '🪶 轻量级', medium: '⚖️ 中量级', heavy: '🏋️ 重量级' }[c.weightClass];
+
+    ctx.fillStyle = '#4ae0a0';
+    ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`总重: ${c.totalWeight} → ${wcLabel}`, w / 2, y);
+  } else {
+    ctx.fillStyle = '#ff6b4a';
+    ctx.font = '14px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    result.errors.forEach((err, i) => {
+      ctx.fillText(`⚠ ${err}`, w / 2, y + i * 18);
+    });
+  }
+}
+
+function rarityColor(rarity: string): string {
+  switch (rarity) {
+    case 'common': return '#aaa';
+    case 'rare': return '#4a9eff';
+    case 'epic': return '#c04aff';
+    case 'legendary': return '#ffaa00';
+    default: return '#aaa';
+  }
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}

@@ -1,0 +1,348 @@
+import { Vec2 } from '../utils/Vector';
+import { CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
+import { TileGrid, createSiegeMap } from '../entities/Map';
+import { TankEntity, createTank, takeDamage } from '../entities/Tank';
+import { BulletEntity, createBullet } from '../entities/Bullet';
+import { TankConfig, effectiveSpeed, effectiveCooldown } from '../entities/Parts';
+import { moveTank, moveBullet, checkBulletTankHit } from '../core/Physics';
+import { Input } from '../core/Input';
+import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
+import { Random } from '../utils/Random';
+import { BattleReward, generateReward } from '../systems/Reward';
+import { Inventory } from '../systems/Inventory';
+
+// ============================================================
+// Siege mode — 3 minute defense
+// ============================================================
+
+export type SiegePhase = 'intro' | 'playing' | 'victory' | 'defeat' | 'paused';
+
+export interface WaveDef {
+  timeStart: number;    // seconds
+  enemyCount: number;
+  /** Enemy config overwrites (null = use default) */
+  hasBounceBarrel: boolean;
+  hasHeavyTank: boolean;
+}
+
+export const TOTAL_WAVES = 6;
+const MATCH_DURATION = 180; // 3 minutes
+
+export const WAVES: WaveDef[] = [
+  { timeStart: 0,   enemyCount: 2, hasBounceBarrel: false, hasHeavyTank: false },
+  { timeStart: 30,  enemyCount: 3, hasBounceBarrel: true,  hasHeavyTank: false },
+  { timeStart: 60,  enemyCount: 4, hasBounceBarrel: true,  hasHeavyTank: true  },
+  { timeStart: 90,  enemyCount: 5, hasBounceBarrel: true,  hasHeavyTank: true  },
+  { timeStart: 120, enemyCount: 6, hasBounceBarrel: true,  hasHeavyTank: true  },
+  { timeStart: 150, enemyCount: 8, hasBounceBarrel: true,  hasHeavyTank: true  },
+];
+
+export interface SiegeState {
+  phase: SiegePhase;
+  map: TileGrid;
+  player: TankEntity;
+  enemies: TankEntity[];
+  bullets: BulletEntity[];
+  aiContexts: Map<string, AIContext>;
+  elapsedTime: number;          // seconds
+  wavesSpawned: number;         // 0-6
+  enemiesKilled: number;
+  commandCenterHp: number;
+  pendingReward: BattleReward | null;
+}
+
+const COMMAND_CENTER_MAX_HP = 500;
+const COMMAND_CENTER_GRID = { x: Math.floor(MAP_COLS / 2), y: Math.floor(MAP_ROWS / 2) };
+const ENEMY_MAX = 12;
+
+export function createSiegeState(playerConfig: TankConfig): SiegeState {
+  const map = createSiegeMap();
+  const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
+
+  const player = createTank('player', centerPos, playerConfig, true);
+
+  return {
+    phase: 'intro',
+    map,
+    player,
+    enemies: [],
+    bullets: [],
+    aiContexts: new Map(),
+    elapsedTime: 0,
+    wavesSpawned: 0,
+    enemiesKilled: 0,
+    commandCenterHp: COMMAND_CENTER_MAX_HP,
+    pendingReward: null,
+  };
+}
+
+// ============================================================
+// Update tick
+// ============================================================
+
+export function updateSiege(
+  state: SiegeState,
+  input: Input,
+  dt: number,
+  inventory: Inventory,
+): void {
+  if (state.phase === 'victory' || state.phase === 'defeat') return;
+
+  // Intro countdown
+  if (state.phase === 'intro') {
+    if (input.isConfirmPressed() || input.isFirePressed()) {
+      state.phase = 'playing';
+    }
+    return;
+  }
+
+  state.elapsedTime += dt;
+
+  // Check time limit
+  if (state.elapsedTime >= MATCH_DURATION) {
+    endSiege(state, true, inventory);
+    return;
+  }
+
+  // Check command center destroyed
+  if (state.commandCenterHp <= 0) {
+    endSiege(state, false, inventory);
+    return;
+  }
+
+  // Spawn waves
+  spawnWaves(state);
+
+  // Player movement
+  handlePlayerInput(state, input, dt);
+
+  // Player firing
+  handlePlayerFire(state, input, dt);
+
+  // Enemy AI
+  handleEnemyAI(state, dt);
+
+  // Move bullets
+  handleBullets(state, dt);
+
+  // Check bullet-tank collisions
+  handleBulletTankCollisions(state, dt);
+
+  // Check enemies reaching command center
+  handleEnemyReachCenter(state);
+}
+
+// ============================================================
+// Player
+// ============================================================
+
+let playerCooldownRemaining = 0;
+
+function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
+  if (!state.player.alive) {
+    // Player can respawn? For MVP, no. Game ends.
+    endSiege(state, false, undefined!);
+    return;
+  }
+
+  const moveDir = input.getMoveDir();
+  const speed = effectiveSpeed(state.player.config);
+  moveTank(state.player, moveDir, speed, dt, state.map);
+
+  if (moveDir.x !== 0 || moveDir.y !== 0) {
+    state.player.dir = moveDir.angle();
+  }
+}
+
+function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
+  playerCooldownRemaining -= _dt * 1000;
+
+  if (input.isFirePressed() && playerCooldownRemaining <= 0 && state.player.alive) {
+    const cfg = state.player.config;
+    const cooldown = effectiveCooldown(cfg);
+    playerCooldownRemaining = cooldown;
+
+    const bullet = createBullet(
+      state.player.pos,
+      state.player.dir,
+      cfg.barrel.stats.bulletStyle ?? 'straight',
+      cfg.barrel.stats.bulletSpeed ?? 400,
+      cfg.barrel.stats.bulletDamage ?? 35,
+      cfg.barrel.stats.bounces ?? 0,
+      cfg.barrel.stats.pierces ?? 0,
+      state.player.id,
+      true,
+    );
+    state.bullets.push(bullet);
+
+    // Lightweight recoil
+    if (state.player.config.weightClass === 'light') {
+      const recoilDir = Vec2.fromAngle(state.player.dir + Math.PI, 1);
+      state.player.pos = state.player.pos.add(recoilDir.scale(CELL_SIZE));
+    }
+  }
+}
+
+// ============================================================
+// Enemies
+// ============================================================
+
+function spawnWaves(state: SiegeState): void {
+  for (let i = state.wavesSpawned; i < TOTAL_WAVES; i++) {
+    const wave = WAVES[i];
+    if (state.elapsedTime >= wave.timeStart) {
+      spawnWave(state, wave);
+      state.wavesSpawned = i + 1;
+    }
+  }
+}
+
+function spawnWave(state: SiegeState, wave: WaveDef): void {
+  const rand = new Random();
+  const spawnEdges = [
+    { x: Math.floor(MAP_COLS / 2), y: 1 },                          // top gate
+    { x: Math.floor(MAP_COLS / 2), y: MAP_ROWS - 2 },                // bottom gate
+    { x: 1, y: Math.floor(MAP_ROWS / 2) },                           // left gate
+    { x: MAP_COLS - 2, y: Math.floor(MAP_ROWS / 2) },                // right gate
+  ];
+
+  const shuffledEdges = rand.shuffle([...spawnEdges]);
+
+  for (let i = 0; i < wave.enemyCount && state.enemies.length < ENEMY_MAX; i++) {
+    const edge = shuffledEdges[i % shuffledEdges.length];
+    const spawnPos = gridToPixel(edge.x, edge.y);
+
+    // Build enemy config (simple variations)
+    // TODO: varied enemy configs per wave type
+
+    const enemy = createTank(
+      `enemy_${state.enemies.length}_${Date.now()}`,
+      spawnPos,
+      state.player.config, // Reuse player's config as base — TODO: varied enemy configs
+      false,
+    );
+    state.enemies.push(enemy);
+
+    const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
+    state.aiContexts.set(enemy.id, createAIContext(enemy, centerPos));
+  }
+}
+
+function handleEnemyAI(state: SiegeState, dt: number): void {
+  for (const enemy of state.enemies) {
+    if (!enemy.alive) continue;
+
+    const ctx = state.aiContexts.get(enemy.id);
+    if (!ctx) continue;
+
+    const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
+    // AI can chase either the player or the command center
+    const target = state.player.alive ? state.player.pos : centerPos;
+
+    const moveDir = updateAI(ctx, target, state.map, dt);
+    const speed = effectiveSpeed(enemy.config);
+    moveTank(enemy, moveDir, speed, dt, state.map);
+
+    // Enemy fire logic
+    if (ctx.fireCooldown <= 0 && moveDir.x === 0 && moveDir.y === 0) {
+      // Enemy is aiming — fire toward target
+      const toTarget = target.sub(enemy.pos);
+      if (toTarget.mag() < 400) { // Only fire if reasonably close
+        const bullet = createBullet(
+          enemy.pos,
+          toTarget.angle(),
+          enemy.config.barrel.stats.bulletStyle ?? 'straight',
+          enemy.config.barrel.stats.bulletSpeed ?? 350,
+          enemy.config.barrel.stats.bulletDamage ?? 25,
+          enemy.config.barrel.stats.bounces ?? 0,
+          enemy.config.barrel.stats.pierces ?? 0,
+          enemy.id,
+          false,
+        );
+        state.bullets.push(bullet);
+        ctx.fireCooldown = 2000 + Math.random() * 1000; // Enemies fire slower
+      }
+    }
+  }
+
+  // Remove dead enemies
+  state.enemies = state.enemies.filter(e => e.alive);
+}
+
+// ============================================================
+// Bullets
+// ============================================================
+
+function handleBullets(state: SiegeState, dt: number): void {
+  for (const bullet of state.bullets) {
+    if (!bullet.alive) continue;
+    moveBullet(bullet, dt, state.map);
+  }
+  state.bullets = state.bullets.filter(b => b.alive);
+}
+
+function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
+  for (const bullet of state.bullets) {
+    if (!bullet.alive) continue;
+
+    if (bullet.isPlayerBullet) {
+      // Check against enemies
+      for (const enemy of state.enemies) {
+        if (!enemy.alive) continue;
+        if (checkBulletTankHit(bullet, enemy)) {
+          takeDamage(enemy, bullet.damage);
+          bullet.alive = false;
+          if (!enemy.alive) {
+            state.enemiesKilled++;
+          }
+          break;
+        }
+      }
+    } else {
+      // Check against player
+      if (state.player.alive && checkBulletTankHit(bullet, state.player)) {
+        takeDamage(state.player, bullet.damage);
+        bullet.alive = false;
+        if (!state.player.alive) {
+          endSiege(state, false, undefined!);
+          return;
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+// Command Center
+// ============================================================
+
+function handleEnemyReachCenter(state: SiegeState): void {
+  for (const enemy of state.enemies) {
+    if (!enemy.alive) continue;
+    const dist = enemy.pos.dist(gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y));
+    if (dist < CELL_SIZE * 2) {
+      // Enemy is at the command center — deal damage over time
+      state.commandCenterHp -= 10;
+      // Push enemy away slightly
+      const away = enemy.pos.sub(gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y)).norm();
+      enemy.pos = enemy.pos.add(away.scale(CELL_SIZE * 2));
+    }
+  }
+}
+
+// ============================================================
+// Victory / Defeat
+// ============================================================
+
+function endSiege(state: SiegeState, survived: boolean, inventory: Inventory): void {
+  if (state.pendingReward) return; // already ended
+
+  state.phase = survived ? 'victory' : 'defeat';
+  state.pendingReward = generateReward(
+    state.wavesSpawned,
+    TOTAL_WAVES,
+    survived,
+    inventory,
+  );
+}
+
