@@ -203,9 +203,26 @@ export function moveBullet(
 
   // ---- Orbital: compute position from virtual center + rotated offset ----
   if (bullet.style === 'orbital') {
+    // Move the virtual center forward
+    bullet.orbitalCenter = bullet.orbitalCenter.add(bullet.vel.scale(dt));
+    // Compute bullet position = center + orbit offset (180° phase difference)
     const offset = Vec2.fromAngle(bullet.orbitalAngle, bullet.orbitalRadius);
     const actualOffset = bullet.orbitalIndex === 1 ? offset.scale(-1) : offset;
-    bullet.pos = bullet.pos.add(actualOffset);
+    bullet.pos = bullet.orbitalCenter.add(actualOffset);
+  }
+
+  // Orbital bullets already positioned; just check single-point collision
+  if (bullet.style === 'orbital') {
+    if (bullet.pos.x < 0 || bullet.pos.x > MAP_W || bullet.pos.y < 0 || bullet.pos.y > MAP_H) {
+      bullet.alive = false;
+      return { hitWall: true, hitTileX: -1, hitTileY: -1 };
+    }
+    const col = checkTileCollision(bullet.pos, BULLET_RADIUS, map);
+    if (col.hit) {
+      bullet.alive = false;
+      return { hitWall: true, hitTileX: col.tileX, hitTileY: col.tileY };
+    }
+    return { hitWall: false, hitTileX: -1, hitTileY: -1 };
   }
 
   const moveAmount = bullet.vel.mag() * dt;
@@ -255,8 +272,8 @@ export function moveBullet(
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
 
-      // Sniper (damage >= 500): destroys metal and keeps going
-      if (bullet.damage >= 500 && col.tileType === TileType.METAL) {
+      // Sniper (damage >= 500): destroys any wall and keeps going
+      if (bullet.damage >= 500) {
         map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos;
         return { hitWall: true, hitTileX: gx, hitTileY: gy };

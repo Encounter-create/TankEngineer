@@ -26,6 +26,8 @@ export interface BulletEntity {
   orbitalRadius: number;
   /** Orbital only: which one of the pair (0 or 1, offset by PI) */
   orbitalIndex: number;
+  /** Orbital only: virtual center position (moves forward, bullets orbit around it) */
+  orbitalCenter: Vec2;
 }
 
 let bulletIdCounter = 0;
@@ -68,6 +70,7 @@ export function createBullet(
     orbitalAngle: style === 'orbital' ? (orbitalIndex ?? 0) * Math.PI : 0,
     orbitalRadius: orbitalRadius ?? 16,
     orbitalIndex: orbitalIndex ?? 0,
+    orbitalCenter: pos,
   };
 }
 

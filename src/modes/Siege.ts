@@ -321,10 +321,12 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
     const turretReactive = MVP_TURRETS.find(p => p.id === 'turret_reactive')!;
     const barrelPierce = MVP_BARRELS.find(p => p.id === 'barrel_pierce')!;
     const barrelArc = MVP_BARRELS.find(p => p.id === 'barrel_arc')!;
+    const barrelSniper = MVP_BARRELS.find(p => p.id === 'barrel_sniper')!;
     configs.push(assembleTank(barrelStraight, turretHeavy, chassisStandard));
     configs.push(assembleTank(barrelStraight, turretLight, chassisInertia));
     configs.push(assembleTank(barrelPierce, turretLight, chassisHeavy));
     configs.push(assembleTank(barrelArc, turretReactive, chassisStandard));
+    configs.push(assembleTank(barrelSniper, turretLight, chassisStandard));
   }
 
   for (let i = 0; i < wave.enemyCount && state.enemies.length < ENEMY_MAX; i++) {
@@ -437,9 +439,9 @@ function handleBullets(state: SiegeState, dt: number): void {
       }
     }
 
-    // Orbital: update rotation angle
+    // Orbital: update rotation angle (faster for tight radius)
     if (bullet.style === 'orbital') {
-      bullet.orbitalAngle += dt * 8; // rotation speed
+      bullet.orbitalAngle += dt * 14; // fast rotation for visible binary-star effect
     }
 
     const result = moveBullet(bullet, dt, state.map);
