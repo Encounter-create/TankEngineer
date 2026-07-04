@@ -169,3 +169,51 @@ function renderTankStats(ctx: CanvasRenderingContext2D, w: number, h: number, ga
     });
   }
 }
+
+// ============================================================
+// Mouse hit-testing
+// ============================================================
+
+export interface GarageClickResult {
+  type: PartType;
+  partIndex: number;
+  partId: string;
+}
+
+const GARAGE_CARD_W = 140;
+const GARAGE_CARD_H = 80;
+const GARAGE_GAP = 12;
+const GARAGE_START_Y = 80;
+
+/**
+ * Given a click position on the garage screen, return the clicked part.
+ * Returns null if the click didn't land on any part card.
+ */
+export function hitTestGarage(
+  px: number,
+  py: number,
+  w: number,
+  inventory: Inventory,
+): GarageClickResult | null {
+  const types: PartType[] = ['barrel', 'turret', 'chassis'];
+  const colW = w / 3;
+
+  for (let ci = 0; ci < 3; ci++) {
+    const cx = colW * ci + colW / 2;
+    const parts = inventory.getOwnedByType(types[ci]);
+
+    for (let i = 0; i < parts.length; i++) {
+      const cy = GARAGE_START_Y + i * (GARAGE_CARD_H + GARAGE_GAP);
+      const left = cx - GARAGE_CARD_W / 2;
+      const top = cy;
+
+      if (px >= left && px <= left + GARAGE_CARD_W &&
+          py >= top && py <= top + GARAGE_CARD_H) {
+        return { type: types[ci], partIndex: i, partId: parts[i].id };
+      }
+    }
+  }
+
+  return null;
+}
+

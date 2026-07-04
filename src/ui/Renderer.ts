@@ -187,16 +187,15 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
 
   const { x, y } = tank.pos;
   const r = TANK_RADIUS;
-  const dir = tank.dir;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(dir);
-
   const primary = tank.isPlayer ? C.PLAYER : C.ENEMY;
   const dark = tank.isPlayer ? C.PLAYER_DARK : C.ENEMY_DARK;
 
-  // Chassis (body — rectangle with rounded corners)
+  // ---- Body (rotates at tank.dir) ----
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tank.dir);
+
+  // Chassis
   ctx.fillStyle = primary;
   ctx.strokeStyle = dark;
   ctx.lineWidth = 1.5;
@@ -204,26 +203,34 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   ctx.fill();
   ctx.stroke();
 
-  // Treads (two lines on sides)
+  // Treads
   ctx.fillStyle = dark;
   ctx.fillRect(-r - 1, -r * 0.7, 3, r * 1.4);
   ctx.fillRect(r - 2, -r * 0.7, 3, r * 1.4);
 
-  // Turret (circle on top)
+  ctx.restore();
+
+  // ---- Turret (rotates at tank.turretAngle) ----
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tank.turretAngle);
+
+  // Turret base circle
   ctx.fillStyle = primary;
   ctx.strokeStyle = dark;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Barrel (rectangle pointing forward)
+  // Barrel
   ctx.fillStyle = dark;
   ctx.fillRect(r * 0.3, -3, r * 1.1, 6);
 
   ctx.restore();
 
-  // HP bar (above tank, drawn in screen space so it doesn't rotate)
+  // ---- HP bar (screen space, no rotation) ----
   if (tank.hp < tank.maxHp) {
     const barW = r * 2;
     const barH = 3;

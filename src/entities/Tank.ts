@@ -6,16 +6,18 @@ import { TankConfig, effectiveMaxHp } from './Parts';
 export interface TankEntity {
   id: string;
   pos: Vec2;
-  dir: number;          // facing angle in radians
+  /** Current velocity vector (px/s) — used for acceleration-based movement */
+  vel: Vec2;
+  /** Body facing angle in radians (changes gradually with angular velocity) */
+  dir: number;
+  /** Turret facing angle — independent from body. Player: follows mouse; enemy: follows target */
+  turretAngle: number;
   config: TankConfig;
   hp: number;
   maxHp: number;
   cooldownRemaining: number; // ms until can fire again
   alive: boolean;
   isPlayer: boolean;
-  // Inertia sliding state
-  slideDir: Vec2;
-  slideSpeed: number;
 }
 
 export function createTank(
@@ -28,15 +30,15 @@ export function createTank(
   return {
     id,
     pos,
-    dir: isPlayer ? 0 : Math.PI, // player faces right, enemy faces left
+    vel: Vec2.zero(),
+    dir: isPlayer ? 0 : Math.PI,
+    turretAngle: isPlayer ? 0 : Math.PI,
     config,
     hp: maxHp,
     maxHp,
     cooldownRemaining: 0,
     alive: true,
     isPlayer,
-    slideDir: Vec2.zero(),
-    slideSpeed: 0,
   };
 }
 
@@ -51,3 +53,20 @@ export function takeDamage(tank: TankEntity, rawDamage: number): number {
 
 /** Tank radius in pixels for collision */
 export const TANK_RADIUS = CELL_SIZE / 2 - 2; // 14px, fits inside a cell
+
+// ============================================================
+// Physics constants
+// ============================================================
+
+/** Base acceleration rate (fraction of max speed per second) */
+export const ACCEL_RATE = 4.0; // reaches max in ~0.25s
+/** Friction factor per second when no input (1.0 = instant stop, 0.0 = no friction) */
+export const FRICTION = 3.0;
+/** Max angular velocity in rad/s */
+export const MAX_ANGULAR_VEL = Math.PI * 3; // ~540°/s
+/** Angular acceleration in rad/s² */
+export const ANGULAR_ACCEL = MAX_ANGULAR_VEL * 4;
+/** Angular friction (for body; turret snaps instantly) */
+export const ANGULAR_FRICTION = MAX_ANGULAR_VEL * 5;
+/** Minimum speed to stop completely (below this = zero) */
+export const MIN_SPEED = 5;

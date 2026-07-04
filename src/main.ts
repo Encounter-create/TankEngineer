@@ -14,12 +14,14 @@ import {
   selectPart,
   getCurrentConfig,
   renderGarage,
+  hitTestGarage,
 } from './ui/Garage';
 import {
   ShopUIState,
   createShopUIState,
   attemptBuy,
   renderShop,
+  hitTestShop,
 } from './ui/ShopUI';
 import {
   SiegeState,
@@ -61,6 +63,7 @@ const ctx = canvas.getContext('2d')!;
 // ============================================================
 
 const input = new Input();
+input.attachCanvas(canvas);
 const inventory = new Inventory();
 const shop = new Shop(inventory);
 const garage = createGarageState(inventory);
@@ -127,6 +130,14 @@ function render(_alpha: number): void {
 // ============================================================
 
 function updateGarage(_dt: number): void {
+  // ---- Mouse click on part cards ----
+  if (input.isMouseJustPressed()) {
+    const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
+    if (hit) {
+      selectPart(app.garage, hit.type, hit.partId, app.inventory);
+    }
+  }
+
   // Navigate columns
   if (input.wasJustPressed('KeyA') || input.wasJustPressed('ArrowLeft')) {
     app.selectedCol = Math.max(0, app.selectedCol - 1);
@@ -183,6 +194,15 @@ function getPartsForCol(col: number) {
 // ============================================================
 
 function updateShop(_dt: number): void {
+  // ---- Mouse click on shop slots ----
+  if (input.isMouseJustPressed()) {
+    const idx = hitTestShop(input.mousePos.x, input.mousePos.y, MAP_W, shopUI.slots.length);
+    if (idx >= 0 && shopUI.slots[idx]) {
+      attemptBuy(shopUI, app.shop, shopUI.slots[idx].part.id);
+      app.garage = createGarageState(app.inventory);
+    }
+  }
+
   // Navigate
   if (input.wasJustPressed('KeyA') || input.wasJustPressed('ArrowLeft')) {
     app.shopSelected = Math.max(0, app.shopSelected - 1);
@@ -196,7 +216,6 @@ function updateShop(_dt: number): void {
     const slot = shopUI.slots[app.shopSelected];
     if (slot) {
       attemptBuy(shopUI, app.shop, slot.part.id);
-      // Refresh garage in case we bought something
       app.garage = createGarageState(app.inventory);
     }
   }

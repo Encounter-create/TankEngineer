@@ -1,8 +1,13 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, TileType, inBounds, MAP_W, MAP_H } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
-import { TankEntity, TANK_RADIUS } from '../entities/Tank';
+import {
+  TankEntity, TANK_RADIUS,
+  ACCEL_RATE, FRICTION, MIN_SPEED,
+  ANGULAR_ACCEL,
+} from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
+import { effectiveSpeed } from '../entities/Parts';
 
 // ============================================================
 // Collision helpers
@@ -10,8 +15,8 @@ import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 
 export interface CollisionResult {
   hit: boolean;
-  normal: Vec2;      // surface normal of the hit
-  tileX: number;      // grid cell that was hit
+  normal: Vec2;
+  tileX: number;
   tileY: number;
   tileType: TileType;
 }
@@ -22,7 +27,6 @@ export function checkTileCollision(
   radius: number,
   map: TileGrid,
 ): CollisionResult {
-  // Check surrounding 3x3 grid cells
   const cx = Math.floor(pos.x / CELL_SIZE);
   const cy = Math.floor(pos.y / CELL_SIZE);
 
@@ -35,13 +39,11 @@ export function checkTileCollision(
       if (tile.type === TileType.EMPTY) continue;
       if (tile.type === TileType.BRICK && tile.hp <= 0) continue;
 
-      // AABB vs circle collision
       const tileLeft = tx * CELL_SIZE;
       const tileTop = ty * CELL_SIZE;
       const tileRight = tileLeft + CELL_SIZE;
       const tileBottom = tileTop + CELL_SIZE;
 
-      // Closest point on AABB to circle center
       const closestX = Math.max(tileLeft, Math.min(pos.x, tileRight));
       const closestY = Math.max(tileTop, Math.min(pos.y, tileBottom));
       const distX = pos.x - closestX;
@@ -49,7 +51,6 @@ export function checkTileCollision(
       const distSq = distX * distX + distY * distY;
 
       if (distSq < radius * radius) {
-        // Compute collision normal (from closest point to circle center)
         let nx = 0, ny = 0;
         if (Math.abs(distX) > Math.abs(distY)) {
           nx = distX > 0 ? 1 : -1;
@@ -71,72 +72,95 @@ export function checkTileCollision(
 }
 
 // ============================================================
-// Tank movement with collision resolution
+// Tank movement — acceleration-based with angular velocity
 // ============================================================
 
+/**
+ * Update tank physics for one frame.
+ * - Accelerates toward `moveDir` up to max speed
+ * - Applies friction when no input
+ * - Rotates body toward target angle with angular velocity
+ * - Resolves wall collisions
+ */
 export function moveTank(
   tank: TankEntity,
   moveDir: Vec2,
-  speed: number,
   dt: number,
   map: TileGrid,
 ): void {
-  if (moveDir.x === 0 && moveDir.y === 0) {
-    // Apply inertia slide if chassis has it
-    if (tank.slideSpeed > 0) {
-      const slideAmount = tank.slideSpeed * dt;
-      const newPos = tank.pos.add(tank.slideDir.scale(slideAmount));
-      const clamped = clampToMapBounds(newPos);
-      const col = checkTileCollision(clamped, TANK_RADIUS, map);
-      if (!col.hit) {
-        tank.pos = clamped;
-      }
-      // Decay slide
-      tank.slideSpeed *= Math.pow(0.3, dt); // friction
-      if (tank.slideSpeed < 5) {
-        tank.slideSpeed = 0;
-        tank.slideDir = Vec2.zero();
-      }
+  const maxSpeed = effectiveSpeed(tank.config);
+  const isMoving = moveDir.x !== 0 || moveDir.y !== 0;
+
+  // ---- Angular movement (body rotation) ----
+  if (isMoving) {
+    const targetAngle = moveDir.angle();
+    const angleDiff = normalizeAngle(targetAngle - tank.dir);
+
+    // Accelerate angular velocity toward target
+    const maxAngStep = ANGULAR_ACCEL * dt;
+    if (Math.abs(angleDiff) < maxAngStep) {
+      // Close enough — snap
+      tank.dir = targetAngle;
+    } else {
+      tank.dir += Math.sign(angleDiff) * maxAngStep;
+      tank.dir = normalizeAngle(tank.dir);
     }
-    return;
   }
 
-  // Update facing direction
-  tank.dir = moveDir.angle();
+  // ---- Linear movement (acceleration model) ----
+  if (isMoving) {
+    // Accelerate toward desired direction
+    const accel = maxSpeed * ACCEL_RATE;
+    tank.vel = tank.vel.add(moveDir.scale(accel * dt));
 
-  // Move with collision
-  const moveAmount = speed * dt;
-  const desired = tank.pos.add(moveDir.scale(moveAmount));
-  const clamped = clampToMapBounds(desired);
-
-  const col = checkTileCollision(clamped, TANK_RADIUS, map);
-  if (!col.hit) {
-    tank.pos = clamped;
-  } else {
-    // Try sliding along wall (separate X and Y movement)
-    const moveX = tank.pos.add(new Vec2(moveDir.x * moveAmount, 0));
-    const colX = checkTileCollision(moveX, TANK_RADIUS, map);
-    if (!colX.hit && Math.abs(moveDir.x) > 0.1) {
-      tank.pos = moveX;
+    // Clamp to max speed
+    const speed = tank.vel.mag();
+    if (speed > maxSpeed) {
+      tank.vel = tank.vel.norm().scale(maxSpeed);
     }
+  } else {
+    // Friction / deceleration
+    const speed = tank.vel.mag();
+    if (speed > 0) {
+      const frictionDecel = maxSpeed * FRICTION * dt;
+      const newSpeed = Math.max(0, speed - frictionDecel);
+      if (newSpeed < MIN_SPEED) {
+        tank.vel = Vec2.zero();
+      } else {
+        tank.vel = tank.vel.norm().scale(newSpeed);
+      }
+    }
+  }
 
-    const moveY = tank.pos.add(new Vec2(0, moveDir.y * moveAmount));
-    const colY = checkTileCollision(moveY, TANK_RADIUS, map);
-    if (!colY.hit && Math.abs(moveDir.y) > 0.1) {
-      tank.pos = moveY;
+  // ---- Apply velocity with collision ----
+  if (tank.vel.mag() > 0) {
+    const desired = tank.pos.add(tank.vel.scale(dt));
+    const clamped = clampToMapBounds(desired);
+
+    const col = checkTileCollision(clamped, TANK_RADIUS, map);
+    if (!col.hit) {
+      tank.pos = clamped;
+    } else {
+      // Wall collision: zero out velocity component along normal, slide along wall
+      const normal = col.normal;
+      const velDotNormal = tank.vel.dot(normal);
+      if (velDotNormal < 0) {
+        // Reflect velocity off wall (damped)
+        tank.vel = tank.vel.sub(normal.scale(velDotNormal * 1.2));
+      }
+      // Try sliding along wall
+      const slidePos = tank.pos.add(tank.vel.scale(dt));
+      const clampedSlide = clampToMapBounds(slidePos);
+      const col2 = checkTileCollision(clampedSlide, TANK_RADIUS, map);
+      if (!col2.hit) {
+        tank.pos = clampedSlide;
+      }
     }
   }
 
   // Heavy chassis crushes brick walls
   if (tank.config.chassis.stats.crushWalls) {
     crushNearbyWalls(tank, map);
-  }
-
-  // Store slide state if this chassis has inertia
-  const inertia = tank.config.chassis.stats.inertia ?? 0;
-  if (inertia > 0) {
-    tank.slideDir = moveDir;
-    tank.slideSpeed = speed * 0.8; // initial slide speed
   }
 }
 
@@ -166,14 +190,14 @@ export function moveBullet(
   map: TileGrid,
 ): { hitWall: boolean; hitTileX: number; hitTileY: number } {
   const moveAmount = bullet.vel.mag() * dt;
-  const stepSize = CELL_SIZE / 4; // sub-step for accurate collision
+  const stepSize = CELL_SIZE / 4;
   const steps = Math.ceil(moveAmount / stepSize);
+  if (steps === 0) return { hitWall: false, hitTileX: -1, hitTileY: -1 };
   const stepVec = bullet.vel.norm().scale(stepSize);
 
   for (let i = 0; i < steps; i++) {
     const nextPos = bullet.pos.add(stepVec);
 
-    // Check map bounds
     if (nextPos.x < 0 || nextPos.x > MAP_W || nextPos.y < 0 || nextPos.y > MAP_H) {
       bullet.alive = false;
       return { hitWall: true, hitTileX: -1, hitTileY: -1 };
@@ -184,32 +208,25 @@ export function moveBullet(
       const gx = col.tileX;
       const gy = col.tileY;
 
-      // Handle based on bullet style and tile type
       if (bullet.style === 'pierce' && col.tileType === TileType.BRICK && bullet.piercesLeft > 0) {
-        // Pierce through brick wall
         bullet.piercesLeft--;
-        map[gy][gx].hp = 0; // destroy brick
+        map[gy][gx].hp = 0;
         bullet.pos = nextPos;
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
 
       if (bullet.style === 'bounce' && bullet.bouncesLeft > 0) {
-        // Reflect off wall
         bullet.bouncesLeft--;
         bullet.vel = bullet.vel.reflect(col.normal);
-        // Push bullet outside wall
         bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
-        // Reduce damage on bounce
         bullet.damage = Math.round(bullet.damage * 0.8);
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
 
-      // Destroy brick walls on hit
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp = 0;
       }
 
-      // Bullet dies
       bullet.alive = false;
       bullet.pos = nextPos;
       return { hitWall: true, hitTileX: gx, hitTileY: gy };
@@ -229,9 +246,20 @@ export function checkBulletTankHit(bullet: BulletEntity, tank: TankEntity): bool
   return bullet.pos.dist(tank.pos) < TANK_RADIUS + BULLET_RADIUS;
 }
 
+// ============================================================
+// Utilities
+// ============================================================
+
 function clampToMapBounds(pos: Vec2): Vec2 {
   return new Vec2(
     Math.max(TANK_RADIUS, Math.min(MAP_W - TANK_RADIUS, pos.x)),
     Math.max(TANK_RADIUS, Math.min(MAP_H - TANK_RADIUS, pos.y)),
   );
+}
+
+/** Normalize angle to [-PI, PI] */
+export function normalizeAngle(a: number): number {
+  while (a > Math.PI) a -= 2 * Math.PI;
+  while (a < -Math.PI) a += 2 * Math.PI;
+  return a;
 }

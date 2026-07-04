@@ -125,9 +125,7 @@ function moveToward(ctx: AIContext, playerPos: Vec2, map: TileGrid): Vec2 {
 }
 
 function aimAndFire(ctx: AIContext, playerPos: Vec2, _map: TileGrid): Vec2 {
-  // Face the player
-  const toPlayer = playerPos.sub(ctx.tank.pos);
-  ctx.tank.dir = toPlayer.angle();
+  // Turret is aimed externally in handleEnemyAI
 
   // Fire if cooldown allows and we have line of sight
   if (ctx.fireCooldown <= 0 && hasLineOfSight(ctx.tank.pos, playerPos, _map)) {

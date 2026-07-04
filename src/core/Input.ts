@@ -1,14 +1,20 @@
 import { Vec2, Dir } from '../utils/Vector';
 
-/** Tracked keyboard state for game input */
+/** Tracked keyboard + mouse state for game input */
 export class Input {
   private keys = new Set<string>();
   private justPressed = new Set<string>();
   private prevKeys = new Set<string>();
 
+  // Mouse state
+  mousePos: Vec2 = Vec2.zero();
+  private mouseDown_ = false;
+  private mouseJustPressed_ = false;
+  private mouseJustReleased_ = false;
+  private canvas: HTMLCanvasElement | null = null;
+
   constructor() {
     window.addEventListener('keydown', (e) => {
-      // Mark as just-pressed immediately (no 1-frame delay)
       if (!this.keys.has(e.code)) {
         this.justPressed.add(e.code);
       }
@@ -19,19 +25,68 @@ export class Input {
       this.keys.delete(e.code);
       e.preventDefault();
     });
+
+    // Mouse events
+    window.addEventListener('mousemove', (e) => {
+      if (this.canvas) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        this.mousePos = new Vec2(
+          (e.clientX - rect.left) * scaleX,
+          (e.clientY - rect.top) * scaleY,
+        );
+      }
+    });
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.mouseDown_ = true;
+        this.mouseJustPressed_ = true;
+      }
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        this.mouseDown_ = false;
+        this.mouseJustReleased_ = true;
+      }
+    });
+    // Prevent context menu on right-click
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  /** Attach canvas for coordinate transform */
+  attachCanvas(canvas: HTMLCanvasElement): void {
+    this.canvas = canvas;
   }
 
   isDown(code: string): boolean {
     return this.keys.has(code);
   }
 
-  /** True only on the first frame the key is pressed */
   wasJustPressed(code: string): boolean {
     return this.justPressed.has(code);
   }
 
+  // ---- Mouse queries ----
+
+  isMouseDown(): boolean {
+    return this.mouseDown_;
+  }
+
+  /** True only on the frame the left button was first pressed */
+  isMouseJustPressed(): boolean {
+    return this.mouseJustPressed_;
+  }
+
+  isMouseJustReleased(): boolean {
+    return this.mouseJustReleased_;
+  }
+
+  // ---- Frame lifecycle ----
+
   /** Call at end of each frame */
   endFrame() {
+    // Keyboard
     this.justPressed.clear();
     for (const k of this.keys) {
       if (!this.prevKeys.has(k)) {
@@ -39,7 +94,13 @@ export class Input {
       }
     }
     this.prevKeys = new Set(this.keys);
+
+    // Mouse
+    this.mouseJustPressed_ = false;
+    this.mouseJustReleased_ = false;
   }
+
+  // ---- Helpers ----
 
   /** Get movement direction from WASD/Arrow keys */
   getMoveDir(): Vec2 {
@@ -58,7 +119,6 @@ export class Input {
     return this.wasJustPressed('Space') || this.wasJustPressed('KeyJ');
   }
 
-  /** Start / confirm */
   isConfirmPressed(): boolean {
     return this.wasJustPressed('Enter');
   }
@@ -67,7 +127,6 @@ export class Input {
     return this.wasJustPressed('Escape');
   }
 
-  /** Any directional key held */
   isMoving(): boolean {
     return this.isDown('KeyW') || this.isDown('KeyS') || this.isDown('KeyA') || this.isDown('KeyD') ||
            this.isDown('ArrowUp') || this.isDown('ArrowDown') || this.isDown('ArrowLeft') || this.isDown('ArrowRight');

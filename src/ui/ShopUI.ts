@@ -118,3 +118,36 @@ export function renderShop(
   ctx.textAlign = 'center';
   ctx.fillText('点击零件购买 | Esc 返回', w / 2, startY + cardH + 30);
 }
+
+// ============================================================
+// Mouse hit-testing
+// ============================================================
+
+const SHOP_CARD_W = 160;
+const SHOP_CARD_H = 100;
+const SHOP_GAP = 16;
+const SHOP_START_Y = 80;
+
+/**
+ * Given a click position on the shop screen, return the clicked slot index.
+ * Returns -1 if the click didn't land on any slot.
+ */
+export function hitTestShop(
+  px: number,
+  py: number,
+  w: number,
+  slotCount: number,
+): number {
+  const totalW = slotCount * SHOP_CARD_W + (slotCount - 1) * SHOP_GAP;
+  const startX = (w - totalW) / 2;
+
+  for (let i = 0; i < slotCount; i++) {
+    const cx = startX + i * (SHOP_CARD_W + SHOP_GAP);
+    if (px >= cx && px <= cx + SHOP_CARD_W &&
+        py >= SHOP_START_Y && py <= SHOP_START_Y + SHOP_CARD_H) {
+      return i;
+    }
+  }
+
+  return -1;
+}

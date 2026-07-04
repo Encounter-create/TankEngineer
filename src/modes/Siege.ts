@@ -146,25 +146,28 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   }
 
   const moveDir = input.getMoveDir();
-  const speed = effectiveSpeed(state.player.config);
-  moveTank(state.player, moveDir, speed, dt, state.map);
+  moveTank(state.player, moveDir, dt, state.map);
 
-  if (moveDir.x !== 0 || moveDir.y !== 0) {
-    state.player.dir = moveDir.angle();
+  // Turret follows mouse cursor
+  const toMouse = input.mousePos.sub(state.player.pos);
+  if (toMouse.mag() > 1) {
+    state.player.turretAngle = toMouse.angle();
   }
 }
 
 function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
   state.playerCooldownRemaining -= _dt * 1000;
 
-  if (input.isFirePressed() && state.playerCooldownRemaining <= 0 && state.player.alive) {
+  // Left-click or Space to fire
+  const wantFire = input.isMouseJustPressed() || input.isFirePressed();
+  if (wantFire && state.playerCooldownRemaining <= 0 && state.player.alive) {
     const cfg = state.player.config;
     const cooldown = effectiveCooldown(cfg);
     state.playerCooldownRemaining = cooldown;
 
     const bullet = createBullet(
       state.player.pos,
-      state.player.dir,
+      state.player.turretAngle,
       cfg.barrel.stats.bulletStyle ?? 'straight',
       cfg.barrel.stats.bulletSpeed ?? 400,
       cfg.barrel.stats.bulletDamage ?? 35,
@@ -175,10 +178,10 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     );
     state.bullets.push(bullet);
 
-    // Lightweight recoil
+    // Lightweight recoil (opposite to turret)
     if (state.player.config.weightClass === 'light') {
-      const recoilDir = Vec2.fromAngle(state.player.dir + Math.PI, 1);
-      state.player.pos = state.player.pos.add(recoilDir.scale(CELL_SIZE));
+      const recoilDir = Vec2.fromAngle(state.player.turretAngle + Math.PI, 1);
+      state.player.vel = state.player.vel.add(recoilDir.scale(effectiveSpeed(state.player.config) * 0.5));
     }
   }
 }
@@ -240,17 +243,21 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const target = state.player.alive ? state.player.pos : centerPos;
 
     const moveDir = updateAI(ctx, target, state.map, dt);
-    const speed = effectiveSpeed(enemy.config);
-    moveTank(enemy, moveDir, speed, dt, state.map);
+    moveTank(enemy, moveDir, dt, state.map);
+
+    // Turret follows target
+    const toTarget = target.sub(enemy.pos);
+    if (toTarget.mag() > 1) {
+      enemy.turretAngle = toTarget.angle();
+    }
 
     // Enemy fire logic
     if (ctx.fireCooldown <= 0 && moveDir.x === 0 && moveDir.y === 0) {
       // Enemy is aiming — fire toward target
-      const toTarget = target.sub(enemy.pos);
-      if (toTarget.mag() < 400) { // Only fire if reasonably close
+      if (toTarget.mag() < 400) {
         const bullet = createBullet(
           enemy.pos,
-          toTarget.angle(),
+          enemy.turretAngle,
           enemy.config.barrel.stats.bulletStyle ?? 'straight',
           enemy.config.barrel.stats.bulletSpeed ?? 350,
           enemy.config.barrel.stats.bulletDamage ?? 25,
