@@ -299,6 +299,18 @@ function drawCommanderFace(ctx: CanvasRenderingContext2D, x: number, y: number, 
     commander_smoke: [
       [0,1,0,1,0],[1,0,0,0,1],[0,0,1,0,0],[0,1,0,1,0],[0,0,1,0,0],
     ],
+    commander_colonel: [
+      [1,0,0,0,1],[0,1,1,1,0],[0,0,1,0,0],[0,1,0,1,0],[1,1,1,1,1],
+    ],
+    commander_engineer: [
+      [0,0,1,0,0],[0,1,0,1,0],[1,1,1,1,1],[0,1,0,1,0],[0,1,1,1,0],
+    ],
+    commander_wizard: [
+      [0,1,0,1,0],[0,0,1,0,0],[1,1,1,1,1],[0,0,1,0,0],[1,0,1,0,1],
+    ],
+    commander_ninja: [
+      [0,1,0,1,0],[0,1,1,1,0],[0,0,1,0,0],[0,0,1,0,0],[1,0,1,0,1],
+    ],
   };
 
   const face = faces[id] ?? faces.commander_none;
@@ -306,6 +318,10 @@ function drawCommanderFace(ctx: CanvasRenderingContext2D, x: number, y: number, 
   if (id === 'commander_sprint') color = '#4a9eff';
   else if (id === 'commander_barrage') color = '#ffaa33';
   else if (id === 'commander_smoke') color = '#aaa';
+  else if (id === 'commander_colonel') color = '#88aa88';
+  else if (id === 'commander_engineer') color = '#cc8844';
+  else if (id === 'commander_wizard') color = '#aa44cc';
+  else if (id === 'commander_ninja') color = '#222222';
 
   for (let row = 0; row < face.length; row++) {
     for (let col = 0; col < face[row].length; col++) {

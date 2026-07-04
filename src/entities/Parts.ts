@@ -336,6 +336,42 @@ export const MVP_COMMANDERS: Part[] = [
     description: '释放烟雾阻挡敌人视线 3 秒',
     stats: { skillCdMs: 25000 },
   },
+  {
+    id: 'commander_colonel',
+    name: '空军上校',
+    type: 'commander',
+    rarity: 'legendary',
+    weight: 2,
+    description: '召唤3架轰炸机呈三角阵飞过，沿途投弹轰炸',
+    stats: { skillCdMs: 60000 },
+  },
+  {
+    id: 'commander_engineer',
+    name: '炮塔工程师',
+    type: 'commander',
+    rarity: 'epic',
+    weight: 2,
+    description: '在当前位置放置自动炮塔，范围内自动攻击敌军',
+    stats: { skillCdMs: 40000 },
+  },
+  {
+    id: 'commander_wizard',
+    name: '巫师',
+    type: 'commander',
+    rarity: 'legendary',
+    weight: 2,
+    description: '复活已击毁的敌方坦克为我方作战',
+    stats: { skillCdMs: 80000 },
+  },
+  {
+    id: 'commander_ninja',
+    name: '忍者大师',
+    type: 'commander',
+    rarity: 'epic',
+    weight: 2,
+    description: '分身出一辆与自己相同配置的友军坦克',
+    stats: { skillCdMs: 50000 },
+  },
 ];
 
 /** Default commander (no skill) */

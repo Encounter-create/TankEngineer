@@ -7,6 +7,7 @@ import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas
 import { Particle } from '../entities/Particle';
 import { PhysicsBlock } from '../entities/PhysicsBlock';
 import { FireZone } from '../entities/FireZone';
+import { TurretEntity, Plane } from '../entities/Ally';
 import { isSmokeActive } from '../systems/Commander';
 
 // ============================================================
@@ -100,6 +101,15 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const zone of state.fireZones) {
     drawFireZone(ctx, zone);
+  }
+  for (const ally of state.allies) {
+    drawTank(ctx, ally);
+  }
+  for (const turret of state.turrets) {
+    drawTurret(ctx, turret);
+  }
+  for (const plane of state.planes) {
+    drawPlane(ctx, plane);
   }
 
   ctx.restore(); // end screen shake — UI below is stable
@@ -637,6 +647,48 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
     ctx.fillStyle = ratio > 0.3 ? C.HP_BAR_OK : C.HP_BAR_LOW;
     ctx.fillRect(barX, barY, barW * ratio, barH);
   }
+}
+
+function drawTurret(ctx: CanvasRenderingContext2D, t: TurretEntity): void {
+  if (!t.alive) return;
+  const gx = t.pos.x, gy = t.pos.y, r = 12;
+  // Base
+  ctx.fillStyle = '#556644';
+  ctx.strokeStyle = '#334422';
+  ctx.lineWidth = 2;
+  roundRect(ctx, gx - r, gy - r, r * 2, r * 2, 3);
+  ctx.fill(); ctx.stroke();
+  // Barrel
+  ctx.save(); ctx.translate(gx, gy); ctx.rotate(t.angle);
+  ctx.fillStyle = '#334422';
+  ctx.fillRect(r * 0.3, -3, r * 1.3, 6);
+  ctx.restore();
+  // HP bar
+  if (t.hp < t.maxHp) {
+    const bw = r * 2, bh = 3;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(gx - bw/2, gy - r - 10, bw, bh);
+    ctx.fillStyle = '#4ae0a0';
+    ctx.fillRect(gx - bw/2, gy - r - 10, bw * (t.hp/t.maxHp), bh);
+  }
+}
+
+function drawPlane(ctx: CanvasRenderingContext2D, p: Plane): void {
+  if (!p.alive) return;
+  ctx.fillStyle = '#889988';
+  ctx.beginPath();
+  ctx.moveTo(p.x + 12, p.y);
+  ctx.lineTo(p.x - 8, p.y - 6);
+  ctx.lineTo(p.x - 12, p.y);
+  ctx.lineTo(p.x - 8, p.y + 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#445544';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Wings
+  ctx.fillStyle = '#667766';
+  ctx.fillRect(p.x - 2, p.y - 10, 6, 20);
 }
 
 function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): void {
