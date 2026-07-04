@@ -337,6 +337,12 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   }
 
   const moveDir = input.getMoveDir();
+  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+
+  // Time slow compensation: boost player velocity to counteract global slowdown
+  if ((state as any).timeSlowTimer > 0) {
+    state.player.vel = state.player.vel.scale(3.3); // compensate for 0.3x timeScale
+  }
 
   // Sprint chassis: speed ramps up while moving
   if (state.player.config.chassis.id === 'chassis_sprint') {
@@ -452,7 +458,8 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         (state as any).gravityPos = input.mousePos;
         (state as any).gravityTimer = 3;
       } else if (id === 'commander_time') {
-        // Time slow: 3s enemy-only slow (does NOT use global slowMoTimer which affects player too)
+        // Time slow: global slow-mo (vignette+slow blocks) + player speed boost to compensate
+        state.slowMoTimer = 3;
         (state as any).timeSlowTimer = 3;
       } else if (id === 'commander_lightning') {
         // 5 simultaneous zigzag branches from player to nearest enemies
@@ -461,7 +468,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         const hit: Set<string> = new Set();
         for (let b = 0; b < 5; b++) {
           let nearest: TankEntity | null = null;
-          let nearestDist = 300;
+          let nearestDist = 600;
           for (const e of aliveEnemies) {
             if (hit.has(e.id)) continue;
             const d = e.pos.dist(state.player.pos);
