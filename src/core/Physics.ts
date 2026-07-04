@@ -364,7 +364,7 @@ export function moveBullet(
         bullet.piercesLeft--; map[gy][gx].hp = 0;
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      if (bullet.style === 'bounce' && bullet.bouncesLeft > 0) {
+      if (bullet.bouncesLeft > 0) {
         bullet.bouncesLeft--;
         bullet.bounceCount++; // track for multiplier
         bullet.vel = bullet.vel.reflect(col.normal);

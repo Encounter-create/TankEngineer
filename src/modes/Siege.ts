@@ -769,18 +769,16 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   for (let pass = 0; pass < 3; pass++) {
     resolveBlockBlockCollisions(state.physicsBlocks);
   }
-  // Block ↔ tank (with block damage)
+  // Block damage: check BEFORE collision (collision separates blocks from tanks!)
   const allTanks = [state.player, ...state.enemies, ...state.allies];
-  resolveBlockTankCollisions(state.physicsBlocks, allTanks);
-  // Block damage: fast blocks deal damage on collision
   for (const block of state.physicsBlocks) {
-    if (!block.alive || block.vel.mag() < 40) continue;
+    if (!block.alive || block.vel.mag() < 25) continue;
     for (const enemy of state.enemies) {
       if (!enemy.alive) continue;
-      if (enemy.pos.dist(block.pos) < TANK_RADIUS + BLOCK_RADIUS) {
+      if (enemy.pos.dist(block.pos) < TANK_RADIUS + BLOCK_RADIUS + 6) {
         const ctx = calcKillMultiplier('block', 0, block.chainLength);
-        const baseDmg = Math.round(block.vel.mag() * block.mass * 0.04); // speed × mass scaling
-        const dmg = takeDamage(enemy, baseDmg * ctx.multiplier);
+        const baseDmg = Math.round(block.vel.mag() * block.mass * 0.08);
+        const dmg = takeDamage(enemy, Math.max(10, baseDmg * ctx.multiplier));
         state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, ctx.multiplier >= 3));
         state.particles.push(...spawnParticles(enemy.pos, 'hit', 12, 120));
         if (ctx.multiplier >= 2) {
@@ -797,6 +795,8 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
       }
     }
   }
+  // Now resolve elastic collision
+  resolveBlockTankCollisions(state.physicsBlocks, allTanks);
   // Block ↔ wall (last, after block-block resolved)
   resolveBlockWallCollisions(state.physicsBlocks, state.map, state.physicsBlocks);
 
