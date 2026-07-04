@@ -337,6 +337,20 @@ function drawDetailTooltip(ctx: CanvasRenderingContext2D, _w: number, h: number,
     if ((stats.inertia ?? 0) > 0) { ctx.fillText('滑行', tx + tw / 2, lineY); lineY += 16; }
   } else if (part.type === 'commander') {
     ctx.fillText(`CD: ${(stats.skillCdMs ?? 0) / 1000}s`, tx + tw / 2, lineY); lineY += 16;
+    // Synergy hints for commanders
+    const synHints: Record<string, string> = {
+      commander_colonel: '🎯 狙击管→精确打击',
+      commander_engineer: '🏰 重型底盘→移动堡垒',
+      commander_wizard: '💀 火箭炮→亡灵火箭',
+      commander_ninja: '🪞 反射管→镜面分身',
+      commander_barrage: '🎆 烟花管→烟花祭',
+    };
+    if (synHints[part.id]) {
+      ctx.fillStyle = '#ffaa33';
+      ctx.font = 'bold 10px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(`协同: ${synHints[part.id]}`, tx + tw / 2, lineY);
+      lineY += 16;
+    }
   }
 
   // Description

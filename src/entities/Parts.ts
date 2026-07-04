@@ -58,7 +58,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'common',
     weight: 1,
-    description: '标准直线子弹，简单可靠',
+    description: '直线子弹，碰墙反弹2次(第3次消失)，可靠通用',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 35,
@@ -74,7 +74,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'rare',
     weight: 2,
-    description: '子弹碰墙反弹2次，每次反弹角度对称',
+    description: '专精反弹：碰墙反射角=入射角，可弹2次，反弹后伤害×0.8',
     stats: {
       bulletStyle: 'bounce',
       bulletDamage: 30,
@@ -90,7 +90,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '子弹穿透砖墙1层（穿过后伤害减半）',
+    description: '穿透砖墙1层(穿后伤害减半)，不可反弹，不可摧毁木块后的敌人',
     stats: {
       bulletStyle: 'pierce',
       bulletDamage: 40,
@@ -106,7 +106,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '子弹以抛物线越过砖墙，最高点伤害翻倍',
+    description: '抛物线飞越砖墙(不可反弹)，最高点伤害×2，绕过掩体攻击',
     stats: {
       bulletStyle: 'arc',
       bulletDamage: 25,
@@ -122,7 +122,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '母弹缓缓飞行，每0.22s向6个方向均匀绽放子子弹',
+    description: '母弹缓慢飞行绽放6向子子弹(不可反弹)，2s后自动消失',
     stats: {
       bulletStyle: 'firework',
       bulletDamage: 12,
@@ -138,7 +138,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '双子星子弹，紧密环绕旋转，几何对称之美',
+    description: '双子星旋转弹道(不可反弹)，双弹180°相位差紧密缠绕',
     stats: {
       bulletStyle: 'orbital',
       bulletDamage: 22,
@@ -154,7 +154,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 2,
-    description: '一击必杀，超高速子弹可击穿金属墙',
+    description: '一击必杀(伤害999)，击穿木墙铁墙，碰墙反弹2次',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 999,
@@ -170,7 +170,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '超高射速，弹幕倾泻，每发伤害低但射速极快',
+    description: '超高射速(70ms)，弹幕倾泻，碰墙反弹2次，适合压制',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 6,
@@ -342,7 +342,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'legendary',
     weight: 2,
-    description: '召唤3架轰炸机呈三角阵飞过，沿途投弹轰炸',
+    description: '召唤3架轰炸机飞过投弹。🎯协同: 狙击管→精确打击(投弹频率×2)',
     stats: { skillCdMs: 60000 },
   },
   {
@@ -351,7 +351,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'epic',
     weight: 2,
-    description: '在当前位置放置自动炮塔，范围内自动攻击敌军',
+    description: '放置自动炮塔攻击敌军。🏰协同: 重型底盘→移动堡垒(炮塔HP+50%射程+30%)',
     stats: { skillCdMs: 40000 },
   },
   {
@@ -360,7 +360,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'legendary',
     weight: 2,
-    description: '复活已击毁的敌方坦克为我方作战',
+    description: '复活死敌为友军作战。💀协同: 火箭炮→亡灵火箭(火箭击杀自动复活)',
     stats: { skillCdMs: 80000 },
   },
   {
@@ -369,7 +369,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'epic',
     weight: 2,
-    description: '分身出一辆与自己相同配置的友军坦克',
+    description: '分身同配友军坦克。🪞协同: 反射管→镜面分身(分身获得反射弹)',
     stats: { skillCdMs: 50000 },
   },
 ];
