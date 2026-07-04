@@ -2,6 +2,7 @@ import { PartType, TankConfig } from '../entities/Parts';
 import { Inventory } from '../systems/Inventory';
 import { tryAssemble, AssemblyResult } from '../systems/Assembly';
 import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
+import { loadBuildSlots, saveBuildSlot } from '../systems/BuildSlots';
 
 /** Garage screen state */
 export interface GarageState {
@@ -71,7 +72,13 @@ export function renderGarage(ctx: CanvasRenderingContext2D, _w: number, _h: numb
   ctx.fillStyle = '#e8e8e8';
   ctx.font = 'bold 20px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('🔧 坦克组装车间', _w / 2, 30);
+  ctx.fillText('🔧 坦克组装车间', _w / 2, 28);
+
+  // ---- Build slots bar ----
+  drawBuildSlotsBar(ctx, _w, garage, inventory);
+
+  // Four columns (offset down for build slots bar)
+  const colOffsetY = 48;
 
   // Four columns: Barrel | Turret | Chassis | Commander
   const types: { type: PartType; label: string; selectedId: string }[] = [
@@ -84,7 +91,7 @@ export function renderGarage(ctx: CanvasRenderingContext2D, _w: number, _h: numb
   const colW = _w / 4;
   types.forEach((col, ci) => {
     const cx = colW * ci + colW / 2;
-    renderPartColumn(ctx, cx, col.label, col.type, col.selectedId, inventory, garage);
+    renderPartColumn(ctx, cx, col.label, col.type, col.selectedId, inventory, garage, colOffsetY);
   });
 
   // Bottom: tank stats
@@ -102,6 +109,7 @@ function renderPartColumn(
   selectedId: string,
   inventory: Inventory,
   _garage: GarageState,
+  offY: number = 0,
 ): void {
   const parts = inventory.getOwnedByType(type);
 
@@ -109,13 +117,13 @@ function renderPartColumn(
   ctx.fillStyle = '#ccc';
   ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(label, cx, 60);
+  ctx.fillText(label, cx, offY + 20);
 
   // Part cards
   const cardW = 140;
-  const cardH = 80;
-  const startY = 80;
-  const gap = 12;
+  const cardH = 70;
+  const startY = offY + 36;
+  const gap = 8;
 
   parts.forEach((part, i) => {
     const cy = startY + i * (cardH + gap);
@@ -135,6 +143,11 @@ function renderPartColumn(
     ctx.fillText(part.name, cx, cy + 22);
 
     // Rarity
+    // Commander portrait
+    if (part.type === 'commander') {
+      drawCommanderFace(ctx, cx + cardW / 2 - 60, cy + 10, part.id);
+    }
+
     ctx.fillStyle = rarityColor(part.rarity);
     ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillText(part.rarity, cx, cy + 40);
@@ -186,9 +199,119 @@ export function getGarageButtons(w: number, h: number): ButtonDef[] {
   ];
 }
 
+// ============================================================
+// Build slots bar
+// ============================================================
+
+function drawBuildSlotsBar(
+  ctx: CanvasRenderingContext2D, w: number,
+  _garage: GarageState, _inventory: Inventory,
+): void {
+  const slots = loadBuildSlots();
+  const barY = 36;
+  const slotW = (w - 40) / 3;
+  const slotH = 28;
+
+  for (let i = 0; i < 3; i++) {
+    const sx = 12 + i * (slotW + 8);
+    const slot = slots[i];
+    const filled = slot.barrelId !== '';
+
+    ctx.fillStyle = filled ? '#2a3a3a' : '#2a2d35';
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    roundRect(ctx, sx, barY, slotW, slotH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // Slot label
+    ctx.fillStyle = filled ? '#4ae0a0' : '#666';
+    ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(filled ? slot.name : `空位 ${i + 1}`, sx + slotW / 2, barY + slotH / 2);
+  }
+
+  // Save / Load labels
+  ctx.fillStyle = '#555';
+  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Shift+1/2/3 保存 | 1/2/3 加载', w / 2, barY + slotH + 12);
+}
+
+export function getBuildSlotHitIndex(px: number, py: number, w: number): number {
+  const barY = 36;
+  const slotW = (w - 40) / 3;
+  const slotH = 28;
+  for (let i = 0; i < 3; i++) {
+    const sx = 12 + i * (slotW + 8);
+    if (px >= sx && px <= sx + slotW && py >= barY && py <= barY + slotH) return i;
+  }
+  return -1;
+}
+
+export function applyBuildSlot(garage: GarageState, inventory: Inventory, index: number): void {
+  const slots = loadBuildSlots();
+  const slot = slots[index];
+  if (!slot.barrelId) return;
+  selectPart(garage, 'barrel', slot.barrelId, inventory);
+  selectPart(garage, 'turret', slot.turretId, inventory);
+  selectPart(garage, 'chassis', slot.chassisId, inventory);
+  if (slot.commanderId) selectPart(garage, 'commander', slot.commanderId, inventory);
+}
+
+export function saveToBuildSlot(garage: GarageState, index: number): void {
+  saveBuildSlot(
+    index,
+    `配置 ${index + 1}`,
+    garage.selectedBarrelId,
+    garage.selectedTurretId,
+    garage.selectedChassisId,
+    garage.selectedCommanderId,
+  );
+}
+
 function drawGarageButtons(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (const btn of getGarageButtons(w, h)) {
     drawButton(ctx, btn);
+  }
+}
+
+// ============================================================
+// Commander pixel portraits
+// ============================================================
+
+function drawCommanderFace(ctx: CanvasRenderingContext2D, x: number, y: number, id: string): void {
+  const s = 8;
+  const faces: Record<string, number[][]> = {
+    commander_none: [
+      [0,0,0,0,0],[0,1,0,1,0],[0,0,0,0,0],[0,1,1,1,0],[0,0,0,0,0],
+    ],
+    commander_repair: [
+      [0,1,0,1,0],[0,0,0,0,0],[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1],
+    ],
+    commander_sprint: [
+      [1,0,0,0,1],[0,1,0,1,0],[0,0,0,0,0],[0,1,1,1,0],[1,0,0,0,1],
+    ],
+    commander_barrage: [
+      [0,1,0,1,0],[0,0,0,0,0],[1,1,1,1,1],[0,0,0,0,0],[1,1,1,1,1],
+    ],
+    commander_smoke: [
+      [0,1,0,1,0],[1,0,0,0,1],[0,0,1,0,0],[0,1,0,1,0],[0,0,1,0,0],
+    ],
+  };
+
+  const face = faces[id] ?? faces.commander_none;
+  let color = '#4ae0a0';
+  if (id === 'commander_sprint') color = '#4a9eff';
+  else if (id === 'commander_barrage') color = '#ffaa33';
+  else if (id === 'commander_smoke') color = '#aaa';
+
+  for (let row = 0; row < face.length; row++) {
+    for (let col = 0; col < face[row].length; col++) {
+      ctx.fillStyle = face[row][col] ? color : '#2a2d35';
+      ctx.fillRect(x + col * s, y + row * s, s - 1, s - 1);
+    }
   }
 }
 
@@ -210,10 +333,11 @@ export interface GarageClickResult {
   partId: string;
 }
 
+const GARAGE_OFF_Y = 48;
 const GARAGE_CARD_W = 140;
-const GARAGE_CARD_H = 80;
-const GARAGE_GAP = 12;
-const GARAGE_START_Y = 80;
+const GARAGE_CARD_H = 70;
+const GARAGE_GAP = 8;
+const GARAGE_START_Y = GARAGE_OFF_Y + 36;
 
 /**
  * Given a click position on the garage screen, return the clicked part.

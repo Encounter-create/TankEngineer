@@ -16,6 +16,9 @@ import {
   renderGarage,
   hitTestGarage,
   hitTestGarageButtons,
+  applyBuildSlot,
+  saveToBuildSlot,
+  getBuildSlotHitIndex,
 } from './ui/Garage';
 import {
   ShopUIState,
@@ -209,19 +212,33 @@ function updateLobby(): void {
 // ============================================================
 
 function updateGarage(): void {
-  if (!input.isMouseJustPressed()) return;
+  if (input.isMouseJustPressed()) {
+    // Back button
+    const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
+    if (btnIdx === 0) { app.screen = 'lobby'; return; }
 
-  // Back button
-  const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
-  if (btnIdx === 0) {
-    app.screen = 'lobby';
-    return;
+    // Build slot click
+    const slotIdx = getBuildSlotHitIndex(input.mousePos.x, input.mousePos.y, MAP_W);
+    if (slotIdx >= 0) {
+      applyBuildSlot(app.garage, app.inventory, slotIdx);
+      return;
+    }
+
+    // Part cards
+    const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
+    if (hit) { selectPart(app.garage, hit.type, hit.partId, app.inventory); }
   }
 
-  // Part cards
-  const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
-  if (hit) {
-    selectPart(app.garage, hit.type, hit.partId, app.inventory);
+  // Keyboard: 1/2/3 = load, Shift+1/2/3 = save
+  for (let i = 0; i < 3; i++) {
+    const key = `Digit${i + 1}`;
+    if (input.wasJustPressed(key)) {
+      if (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) {
+        saveToBuildSlot(app.garage, i);
+      } else {
+        applyBuildSlot(app.garage, app.inventory, i);
+      }
+    }
   }
 }
 

@@ -323,6 +323,214 @@ function drawCommandCenter(ctx: CanvasRenderingContext2D, state: SiegeState): vo
   ctx.fillRect(barX, barY, barW * hpRatio, barH);
 }
 
+// ============================================================
+// Part-specific drawing helpers
+// ============================================================
+
+function drawChassis(
+  ctx: CanvasRenderingContext2D, r: number,
+  chassisId: string, primary: string, dark: string,
+): void {
+  const barrelColors: Record<string, { body: string; tread: string }> = {
+    chassis_standard: { body: primary, tread: dark },
+    chassis_inertia: { body: '#66aadd', tread: '#336688' },
+    chassis_heavy: { body: '#8B7355', tread: '#5C4A32' },
+    chassis_track: { body: '#88aa66', tread: '#446633' },
+  };
+  const bc = barrelColors[chassisId] ?? { body: primary, tread: dark };
+
+  if (chassisId === 'chassis_heavy') {
+    // Wide heavy body
+    ctx.fillStyle = bc.body;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2;
+    roundRect(ctx, -r - 2, -r * 0.7, (r + 2) * 2, r * 1.4, 4);
+    ctx.fill();
+    ctx.stroke();
+    // Armor plates
+    ctx.fillStyle = dark;
+    ctx.fillRect(-r - 3, -r * 0.8, 4, r * 1.6);
+    ctx.fillRect(r - 1, -r * 0.8, 4, r * 1.6);
+  } else if (chassisId === 'chassis_inertia') {
+    // Streamlined teardrop body
+    ctx.fillStyle = bc.body;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r, r * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Speed stripes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-r * 0.5, -r * 0.15, r * 0.8, 2);
+  } else if (chassisId === 'chassis_track') {
+    // Compact body with big treads
+    ctx.fillStyle = bc.body;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, -r * 0.7, -r * 0.5, r * 1.4, r, 3);
+    ctx.fill();
+    ctx.stroke();
+    // Prominent treads
+    ctx.fillStyle = bc.tread;
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(-r - 2, -r * 0.6 + i * r * 0.3, 4, r * 0.2);
+      ctx.fillRect(r - 2, -r * 0.6 + i * r * 0.3, 4, r * 0.2);
+    }
+  } else {
+    // Standard chassis
+    ctx.fillStyle = bc.body;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, -r, -r * 0.6, r * 2, r * 1.2, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = bc.tread;
+    ctx.fillRect(-r - 1, -r * 0.7, 3, r * 1.4);
+    ctx.fillRect(r - 2, -r * 0.7, 3, r * 1.4);
+  }
+}
+
+function drawTurretBase(
+  ctx: CanvasRenderingContext2D, r: number,
+  turretId: string, primary: string, dark: string,
+): void {
+  const colors: Record<string, string> = {
+    turret_light: '#88bbee',
+    turret_heavy: '#335577',
+    turret_reactive: '#55aa77',
+  };
+  const tc = colors[turretId] ?? primary;
+
+  if (turretId === 'turret_reactive') {
+    // Hexagonal shield shape
+    ctx.fillStyle = tc;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI / 6;
+      const px = Math.cos(a) * r * 0.55;
+      const py = Math.sin(a) * r * 0.55;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Shield emblem
+    ctx.fillStyle = '#fff';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛡', 0, 0);
+  } else if (turretId === 'turret_heavy') {
+    // Large thick circle
+    ctx.fillStyle = tc;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Inner ring
+    ctx.strokeStyle = '#fff3';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    // Light turret: small circle
+    ctx.fillStyle = tc;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function drawBarrel(
+  ctx: CanvasRenderingContext2D, r: number,
+  barrelId: string, _primary: string, _dark: string,
+): void {
+  const barrelStyles: Record<string, { color: string; draw: () => void }> = {
+    barrel_straight: {
+      color: '#667788',
+      draw: () => { ctx.fillRect(r * 0.3, -3, r * 1.1, 6); },
+    },
+    barrel_bounce: {
+      color: '#99aabb',
+      draw: () => {
+        ctx.fillRect(r * 0.3, -2.5, r * 0.9, 5);
+        // Angled tip
+        ctx.beginPath();
+        ctx.moveTo(r * 1.2, -2.5); ctx.lineTo(r * 1.6, -5); ctx.lineTo(r * 1.5, -2.5); ctx.closePath();
+        ctx.fill();
+      },
+    },
+    barrel_pierce: {
+      color: '#5588cc',
+      draw: () => { ctx.fillRect(r * 0.2, -2, r * 1.6, 4); },
+    },
+    barrel_arc: {
+      color: '#dd8844',
+      draw: () => {
+        ctx.fillRect(r * 0.3, -2, r * 0.5, 4);
+        // Curved tip pointing up
+        ctx.beginPath();
+        ctx.moveTo(r * 0.8, -2); ctx.quadraticCurveTo(r * 1.0, -8, r * 1.3, -6);
+        ctx.lineTo(r * 1.1, -3); ctx.quadraticCurveTo(r * 0.9, -5, r * 0.8, -2);
+        ctx.fill();
+      },
+    },
+    barrel_firework: {
+      color: '#ffaa33',
+      draw: () => {
+        // Wide barrel with ridges
+        ctx.fillRect(r * 0.2, -4, r * 1.3, 8);
+        ctx.fillStyle = '#cc7700';
+        for (let i = 0; i < 3; i++) {
+          ctx.fillRect(r * 0.4 + i * r * 0.35, -5, 3, 10);
+        }
+        // Star on tip
+        ctx.fillStyle = '#ffff00';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✦', r * 1.5, 0);
+      },
+    },
+    barrel_orbital: {
+      color: '#9966cc',
+      draw: () => {
+        // Twin small barrels
+        ctx.fillRect(r * 0.3, -5, r * 1.1, 3);
+        ctx.fillRect(r * 0.3, 2, r * 1.1, 3);
+        // Connecting brace
+        ctx.fillStyle = '#7744aa';
+        ctx.fillRect(r * 0.5, -2, 4, 4);
+      },
+    },
+    barrel_sniper: {
+      color: '#cc3333',
+      draw: () => {
+        // Very long thin barrel
+        ctx.fillRect(r * 0.2, -1.5, r * 2.0, 3);
+        // Scope on top
+        ctx.fillStyle = '#333';
+        ctx.fillRect(r * 0.6, -4, r * 0.4, 3);
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(r * 0.65, -3.5, r * 0.3, 2);
+      },
+    },
+  };
+
+  const style = barrelStyles[barrelId] ?? barrelStyles.barrel_straight;
+  ctx.fillStyle = style.color;
+  style.draw();
+}
+
 function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   if (!tank.alive) return;
 
@@ -330,24 +538,16 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   const r = TANK_RADIUS;
   const primary = tank.isPlayer ? C.PLAYER : C.ENEMY;
   const dark = tank.isPlayer ? C.PLAYER_DARK : C.ENEMY_DARK;
+  const chassisId = tank.config.chassis.id;
+  const turretId = tank.config.turret.id;
+  const barrelId = tank.config.barrel.id;
 
   // ---- Body (rotates at tank.dir) ----
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tank.dir);
 
-  // Chassis
-  ctx.fillStyle = primary;
-  ctx.strokeStyle = dark;
-  ctx.lineWidth = 1.5;
-  roundRect(ctx, -r, -r * 0.6, r * 2, r * 1.2, 4);
-  ctx.fill();
-  ctx.stroke();
-
-  // Treads
-  ctx.fillStyle = dark;
-  ctx.fillRect(-r - 1, -r * 0.7, 3, r * 1.4);
-  ctx.fillRect(r - 2, -r * 0.7, 3, r * 1.4);
+  drawChassis(ctx, r, chassisId, primary, dark);
 
   ctx.restore();
 
@@ -356,18 +556,8 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   ctx.translate(x, y);
   ctx.rotate(tank.turretAngle);
 
-  // Turret base circle
-  ctx.fillStyle = primary;
-  ctx.strokeStyle = dark;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // Barrel
-  ctx.fillStyle = dark;
-  ctx.fillRect(r * 0.3, -3, r * 1.1, 6);
+  drawTurretBase(ctx, r, turretId, primary, dark);
+  drawBarrel(ctx, r, barrelId, primary, dark);
 
   ctx.restore();
 
