@@ -526,8 +526,13 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const playerVisible = !isSmokeActive(state.player);
     const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
 
+    // Enemy speed limit (55% for easier environmental kills)
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+    const maxEnemySpeed = effectiveSpeed(enemy.config) * 0.55;
+    if (enemy.vel.mag() > maxEnemySpeed) {
+      enemy.vel = enemy.vel.norm().scale(maxEnemySpeed);
+    }
 
     // Turret follows target only in FIRE mode (gradual rotation)
     if (ctx.state === AIState.FIRE) {
