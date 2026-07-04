@@ -30,6 +30,8 @@ export interface BulletEntity {
   orbitalCenter: Vec2;
   /** Rocket only: target position to fly toward */
   targetPos: Vec2;
+  /** How many times this bullet has bounced off walls */
+  bounceCount: number;
 }
 
 let bulletIdCounter = 0;
@@ -74,6 +76,7 @@ export function createBullet(
     orbitalIndex: orbitalIndex ?? 0,
     orbitalCenter: pos,
     targetPos: pos,
+    bounceCount: 0,
   };
 }
 

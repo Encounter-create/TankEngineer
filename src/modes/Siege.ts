@@ -16,6 +16,7 @@ import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../en
 import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
 import { AllyTank, TurretEntity, Plane, createAllyTank, createTurret, createPlanes } from '../entities/Ally';
 import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
+import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -76,6 +77,11 @@ export interface SiegeState {
   damageNumbers: DamageNumber[];
   waveAnnouncement: string;
   waveAnnouncementTime: number;
+  /** Combo kill display */
+  comboTimer: number;
+  comboText: string;
+  comboColor: string;
+  comboMultiplier: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -120,6 +126,10 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     damageNumbers: [],
     waveAnnouncement: '',
     waveAnnouncementTime: 0,
+    comboTimer: 0,
+    comboText: '',
+    comboColor: '#fff',
+    comboMultiplier: 1,
   };
 }
 
@@ -249,6 +259,8 @@ export function updateSiege(
   // Wave announcement timer
   state.waveAnnouncementTime -= dt;
   state.skillMessageTime -= 16;
+  // Combo timer
+  state.comboTimer -= dt;
 
   // Update fire zones
   handleFireZones(state, dt);
@@ -752,9 +764,33 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   for (let pass = 0; pass < 3; pass++) {
     resolveBlockBlockCollisions(state.physicsBlocks);
   }
-  // Block ↔ tank
+  // Block ↔ tank (with block damage)
   const allTanks = [state.player, ...state.enemies, ...state.allies];
   resolveBlockTankCollisions(state.physicsBlocks, allTanks);
+  // Block damage: fast blocks deal damage on collision
+  for (const block of state.physicsBlocks) {
+    if (!block.alive || block.vel.mag() < 60) continue;
+    for (const enemy of state.enemies) {
+      if (!enemy.alive) continue;
+      if (enemy.pos.dist(block.pos) < TANK_RADIUS + BLOCK_RADIUS) {
+        const ctx = calcKillMultiplier('block', 0, block.chainLength);
+        const dmg = takeDamage(enemy, 20 * ctx.multiplier);
+        state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, ctx.multiplier >= 3));
+        state.particles.push(...spawnParticles(enemy.pos, 'hit', 12, 120));
+        if (ctx.multiplier >= 2) {
+          state.comboText = ctx.label;
+          state.comboColor = ctx.color;
+          state.comboMultiplier = ctx.multiplier;
+          state.comboTimer = 2.5;
+        }
+        if (!enemy.alive) {
+          state.enemiesKilled++;
+          state.particles.push(...spawnExplosion(enemy.pos));
+          state.screenShake = 8;
+        }
+      }
+    }
+  }
   // Block ↔ wall (last, after block-block resolved)
   resolveBlockWallCollisions(state.physicsBlocks, state.map, state.physicsBlocks);
 
@@ -884,9 +920,16 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
           if (bullet.style === 'rocket') {
             explodeRocket(bullet, state);
           } else {
-            const dmg = takeDamage(enemy, bullet.damage);
-            state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, dmg >= 50));
+            const ctx = calcKillMultiplier('bullet', bullet.bounceCount, 0);
+            const dmg = takeDamage(enemy, bullet.damage * ctx.multiplier);
+            state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, ctx.multiplier >= 3));
             state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
+            if (ctx.multiplier > 1) {
+              state.comboText = ctx.label;
+              state.comboColor = ctx.color;
+              state.comboMultiplier = ctx.multiplier;
+              state.comboTimer = 2.0;
+            }
             playHitTank();
             bullet.alive = false;
           }

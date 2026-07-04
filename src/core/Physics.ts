@@ -152,6 +152,8 @@ export function moveTank(
           (col.tileY + 0.5) * CELL_SIZE,
         );
         const block = createPhysicsBlock(tilePos, blockVel, col.tileType);
+        block.pushedByTankId = tank.id; // track who pushed it
+        block.chainLength = 0;
         newBlocks.push(block);
         // Remove tile from grid
         map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
@@ -195,6 +197,8 @@ export function resolveBlockWallCollisions(
         );
         const tileVel = normal.scale(-v2nPrime);
         const newBlock = createPhysicsBlock(tilePos, tileVel, col.tileType);
+        newBlock.pushedByTankId = block.pushedByTankId; // inherit pusher
+        newBlock.chainLength = block.chainLength + 1; // chain grows
         newBlocks.push(newBlock);
         map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
       }
@@ -362,6 +366,7 @@ export function moveBullet(
       }
       if (bullet.style === 'bounce' && bullet.bouncesLeft > 0) {
         bullet.bouncesLeft--;
+        bullet.bounceCount++; // track for multiplier
         bullet.vel = bullet.vel.reflect(col.normal);
         bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
         bullet.damage = Math.round(bullet.damage * 0.8);

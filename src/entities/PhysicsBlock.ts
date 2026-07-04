@@ -10,6 +10,10 @@ export interface PhysicsBlock {
   radius: number;      // collision radius (~CELL_SIZE/2)
   tileType: TileType;  // BRICK or METAL
   alive: boolean;
+  /** Which tank pushed this block originally */
+  pushedByTankId: string;
+  /** How many blocks were in the chain before this one */
+  chainLength: number;
 }
 
 let blockId = 0;
@@ -29,6 +33,8 @@ export function createPhysicsBlock(
     radius: BLOCK_RADIUS,
     tileType,
     alive: true,
+    pushedByTankId: '',
+    chainLength: 0,
   };
 }
 

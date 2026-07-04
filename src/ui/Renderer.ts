@@ -925,6 +925,20 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
   // Kill count
   ctx.fillText(`击毁: ${state.enemiesKilled}`, 12, 38);
 
+  // Combo kill display
+  if (state.comboTimer > 0 && state.comboText) {
+    const alpha = Math.min(1, state.comboTimer / 0.5);
+    const scale = 1 + (1 - Math.min(1, state.comboTimer)) * 0.5;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = state.comboColor;
+    ctx.font = `bold ${Math.round(22 * scale)}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(state.comboText, MAP_W / 2, MAP_H / 2 - 20);
+    ctx.restore();
+  }
+
   // Skill message
   if (state.skillMessageTime > 0 && state.skillMessage) {
     state.skillMessageTime -= 16; // ~60fps
