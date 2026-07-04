@@ -1,10 +1,10 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
-import { TankEntity, createTank, takeDamage } from '../entities/Tank';
+import { TankEntity, createTank, takeDamage, TURRET_ANGULAR_VEL } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
-import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
+import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle } from '../core/Physics';
 import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { AIContext, AIState, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
@@ -192,10 +192,18 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   const moveDir = input.getMoveDir();
   moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
-  // Turret follows mouse cursor
+  // Turret follows mouse cursor with angular velocity limit
   const toMouse = input.mousePos.sub(state.player.pos);
   if (toMouse.mag() > 1) {
-    state.player.turretAngle = toMouse.angle();
+    const targetAngle = toMouse.angle();
+    const diff = normalizeAngle(targetAngle - state.player.turretAngle);
+    const maxStep = TURRET_ANGULAR_VEL * dt;
+    if (Math.abs(diff) < maxStep) {
+      state.player.turretAngle = targetAngle;
+    } else {
+      state.player.turretAngle += Math.sign(diff) * maxStep;
+      state.player.turretAngle = normalizeAngle(state.player.turretAngle);
+    }
   }
 
   // Sprint trail particles
@@ -380,11 +388,19 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
-    // Turret follows target only in FIRE mode
+    // Turret follows target only in FIRE mode (gradual rotation)
     if (ctx.state === AIState.FIRE) {
       const toTarget = target.sub(enemy.pos);
       if (toTarget.mag() > 1) {
-        enemy.turretAngle = toTarget.angle();
+        const targetAngle = toTarget.angle();
+        const diff = normalizeAngle(targetAngle - enemy.turretAngle);
+        const maxStep = TURRET_ANGULAR_VEL * dt;
+        if (Math.abs(diff) < maxStep) {
+          enemy.turretAngle = targetAngle;
+        } else {
+          enemy.turretAngle += Math.sign(diff) * maxStep;
+          enemy.turretAngle = normalizeAngle(enemy.turretAngle);
+        }
       }
     } else {
       // Patrol/chase: turret points in movement direction

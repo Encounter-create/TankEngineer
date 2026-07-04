@@ -98,3 +98,5 @@ export const ANGULAR_ACCEL = MAX_ANGULAR_VEL * 4;
 export const ANGULAR_FRICTION = MAX_ANGULAR_VEL * 5;
 /** Minimum speed to stop completely (below this = zero) */
 export const MIN_SPEED = 5;
+/** Max turret rotation speed in rad/s */
+export const TURRET_ANGULAR_VEL = Math.PI * 3; // ~540°/s
