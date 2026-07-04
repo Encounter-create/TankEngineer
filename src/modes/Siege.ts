@@ -542,7 +542,8 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
 
     const config = configs[i % configs.length];
 
-    const isBoss = state.wavesSpawned === TOTAL_WAVES - 1 && i === 0;
+    // Boss = first enemy of final wave (wave index = WAVES.length - 1)
+    const isBoss = (state.wavesSpawned === WAVES.length - 1) && i === 0;
     const enemyConfig = isBoss
       ? assembleTank(MVP_BARRELS.find(p => p.id === 'barrel_gatling')!, MVP_TURRETS.find(p => p.id === 'turret_heavy')!, MVP_CHASSIS.find(p => p.id === 'chassis_heavy')!)
       : config;

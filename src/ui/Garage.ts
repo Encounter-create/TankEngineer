@@ -120,54 +120,51 @@ function renderPartColumn(
   ctx.textAlign = 'center';
   ctx.fillText(label, cx, offY + 20);
 
-  // Part cards
+  // Part cards — compact layout
   const cardW = 140;
-  const cardH = 70;
+  const cardH = 52;
   const startY = offY + 36;
-  const gap = 8;
+  const gap = 6;
 
   parts.forEach((part, i) => {
     const cy = startY + i * (cardH + gap);
     const selected = part.id === selectedId;
+    const owned = inventory.owns(part.id);
 
     // Card background
     ctx.fillStyle = selected ? '#2a4a6a' : '#2a2d35';
     ctx.strokeStyle = selected ? '#4a9eff' : '#444';
     ctx.lineWidth = selected ? 2 : 1;
-    roundRect(ctx, cx - cardW / 2, cy, cardW, cardH, 6);
+    roundRect(ctx, cx - cardW / 2, cy, cardW, cardH, 5);
     ctx.fill();
     ctx.stroke();
 
-    // Part name
+    // Name + rarity inline
     ctx.fillStyle = selected ? '#fff' : '#ccc';
-    ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(part.name, cx, cy + 22);
-
-    // Rarity
-    // Commander portrait
-    if (part.type === 'commander') {
-      drawCommanderFace(ctx, cx + cardW / 2 - 60, cy + 10, part.id);
-    }
+    ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(part.name, cx, cy + 18);
 
     ctx.fillStyle = rarityColor(part.rarity);
-    ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(part.rarity, cx, cy + 40);
-
-    // Weight
-    ctx.fillStyle = '#888';
-    ctx.fillText(`重量: ${part.weight}`, cx, cy + 56);
-
-    // Description (truncated)
-    ctx.fillStyle = '#777';
     ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(part.description.slice(0, 14), cx, cy + 70);
+    ctx.fillText(`${part.rarity} · 重${part.weight}`, cx, cy + 34);
 
-    // Multiplier hint for barrels/chassis
-    const hint = getPartHint(part);
-    if (hint) {
-      ctx.fillStyle = hint.color;
-      ctx.font = '9px "PingFang SC", "Microsoft YaHei", sans-serif';
-      ctx.fillText(hint.text, cx, cy + cardH - 6);
+    // Commander portrait or hint
+    if (part.type === 'commander') {
+      drawCommanderFace(ctx, cx + cardW / 2 - 48, cy + 6, part.id);
+    } else {
+      const hint = getPartHint(part);
+      if (hint) {
+        ctx.fillStyle = hint.color;
+        ctx.font = '9px "PingFang SC", "Microsoft YaHei", sans-serif';
+        ctx.fillText(hint.text, cx, cy + 48);
+      }
+    }
+
+    // Locked overlay
+    if (!owned) {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      roundRect(ctx, cx - cardW / 2, cy, cardW, cardH, 5);
+      ctx.fill();
     }
   });
 }
@@ -384,7 +381,7 @@ export interface GarageClickResult {
 
 const GARAGE_OFF_Y = 48;
 const GARAGE_CARD_W = 140;
-const GARAGE_CARD_H = 70;
+const GARAGE_CARD_H = 52;
 const GARAGE_GAP = 8;
 const GARAGE_START_Y = GARAGE_OFF_Y + 36;
 
