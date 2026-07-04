@@ -637,7 +637,7 @@ function drawBarrel(
   spec.draw();
 }
 
-function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity, siegeState?: SiegeState): void {
+export function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity, siegeState?: SiegeState): void {
   if (!tank.alive) return;
 
   const { x, y } = tank.pos;
@@ -864,7 +864,7 @@ function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): v
   ctx.restore();
 }
 
-function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {
+export function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {
   if (!bullet.alive) return;
 
   // Trail
