@@ -62,7 +62,96 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   } else if (state.phase === 'defeat') {
     drawOverlay(ctx, ['💀 指挥所沦陷', '', `坚持了 ${Math.floor(state.elapsedTime)} 秒`, ...rewardText(state)]);
     drawSiegeBackButton(ctx);
+  } else if (state.phase === 'playing' || state.phase === 'paused') {
+    // Gear button during gameplay
+    drawGearButton(ctx);
+
+    // Pause overlay
+    if (state.phase === 'paused') {
+      drawPauseOverlay(ctx);
+    }
   }
+}
+
+// ============================================================
+// Gear button + Pause overlay
+// ============================================================
+
+const GEAR_R = 14;
+const GEAR_X = MAP_W - GEAR_R - 8;
+const GEAR_Y = GEAR_R + 8;
+
+function drawGearButton(ctx: CanvasRenderingContext2D): void {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.arc(GEAR_X, GEAR_Y, GEAR_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ccc';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚙', GEAR_X, GEAR_Y);
+}
+
+export function hitTestGearButton(px: number, py: number): boolean {
+  const dx = px - GEAR_X;
+  const dy = py - GEAR_Y;
+  return dx * dx + dy * dy < GEAR_R * GEAR_R;
+}
+
+function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {
+  // Dim background
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, MAP_W, MAP_H);
+
+  // Pause panel
+  const pw = 220;
+  const ph = 140;
+  const px = (MAP_W - pw) / 2;
+  const py = (MAP_H - ph) / 2;
+
+  ctx.fillStyle = '#2a2d35';
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  roundRect(ctx, px, py, pw, ph, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('⏸ 已暂停', px + pw / 2, py + 32);
+
+  // Resume button
+  const resumeBtn: ButtonDef = {
+    x: px + 20, y: py + 50, w: 180, h: 34,
+    label: '▶ 继续游戏', color: '#3a6a3a',
+  };
+  drawButton(ctx, resumeBtn);
+
+  // Quit button
+  const quitBtn: ButtonDef = {
+    x: px + 20, y: py + 92, w: 180, h: 34,
+    label: '🚪 返回大厅', color: '#6a3a3a',
+  };
+  drawButton(ctx, quitBtn);
+}
+
+export function hitTestPauseResume(px: number, py: number): boolean {
+  const pw = 220; const ph = 140;
+  const ppx = (MAP_W - pw) / 2;
+  const ppy = (MAP_H - ph) / 2;
+  const btn: ButtonDef = { x: ppx + 20, y: ppy + 50, w: 180, h: 34, label: '', color: '' };
+  return hitTestButton(px, py, btn);
+}
+
+export function hitTestPauseQuit(px: number, py: number): boolean {
+  const pw = 220; const ph = 140;
+  const ppx = (MAP_W - pw) / 2;
+  const ppy = (MAP_H - ph) / 2;
+  const btn: ButtonDef = { x: ppx + 20, y: ppy + 92, w: 180, h: 34, label: '', color: '' };
+  return hitTestButton(px, py, btn);
 }
 
 // ============================================================

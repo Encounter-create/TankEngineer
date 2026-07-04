@@ -1,6 +1,6 @@
 // ============================================================
-// 坦克工程师 — Tank Engineer
-// MVP 主入口
+// 坦克工程师 — Tank Engineer MVP
+// 主入口 — 对战大厅中心
 // ============================================================
 
 import { GameLoop } from './core/GameLoop';
@@ -25,30 +25,53 @@ import {
   hitTestShop,
   hitTestShopButtons,
 } from './ui/ShopUI';
-import { renderSiege, drawHUD, hitTestSiegeBackButton } from './ui/Renderer';
+import {
+  EncyclopediaState,
+  createEncyclopediaState,
+  renderEncyclopedia,
+  hitTestEncyclopediaTabs,
+  hitTestEncyclopediaButton,
+} from './ui/Encyclopedia';
+import {
+  LobbyState,
+  createLobbyState,
+  renderLobby,
+  hitTestLobbyMode,
+  hitTestLobbyMap,
+  hitTestLobbyButtons,
+} from './ui/Lobby';
 import {
   SiegeState,
   createSiegeState,
   updateSiege,
 } from './modes/Siege';
+import {
+  renderSiege, drawHUD,
+  hitTestSiegeBackButton,
+  hitTestGearButton,
+  hitTestPauseResume,
+  hitTestPauseQuit,
+} from './ui/Renderer';
 import { MAP_W, MAP_H } from './utils/Grid';
 
 // ============================================================
 // App state machine
 // ============================================================
 
-type AppScreen = 'garage' | 'shop' | 'siege';
+type AppScreen = 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege';
 
 interface AppState {
   screen: AppScreen;
   inventory: Inventory;
   shop: Shop;
+  lobby: LobbyState;
   garage: GarageState;
   shopUI: ShopUIState;
+  encyclopedia: EncyclopediaState;
   siege: SiegeState | null;
-  selectedCol: number; // 0=barrel, 1=turret, 2=chassis in garage
-  selectedRow: number; // which part in column
-  shopSelected: number; // which shop slot
+  shopSelected: number;
+  selectedCol: number;
+  selectedRow: number;
 }
 
 // ============================================================
@@ -61,26 +84,26 @@ canvas.height = MAP_H;
 const ctx = canvas.getContext('2d')!;
 
 // ============================================================
-// Initialize systems
+// Initialize
 // ============================================================
 
 const input = new Input();
 input.attachCanvas(canvas);
 const inventory = new Inventory();
 const shop = new Shop(inventory);
-const garage = createGarageState(inventory);
-const shopUI = createShopUIState();
 
 const app: AppState = {
-  screen: 'garage',
+  screen: 'lobby',
   inventory,
   shop,
-  garage,
-  shopUI,
+  lobby: createLobbyState(),
+  garage: createGarageState(inventory),
+  shopUI: createShopUIState(),
+  encyclopedia: createEncyclopediaState(),
   siege: null,
+  shopSelected: 0,
   selectedCol: 0,
   selectedRow: 0,
-  shopSelected: 0,
 };
 
 // ============================================================
@@ -88,206 +111,184 @@ const app: AppState = {
 // ============================================================
 
 function update(dt: number): void {
-  switch (app.screen) {
-    case 'garage':
-      updateGarage(dt);
-      break;
-    case 'shop':
-      updateShop(dt);
-      break;
-    case 'siege':
-      if (app.siege) {
-        updateSiege(app.siege, input, dt);
-        handleSiegeTransitions();
-      }
-      break;
+  if (app.screen === 'siege' && app.siege) {
+    updateSiege(app.siege, input, dt);
+    handleSiegeUI();
+  } else if (app.screen === 'lobby') {
+    updateLobby();
+  } else if (app.screen === 'garage') {
+    updateGarage();
+  } else if (app.screen === 'shop') {
+    updateShop();
+  } else if (app.screen === 'encyclopedia') {
+    updateEncyclopedia();
   }
-
   input.endFrame();
 }
 
 function render(_alpha: number): void {
   ctx.clearRect(0, 0, MAP_W, MAP_H);
 
-  switch (app.screen) {
-    case 'garage':
-      renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory);
-      break;
-    case 'shop':
-      renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold);
-      break;
-    case 'siege':
-      if (app.siege) {
-        renderSiege(ctx, app.siege);
-        if (app.siege.phase === 'playing') {
-          drawHUD(ctx, app.siege);
-        }
-      }
-      break;
+  if (app.screen === 'siege' && app.siege) {
+    renderSiege(ctx, app.siege);
+    if (app.siege.phase === 'playing' || app.siege.phase === 'paused') {
+      drawHUD(ctx, app.siege);
+    }
+  } else if (app.screen === 'lobby') {
+    const config = getCurrentConfig(app.garage);
+    renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid);
+  } else if (app.screen === 'garage') {
+    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory);
+  } else if (app.screen === 'shop') {
+    renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold);
+  } else if (app.screen === 'encyclopedia') {
+    renderEncyclopedia(ctx, MAP_W, MAP_H, app.encyclopedia, app.inventory);
   }
 }
 
 // ============================================================
-// Garage screen logic
+// Lobby
 // ============================================================
 
-function updateGarage(_dt: number): void {
-  // ---- Mouse click ----
-  if (input.isMouseJustPressed()) {
-    // Check buttons first
-    const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
-    if (btnIdx === 0) {
-      // Start game
-      const config = getCurrentConfig(app.garage);
-      if (config && app.garage.assemblyResult.valid) {
-        startSiege(config);
-        return;
-      }
-    }
-    if (btnIdx === 1) {
-      // Open shop
-      app.screen = 'shop';
-      shopUI.message = '';
-      shopUI.slots = app.shop.getSlots();
-      return;
-    }
-    // Check part cards
-    const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
-    if (hit) {
-      selectPart(app.garage, hit.type, hit.partId, app.inventory);
-    }
+function updateLobby(): void {
+  if (!input.isMouseJustPressed()) return;
+
+  // Mode selection
+  const mode = hitTestLobbyMode(input.mousePos.x, input.mousePos.y);
+  if (mode) {
+    app.lobby.selectedMode = mode;
+    return;
   }
 
-  // Navigate columns
-  if (input.wasJustPressed('KeyA') || input.wasJustPressed('ArrowLeft')) {
-    app.selectedCol = Math.max(0, app.selectedCol - 1);
-    app.selectedRow = 0;
-  }
-  if (input.wasJustPressed('KeyD') || input.wasJustPressed('ArrowRight')) {
-    app.selectedCol = Math.min(2, app.selectedCol + 1);
-    app.selectedRow = 0;
+  // Map selection
+  const mapName = hitTestLobbyMap(input.mousePos.x, input.mousePos.y, MAP_W);
+  if (mapName) {
+    app.lobby.selectedMap = mapName;
+    return;
   }
 
-  // Navigate rows within column
-  const parts = getPartsForCol(app.selectedCol);
-  if (input.wasJustPressed('KeyW') || input.wasJustPressed('ArrowUp')) {
-    app.selectedRow = Math.max(0, app.selectedRow - 1);
-  }
-  if (input.wasJustPressed('KeyS') || input.wasJustPressed('ArrowDown')) {
-    app.selectedRow = Math.min(parts.length - 1, app.selectedRow + 1);
-  }
-
-  // Select part
-  if (input.isConfirmPressed() && parts.length > 0) {
-    const part = parts[app.selectedRow];
-    const types: ['barrel', 'turret', 'chassis'] = ['barrel', 'turret', 'chassis'];
-    selectPart(app.garage, types[app.selectedCol], part.id, app.inventory);
-  }
-
-  // Start game
-  if (input.isFirePressed()) {
+  // Buttons
+  const btnIdx = hitTestLobbyButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
+  if (btnIdx === 0) {
+    app.screen = 'garage'; // open garage
+  } else if (btnIdx === 1) {
+    app.shopUI.message = '';
+    app.shopUI.slots = app.shop.getSlots();
+    app.screen = 'shop';
+  } else if (btnIdx === 2) {
+    app.encyclopedia = createEncyclopediaState();
+    app.screen = 'encyclopedia';
+  } else if (btnIdx === 3) {
+    // Start battle
     const config = getCurrentConfig(app.garage);
     if (config && app.garage.assemblyResult.valid) {
       startSiege(config);
     }
   }
-
-  // Open shop
-  if (input.wasJustPressed('KeyB') || input.wasJustPressed('Tab')) {
-    app.screen = 'shop';
-    shopUI.message = '';
-    shopUI.slots = app.shop.getSlots();
-  }
-}
-
-function getPartsForCol(col: number) {
-  switch (col) {
-    case 0: return app.inventory.getOwnedByType('barrel');
-    case 1: return app.inventory.getOwnedByType('turret');
-    case 2: return app.inventory.getOwnedByType('chassis');
-    default: return [];
-  }
 }
 
 // ============================================================
-// Shop screen logic
+// Garage (reachable from lobby)
 // ============================================================
 
-function updateShop(_dt: number): void {
-  // ---- Mouse click ----
-  if (input.isMouseJustPressed()) {
-    // Check back button first
-    if (hitTestShopButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
-      app.screen = 'garage';
-      shopUI.message = '';
-      return;
-    }
-    // Check shop slots
-    const idx = hitTestShop(input.mousePos.x, input.mousePos.y, MAP_W, shopUI.slots.length);
-    if (idx >= 0 && shopUI.slots[idx]) {
-      attemptBuy(shopUI, app.shop, shopUI.slots[idx].part.id);
-      app.garage = createGarageState(app.inventory);
-    }
+function updateGarage(): void {
+  if (!input.isMouseJustPressed()) return;
+
+  // Back button
+  const btnIdx = hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
+  if (btnIdx === 0) {
+    app.screen = 'lobby';
+    return;
   }
 
-  // Navigate
-  if (input.wasJustPressed('KeyA') || input.wasJustPressed('ArrowLeft')) {
-    app.shopSelected = Math.max(0, app.shopSelected - 1);
-  }
-  if (input.wasJustPressed('KeyD') || input.wasJustPressed('ArrowRight')) {
-    app.shopSelected = Math.min(shopUI.slots.length - 1, app.shopSelected + 1);
-  }
-
-  // Buy
-  if (input.isConfirmPressed() && shopUI.slots.length > 0) {
-    const slot = shopUI.slots[app.shopSelected];
-    if (slot) {
-      attemptBuy(shopUI, app.shop, slot.part.id);
-      app.garage = createGarageState(app.inventory);
-    }
-  }
-
-  // Reroll
-  if (input.wasJustPressed('KeyR')) {
-    shopUI.slots = app.shop.refresh();
-    shopUI.message = '🔄 已刷新';
-    shopUI.messageColor = '#e8e8e8';
-    app.shopSelected = 0;
-  }
-
-  // Back to garage
-  if (input.isEscapePressed()) {
-    app.screen = 'garage';
-    shopUI.message = '';
+  // Part cards
+  const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory);
+  if (hit) {
+    selectPart(app.garage, hit.type, hit.partId, app.inventory);
   }
 }
 
 // ============================================================
-// Siege transitions
+// Shop
+// ============================================================
+
+function updateShop(): void {
+  if (!input.isMouseJustPressed()) return;
+
+  if (hitTestShopButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
+    app.screen = 'lobby';
+    return;
+  }
+
+  const idx = hitTestShop(input.mousePos.x, input.mousePos.y, MAP_W, app.shopUI.slots.length);
+  if (idx >= 0 && app.shopUI.slots[idx]) {
+    attemptBuy(app.shopUI, app.shop, app.shopUI.slots[idx].part.id);
+    app.garage = createGarageState(app.inventory);
+  }
+}
+
+// ============================================================
+// Encyclopedia
+// ============================================================
+
+function updateEncyclopedia(): void {
+  if (!input.isMouseJustPressed()) return;
+
+  if (hitTestEncyclopediaButton(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
+    app.screen = 'lobby';
+    return;
+  }
+
+  const type = hitTestEncyclopediaTabs(input.mousePos.x, input.mousePos.y, MAP_W);
+  if (type) {
+    app.encyclopedia.selectedType = type;
+  }
+}
+
+// ============================================================
+// Siege
 // ============================================================
 
 function startSiege(config: TankConfig): void {
-  app.siege = createSiegeState(config, app.inventory);
+  app.siege = createSiegeState(config, app.inventory, app.lobby.selectedMap);
   app.screen = 'siege';
 }
 
-function handleSiegeTransitions(): void {
-  if (!app.siege) return;
+function handleSiegeUI(): void {
+  if (!app.siege || !input.isMouseJustPressed()) return;
 
   const phase = app.siege.phase;
+  const mx = input.mousePos.x;
+  const my = input.mousePos.y;
 
-  // Intro screen: click to start
-  if (phase === 'intro' && input.isMouseJustPressed()) {
+  // Gear button during playing
+  if (phase === 'playing' && hitTestGearButton(mx, my)) {
+    app.siege.phase = 'paused';
+    return;
+  }
+
+  // Pause menu
+  if (phase === 'paused') {
+    if (hitTestPauseResume(mx, my)) {
+      app.siege.phase = 'playing';
+    } else if (hitTestPauseQuit(mx, my)) {
+      app.screen = 'lobby';
+      app.garage = createGarageState(app.inventory);
+      app.siege = null;
+    }
+    return;
+  }
+
+  // Intro screen
+  if (phase === 'intro') {
     app.siege.phase = 'playing';
     return;
   }
 
-  // Result screens: back button or Enter to return
+  // Result screens
   if (phase === 'victory' || phase === 'defeat') {
-    const clickedBack = input.isMouseJustPressed() &&
-      hitTestSiegeBackButton(input.mousePos.x, input.mousePos.y);
-    if (clickedBack || input.isConfirmPressed()) {
-      app.screen = 'garage';
+    if (hitTestSiegeBackButton(mx, my)) {
+      app.screen = 'lobby';
       app.garage = createGarageState(app.inventory);
       app.siege = null;
     }
@@ -302,9 +303,4 @@ const loop = new GameLoop(update, render);
 loop.start();
 
 console.log('🔧 坦克工程师 MVP 已启动');
-console.log('  WASD/Arrow: 移动 & 导航');
-console.log('  Enter: 确认选择');
-console.log('  Space: 开火 / 开始游戏');
-console.log('  B/Tab: 打开商店');
-console.log('  Esc: 返回');
-console.log('  R: 刷新商店');
+console.log('  大厅 — 选择模式和地图，点击按钮导航');

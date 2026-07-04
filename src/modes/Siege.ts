@@ -58,8 +58,8 @@ const COMMAND_CENTER_MAX_HP = 500;
 const COMMAND_CENTER_GRID = { x: Math.floor(MAP_COLS / 2), y: Math.floor(MAP_ROWS / 2) };
 const ENEMY_MAX = 12;
 
-export function createSiegeState(playerConfig: TankConfig, inventory: Inventory): SiegeState {
-  const mapName = pickRandomMap();
+export function createSiegeState(playerConfig: TankConfig, inventory: Inventory, forceMapName?: MapName): SiegeState {
+  const mapName = forceMapName ?? pickRandomMap();
   const map = createMap(mapName);
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
@@ -93,6 +93,11 @@ export function updateSiege(
   dt: number,
 ): void {
   if (state.phase === 'victory' || state.phase === 'defeat') return;
+
+  // Paused — check for resume
+  if (state.phase === 'paused') {
+    return; // main.ts handles pause menu clicks
+  }
 
   // Intro countdown
   if (state.phase === 'intro') {

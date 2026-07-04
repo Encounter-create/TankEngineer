@@ -176,10 +176,8 @@ const BTN_H = 36;
 
 export function getGarageButtons(w: number, h: number): ButtonDef[] {
   const btnY = h - BTN_H - 12;
-  const startX = (w - (BTN_W * 2 + 16)) / 2;
   return [
-    { x: startX, y: btnY, w: BTN_W, h: BTN_H, label: '⚔️  开始对战', color: '#3a6a3a' },
-    { x: startX + BTN_W + 16, y: btnY, w: BTN_W, h: BTN_H, label: '🏪  商店', color: '#2a4a6a' },
+    { x: (w - BTN_W) / 2, y: btnY, w: BTN_W, h: BTN_H, label: '← 返回大厅', color: '#444' },
   ];
 }
 
