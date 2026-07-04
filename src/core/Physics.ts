@@ -361,13 +361,15 @@ export function moveBullet(
       if (bullet.style === 'arc' && col.tileType === TileType.BRICK) {
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Magnetic/rail: slide along metal walls
+      // Magnetic/rail: slide along metal walls (max 8 slides, then die)
       if (bullet.style === 'magnetic' && col.tileType === TileType.METAL) {
-        // Project velocity onto wall tangent (perpendicular to normal)
+        (bullet as any).railSlides = ((bullet as any).railSlides ?? 0) + 1;
+        if ((bullet as any).railSlides > 8) { bullet.alive = false; bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy }; }
         const tangent = new Vec2(-col.normal.y, col.normal.x);
         const vAlong = bullet.vel.dot(tangent);
-        bullet.vel = tangent.scale(Math.sign(vAlong) * bullet.vel.mag());
-        bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
+        bullet.vel = tangent.scale(Math.sign(vAlong || 1) * bullet.vel.mag());
+        // Push bullet away from wall to prevent re-collision on same tile
+        bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 2));
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
       // Sniper (damage >= 500): ALWAYS destroys walls and continues — never bounces
