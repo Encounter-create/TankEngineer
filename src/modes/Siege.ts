@@ -1,10 +1,11 @@
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
+import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, inBounds, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage } from '../entities/Tank';
 import { BulletEntity, createBullet, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
-import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions } from '../core/Physics';
+import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
+import { PhysicsBlock, updatePhysicsBlock } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
@@ -60,6 +61,8 @@ export interface SiegeState {
   particles: Particle[];
   /** Screen shake intensity (pixels, decays over time) */
   screenShake: number;
+  /** Pushed-out physics blocks (brick/metal sliding freely) */
+  physicsBlocks: PhysicsBlock[];
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -92,6 +95,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     skillMessageTime: 0,
     particles: [],
     screenShake: 0,
+    physicsBlocks: [],
   };
 }
 
@@ -142,8 +146,11 @@ export function updateSiege(
   // Enemy AI
   handleEnemyAI(state, dt);
 
-  // Tank-tank collisions (momentum conservation)
+  // Tank-tank collisions
   resolveTankCollisions([state.player, ...state.enemies]);
+
+  // Process physics blocks
+  handlePhysicsBlocks(state, dt);
 
   // Move bullets
   handleBullets(state, dt);
@@ -176,7 +183,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   }
 
   const moveDir = input.getMoveDir();
-  moveTank(state.player, moveDir, dt, state.map);
+  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks);
 
   // Turret follows mouse cursor
   const toMouse = input.mousePos.sub(state.player.pos);
@@ -364,7 +371,7 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
 
     const moveDir = updateAI(ctx, target, state.map, dt);
-    moveTank(enemy, moveDir, dt, state.map);
+    moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks);
 
     // Turret follows target
     const toTarget = target.sub(enemy.pos);
@@ -395,6 +402,52 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
 
   // Remove dead enemies
   state.enemies = state.enemies.filter(e => e.alive);
+}
+
+// ============================================================
+// Physics blocks
+// ============================================================
+
+function handlePhysicsBlocks(state: SiegeState, dt: number): void {
+  // Update movement + friction
+  for (const block of state.physicsBlocks) {
+    if (!block.alive) continue;
+    updatePhysicsBlock(block, dt);
+    block.pos = block.pos.add(block.vel.scale(dt));
+    // Clamp to map
+    const r = block.radius;
+    block.pos = new Vec2(
+      Math.max(r, Math.min(MAP_W - r, block.pos.x)),
+      Math.max(r, Math.min(MAP_H - r, block.pos.y)),
+    );
+  }
+
+  // Block ↔ wall
+  resolveBlockWallCollisions(state.physicsBlocks, state.map);
+  // Block ↔ tank
+  const allTanks = [state.player, ...state.enemies];
+  resolveBlockTankCollisions(state.physicsBlocks, allTanks);
+  // Block ↔ block
+  resolveBlockBlockCollisions(state.physicsBlocks);
+
+  // Remove dead/slow blocks (reabsorb into map if near a grid center)
+  for (const block of state.physicsBlocks) {
+    if (!block.alive) continue;
+    if (block.vel.mag() < 2) {
+      // Snap back to nearest empty grid cell
+      const gx = Math.round((block.pos.x - CELL_SIZE/2) / CELL_SIZE);
+      const gy = Math.round((block.pos.y - CELL_SIZE/2) / CELL_SIZE);
+      if (inBounds(gx, gy) && state.map[gy][gx].type === TileType.EMPTY) {
+        state.map[gy][gx] = {
+          type: block.tileType,
+          hp: block.tileType === TileType.BRICK ? 1 : -1,
+        };
+        block.alive = false;
+      }
+    }
+  }
+
+  state.physicsBlocks = state.physicsBlocks.filter(b => b.alive);
 }
 
 // ============================================================

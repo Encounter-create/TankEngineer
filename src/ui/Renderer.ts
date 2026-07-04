@@ -5,6 +5,7 @@ import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 import { SiegeState, TOTAL_WAVES } from '../modes/Siege';
 import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 import { Particle } from '../entities/Particle';
+import { PhysicsBlock } from '../entities/PhysicsBlock';
 import { isSmokeActive } from '../systems/Commander';
 
 // ============================================================
@@ -60,6 +61,9 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const enemy of state.enemies) {
     drawTank(ctx, enemy);
+  }
+  for (const block of state.physicsBlocks) {
+    drawPhysicsBlock(ctx, block);
   }
   for (const bullet of state.bullets) {
     drawBullet(ctx, bullet);
@@ -614,6 +618,28 @@ function drawSmokeCloud(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
+}
+
+function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): void {
+  if (!block.alive) return;
+  ctx.save();
+  ctx.translate(block.pos.x, block.pos.y);
+
+  const s = block.radius;
+  if (block.tileType === TileType.METAL) {
+    ctx.fillStyle = C.METAL;
+    ctx.strokeStyle = C.METAL_STROKE;
+    ctx.lineWidth = 2;
+    roundRect(ctx, -s, -s, s * 2, s * 2, 3);
+    ctx.fill(); ctx.stroke();
+  } else {
+    ctx.fillStyle = C.BRICK;
+    ctx.strokeStyle = C.BRICK_STROKE;
+    ctx.lineWidth = 1;
+    roundRect(ctx, -s, -s, s * 2, s * 2, 3);
+    ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {
