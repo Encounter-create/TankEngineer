@@ -33,13 +33,19 @@ const MAP_LABELS: Record<MapName, string> = {
   arena: '角斗场',
   maze: '迷宫',
   crossfire: '交叉火力',
+  rivers: '两河流域',
+  fortress: '堡垒',
+  spiral: '螺旋',
 };
 
 const MAP_DESCS: Record<MapName, string> = {
-  classic: '防御环+散落掩体+金属柱，适合所有战术',
+  classic: '防御环+散落掩体，适合所有战术',
   arena: '开阔少掩体，纯走位和枪法比拼',
   maze: '密集砖墙走廊，透射/反射管大显身手',
   crossfire: 'X形金属墙，反弹射击的天堂',
+  rivers: '两条金属河流分割战场，桥梁争夺战',
+  fortress: '重装防御工事，攻城拔寨',
+  spiral: '螺旋金属阵，弹道轨迹的几何艺术',
 };
 
 export function renderLobby(
@@ -96,23 +102,24 @@ export function renderLobby(
   // ---- Right panel: Map selection ----
   const rightX = 224;
   const rightW = w - rightX - 12;
-  const mapPreviewW = 80;
-  const mapPreviewH = 60;
+  const mapPreviewW = 72;
+  const mapPreviewH = 52;
+  const mapCols = 3;
 
   ctx.fillStyle = '#22252c';
-  roundRect(ctx, rightX, 50, rightW, 220, 6);
+  roundRect(ctx, rightX, 50, rightW, 300, 6);
   ctx.fill();
 
   ctx.fillStyle = '#aaa';
   ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('地图选择', rightX + 12, 72);
+  ctx.fillText('地图选择 (7张)', rightX + 12, 72);
 
   ALL_MAPS.forEach((mapName, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const mx = rightX + 16 + col * (mapPreviewW + 24);
-    const my = 86 + row * (mapPreviewH + 30);
+    const col = i % mapCols;
+    const row = Math.floor(i / mapCols);
+    const mx = rightX + 16 + col * (mapPreviewW + 16);
+    const my = 86 + row * (mapPreviewH + 28);
     const selected = lobby.selectedMap === mapName;
 
     // Map thumbnail
@@ -233,13 +240,14 @@ export function hitTestLobbyMode(px: number, py: number): string | null {
 
 export function hitTestLobbyMap(px: number, py: number, _w: number): MapName | null {
   const rightX = 224;
-  const mapW = 80; const mapH = 60;
+  const mapW = 72; const mapH = 52;
+  const mapCols = 3;
 
   for (let i = 0; i < ALL_MAPS.length; i++) {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const mx = rightX + 16 + col * (mapW + 24);
-    const my = 86 + row * (mapH + 30);
+    const col = i % mapCols;
+    const row = Math.floor(i / mapCols);
+    const mx = rightX + 16 + col * (mapW + 16);
+    const my = 86 + row * (mapH + 28);
     if (px >= mx && px <= mx + mapW && py >= my && py <= my + mapH + 14) {
       return ALL_MAPS[i];
     }

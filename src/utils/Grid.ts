@@ -1,10 +1,10 @@
 import { Vec2 } from './Vector';
 
 export const CELL_SIZE = 32; // pixels per grid cell
-export const MAP_COLS = 20;
-export const MAP_ROWS = 15;
-export const MAP_W = MAP_COLS * CELL_SIZE; // 640
-export const MAP_H = MAP_ROWS * CELL_SIZE; // 480
+export const MAP_COLS = 30;
+export const MAP_ROWS = 22;
+export const MAP_W = MAP_COLS * CELL_SIZE; // 960
+export const MAP_H = MAP_ROWS * CELL_SIZE; // 704
 
 export enum TileType {
   EMPTY = 0,

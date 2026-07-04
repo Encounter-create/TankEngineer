@@ -5,7 +5,7 @@
 export type PartType = 'barrel' | 'turret' | 'chassis' | 'commander';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type WeightClass = 'light' | 'medium' | 'heavy';
-export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc';
+export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc' | 'firework' | 'orbital';
 
 /** Core part definition */
 export interface Part {
@@ -114,6 +114,54 @@ export const MVP_BARRELS: Part[] = [
       bounces: 0,
       pierces: 0,
       cooldownMs: 1200,
+    },
+  },
+  {
+    id: 'barrel_firework',
+    name: '烟花炮管',
+    type: 'barrel',
+    rarity: 'legendary',
+    weight: 3,
+    description: '母子弹飞行中不断向四周分裂子子弹，如烟花绽放',
+    stats: {
+      bulletStyle: 'firework',
+      bulletDamage: 15,
+      bulletSpeed: 200,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 3000,
+    },
+  },
+  {
+    id: 'barrel_orbital',
+    name: '粒子炮管',
+    type: 'barrel',
+    rarity: 'legendary',
+    weight: 3,
+    description: '发射一对双子子弹，彼此环绕旋转前进，几何对称之美',
+    stats: {
+      bulletStyle: 'orbital',
+      bulletDamage: 22,
+      bulletSpeed: 300,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 1600,
+    },
+  },
+  {
+    id: 'barrel_sniper',
+    name: '狙击炮管',
+    type: 'barrel',
+    rarity: 'legendary',
+    weight: 2,
+    description: '一击必杀，子弹极快但射速极低',
+    stats: {
+      bulletStyle: 'straight',
+      bulletDamage: 999,
+      bulletSpeed: 800,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 4000,
     },
   },
 ];

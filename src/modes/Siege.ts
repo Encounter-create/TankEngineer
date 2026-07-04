@@ -2,7 +2,7 @@ import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage } from '../entities/Tank';
-import { BulletEntity, createBullet } from '../entities/Bullet';
+import { BulletEntity, createBullet, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit } from '../core/Physics';
 import { Input } from '../core/Input';
@@ -230,18 +230,30 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     const cooldown = barrageActive ? 50 : effectiveCooldown(cfg); // 50ms during barrage
     state.playerCooldownRemaining = cooldown;
 
-    const bullet = createBullet(
-      state.player.pos,
-      state.player.turretAngle,
-      cfg.barrel.stats.bulletStyle ?? 'straight',
-      cfg.barrel.stats.bulletSpeed ?? 400,
-      cfg.barrel.stats.bulletDamage ?? 35,
-      cfg.barrel.stats.bounces ?? 0,
-      cfg.barrel.stats.pierces ?? 0,
-      state.player.id,
-      true,
-    );
-    state.bullets.push(bullet);
+    const bulletStyle = cfg.barrel.stats.bulletStyle ?? 'straight';
+    const bulletSpeed = cfg.barrel.stats.bulletSpeed ?? 400;
+    const bulletDamage = cfg.barrel.stats.bulletDamage ?? 35;
+    const bounces = cfg.barrel.stats.bounces ?? 0;
+    const pierces = cfg.barrel.stats.pierces ?? 0;
+
+    if (bulletStyle === 'orbital') {
+      // Create pair of orbiting bullets
+      for (let idx = 0; idx < 2; idx++) {
+        const bullet = createBullet(
+          state.player.pos, state.player.turretAngle,
+          'orbital', bulletSpeed, bulletDamage, 0, 0,
+          state.player.id, true, idx, 16,
+        );
+        state.bullets.push(bullet);
+      }
+    } else {
+      const bullet = createBullet(
+        state.player.pos, state.player.turretAngle,
+        bulletStyle, bulletSpeed, bulletDamage, bounces, pierces,
+        state.player.id, true,
+      );
+      state.bullets.push(bullet);
+    }
 
     // Muzzle flash particles + sound
     const muzzlePos = state.player.pos.add(Vec2.fromAngle(state.player.turretAngle, 14));
@@ -385,15 +397,70 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
 // ============================================================
 
 function handleBullets(state: SiegeState, dt: number): void {
+  const newBullets: BulletEntity[] = [];
+
   for (const bullet of state.bullets) {
     if (!bullet.alive) continue;
+
+    // Firework: timer for child spawns, auto-destruct
+    if (bullet.style === 'firework') {
+      bullet.fireworkTimer -= dt;
+      bullet.fireworkLife += dt;
+      if (bullet.fireworkLife >= FIREWORK_MAX_LIFE) {
+        // Final burst
+        for (let i = 0; i < 12; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const child = createBullet(
+            bullet.pos, angle, 'straight', 250, 8, 0, 0,
+            bullet.ownerId, bullet.isPlayerBullet,
+          );
+          child.fireworkLife = 999; // mark as short-lived child
+          newBullets.push(child);
+        }
+        bullet.alive = false;
+        state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 60));
+        continue;
+      }
+      if (bullet.fireworkTimer <= 0) {
+        bullet.fireworkTimer = FIREWORK_INTERVAL;
+        // Spawn radial children
+        for (let i = 0; i < FIREWORK_CHILD_COUNT; i++) {
+          const angle = (Math.PI * 2 / FIREWORK_CHILD_COUNT) * i + Math.random() * 0.5;
+          const child = createBullet(
+            bullet.pos, angle, 'straight', 220, 8, 0, 0,
+            bullet.ownerId, bullet.isPlayerBullet,
+          );
+          child.fireworkLife = 999;
+          newBullets.push(child);
+        }
+        state.particles.push(...spawnParticles(bullet.pos, 'barrage', 3, 40));
+      }
+    }
+
+    // Orbital: update rotation angle
+    if (bullet.style === 'orbital') {
+      bullet.orbitalAngle += dt * 8; // rotation speed
+    }
+
     const result = moveBullet(bullet, dt, state.map);
     if (result.hitWall) {
       state.particles.push(...spawnParticles(bullet.pos, 'impact', 10, 100));
       playHitWall();
     }
   }
-  state.bullets = state.bullets.filter(b => b.alive);
+
+  state.bullets.push(...newBullets);
+
+  // Filter: keep alive, and for firework children, limit lifetime
+  state.bullets = state.bullets.filter(b => {
+    if (!b.alive) return false;
+    // Firework children die quickly
+    if (b.fireworkLife >= 999) {
+      b.fireworkLife += dt * 3; // use as decay timer
+      if (b.fireworkLife >= 1000) return false;
+    }
+    return true;
+  });
 }
 
 function handleBulletTankCollisions(state: SiegeState, _dt: number): void {

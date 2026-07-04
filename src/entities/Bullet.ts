@@ -16,6 +16,16 @@ export interface BulletEntity {
   arcVy: number;
   /** Arc only: true after the bullet has passed its peak */
   arcDescending: boolean;
+  /** Firework only: time until next child spawn (seconds) */
+  fireworkTimer: number;
+  /** Firework only: total lifetime for self-destruct (seconds) */
+  fireworkLife: number;
+  /** Orbital only: current orbit angle in radians */
+  orbitalAngle: number;
+  /** Orbital only: orbit radius */
+  orbitalRadius: number;
+  /** Orbital only: which one of the pair (0 or 1, offset by PI) */
+  orbitalIndex: number;
 }
 
 let bulletIdCounter = 0;
@@ -30,12 +40,20 @@ export function createBullet(
   pierces: number,
   ownerId: string,
   isPlayerBullet: boolean,
+  /** For orbital: index in pair (0 or 1) */
+  orbitalIndex?: number,
+  /** For orbital: orbit radius */
+  orbitalRadius?: number,
 ): BulletEntity {
-  const vel = Vec2.fromAngle(dir, speed);
+  let vel = Vec2.fromAngle(dir, speed);
+  if (style === 'arc') vel = vel.scale(0.7);
+  // Firework: slower mother bullet
+  if (style === 'firework') vel = vel.scale(0.6);
+
   return {
     id: `bullet_${++bulletIdCounter}`,
     pos,
-    vel: style === 'arc' ? vel.scale(0.7) : vel, // arc: 70% horizontal, 30% as vertical
+    vel,
     style,
     damage,
     bouncesLeft: bounces,
@@ -43,11 +61,21 @@ export function createBullet(
     ownerId,
     isPlayerBullet,
     alive: true,
-    arcVy: style === 'arc' ? -speed * 0.5 : 0,  // initial upward velocity
+    arcVy: style === 'arc' ? -speed * 0.5 : 0,
     arcDescending: false,
+    fireworkTimer: style === 'firework' ? 0.25 : 0,
+    fireworkLife: style === 'firework' ? 0 : 0,
+    orbitalAngle: style === 'orbital' ? (orbitalIndex ?? 0) * Math.PI : 0,
+    orbitalRadius: orbitalRadius ?? 16,
+    orbitalIndex: orbitalIndex ?? 0,
   };
 }
 
 export const BULLET_RADIUS = 3;
-/** Arc gravity constant (px/s²) */
 export const ARC_GRAVITY = 600;
+/** Firework: interval between child spawns */
+export const FIREWORK_INTERVAL = 0.22;
+/** Firework: child bullet count per burst */
+export const FIREWORK_CHILD_COUNT = 5;
+/** Firework: mother bullet max lifetime */
+export const FIREWORK_MAX_LIFE = 1.8;

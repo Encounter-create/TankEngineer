@@ -195,12 +195,17 @@ export function moveBullet(
   // ---- Arc bullet: apply gravity, track peak for damage bonus ----
   if (bullet.style === 'arc') {
     bullet.arcVy += ARC_GRAVITY * dt;
-    // Detect passing the peak (arcVy was negative=upward, now positive=downward)
     if (!bullet.arcDescending && bullet.arcVy > 0) {
       bullet.arcDescending = true;
-      // Damage bonus: 2x at peak descent
       bullet.damage = Math.round(bullet.damage * 2);
     }
+  }
+
+  // ---- Orbital: compute position from virtual center + rotated offset ----
+  if (bullet.style === 'orbital') {
+    const offset = Vec2.fromAngle(bullet.orbitalAngle, bullet.orbitalRadius);
+    const actualOffset = bullet.orbitalIndex === 1 ? offset.scale(-1) : offset;
+    bullet.pos = bullet.pos.add(actualOffset);
   }
 
   const moveAmount = bullet.vel.mag() * dt;
@@ -221,6 +226,13 @@ export function moveBullet(
     if (col.hit) {
       const gx = col.tileX;
       const gy = col.tileY;
+
+      // Firework mother: wall = final burst
+      if (bullet.style === 'firework') {
+        bullet.alive = false;
+        bullet.pos = nextPos;
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
 
       // Arc bullets fly OVER brick walls
       if (bullet.style === 'arc' && col.tileType === TileType.BRICK) {
