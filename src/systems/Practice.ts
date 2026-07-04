@@ -88,6 +88,15 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     if (!block.alive) continue;
     updatePhysicsBlock(block, dt, 1);
     block.pos = block.pos.add(block.vel.scale(dt));
+    // Clamp to arena bounds
+    const r = block.radius;
+    block.pos = new Vec2(
+      Math.max(ps.arenaX + r, Math.min(ps.arenaX + ps.arenaW - r, block.pos.x)),
+      Math.max(ps.arenaY + r, Math.min(ps.arenaY + ps.arenaH - r, block.pos.y)),
+    );
+    // Bounce off arena edges
+    if (block.pos.x <= ps.arenaX + r || block.pos.x >= ps.arenaX + ps.arenaW - r) block.vel = new Vec2(-block.vel.x * 0.6, block.vel.y);
+    if (block.pos.y <= ps.arenaY + r || block.pos.y >= ps.arenaY + ps.arenaH - r) block.vel = new Vec2(block.vel.x, -block.vel.y * 0.6);
   }
   resolveBlockWallCollisions(ps.blocks, ps.map, ps.blocks);
   resolveBlockTankCollisions(ps.blocks, [ps.player, ps.enemy]);
@@ -181,16 +190,65 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
 function drawSimpleTank(ctx: CanvasRenderingContext2D, t: TankEntity, body: string, dark: string): void {
   if (!t.alive) return;
   const r = TANK_RADIUS, x = t.pos.x, y = t.pos.y;
+  const cfg = t.config;
+  const phi = 0.618;
+  const bw = r * 2, bh = bw * phi;
+
+  // Chassis (config-specific colors)
+  const chassisColors: Record<string, string> = { chassis_standard: body, chassis_inertia: '#66aadd', chassis_heavy: '#8B7355', chassis_track: '#88aa66' };
+  const chassisColor = chassisColors[cfg.chassis.id] ?? body;
+
   ctx.save(); ctx.translate(x, y);
-  // Body (golden ratio)
-  const bw = r * 2, bh = bw * 0.618;
-  ctx.fillStyle = body; ctx.strokeStyle = dark; ctx.lineWidth = 1.5;
+  // Body
+  ctx.fillStyle = chassisColor; ctx.strokeStyle = dark; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.roundRect(-bw/2, -bh/2, bw, bh, bh * 0.3); ctx.fill(); ctx.stroke();
-  // Turret + barrel
+  // Tread accent for standard
+  if (cfg.chassis.id === 'chassis_standard') {
+    ctx.fillStyle = dark; ctx.fillRect(-bw/2 - 1, -bh/2, 3, bh); ctx.fillRect(bw/2 - 2, -bh/2, 3, bh);
+  }
+
+  // Turret (config-specific shape)
   ctx.rotate(t.turretAngle);
-  ctx.fillStyle = body; ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = dark; ctx.fillRect(r * 0.3, -3, r * 1.1, 6);
+  const turretR = r * 0.55;
+  if (cfg.turret.id === 'turret_reactive') {
+    ctx.fillStyle = '#55aa77'; ctx.strokeStyle = '#337744'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI * 2 / 6 * i - Math.PI / 2;
+      const px = Math.cos(a) * turretR, py = Math.sin(a) * turretR;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else if (cfg.turret.id === 'turret_heavy') {
+    ctx.fillStyle = '#335577'; ctx.strokeStyle = '#1a3344'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI * 2 / 5 * i - Math.PI / 2;
+      const px = Math.cos(a) * turretR, py = Math.sin(a) * turretR;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else {
+    ctx.fillStyle = '#88bbee'; ctx.strokeStyle = '#5588aa'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const a = Math.PI * 2 / 3 * i - Math.PI / 2;
+      const px = Math.cos(a) * turretR, py = Math.sin(a) * turretR;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+
+  // Barrel (config-specific color)
+  const barrelColors: Record<string, string> = {
+    barrel_straight: '#667788', barrel_bounce: '#99aabb', barrel_pierce: '#5588cc', barrel_arc: '#dd8844',
+    barrel_firework: '#ffaa33', barrel_orbital: '#9966cc', barrel_sniper: '#cc3333',
+    barrel_gatling: '#667788', barrel_rocket: '#44aa44',
+  };
+  ctx.fillStyle = barrelColors[cfg.barrel.id] ?? '#667788';
+  ctx.fillRect(r * 0.3, -3, r * 1.1, 6);
   ctx.restore();
+
   // HP
   if (t.hp < t.maxHp) {
     ctx.fillStyle = '#333'; ctx.fillRect(x - r, y - r - 10, r * 2, 3);
