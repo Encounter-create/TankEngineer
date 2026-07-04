@@ -18,6 +18,7 @@ import { AllyTank, TurretEntity, Plane, createAllyTank, createTurret, createPlan
 import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
+import { hasSynergy } from '../systems/Synergy';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -358,7 +359,14 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
       } else if (id === 'commander_colonel') {
         state.planes.push(...createPlanes(state.player.pos, state.player.turretAngle, MAP_W, MAP_H));
       } else if (id === 'commander_engineer') {
-        state.turrets.push(createTurret(state.player.pos));
+        const turret = createTurret(state.player.pos);
+        // 移动堡垒 synergy: turret gets +50% HP, +30% range
+        if (hasSynergy(state.player.config, 'mobile_fortress')) {
+          turret.hp = Math.round(turret.hp * 1.5);
+          turret.maxHp = turret.hp;
+          turret.fireRange = Math.round(turret.fireRange * 1.3);
+        }
+        state.turrets.push(turret);
         state.skillMessage = '炮塔已部署';
         state.skillMessageTime = 2000;
       } else if (id === 'commander_wizard') {
@@ -375,7 +383,11 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
           state.skillMessageTime = 2000;
         }
       } else if (id === 'commander_ninja') {
-        const clone = createAllyTank(`clone_${Date.now()}`, state.player.pos, state.player.config, 'follow_player');
+        // 镜面分身 synergy: clone gets bounce barrel
+        const cloneCfg = hasSynergy(state.player.config, 'mirror_clone')
+          ? { ...state.player.config, barrel: MVP_BARRELS.find(p => p.id === 'barrel_bounce')! }
+          : state.player.config;
+        const clone = createAllyTank(`clone_${Date.now()}`, state.player.pos, cloneCfg, 'follow_player');
         clone.followTarget = state.player.pos;
         state.allies.push(clone);
         state.skillMessage = '分身已出击';
@@ -623,14 +635,20 @@ function explodeRocket(bullet: BulletEntity, state: SiegeState): void {
   state.particles.push(...spawnExplosion(bullet.pos));
   playExplosion();
   state.screenShake = 6;
-  // Create fire zone
   const zone = createFireZone(bullet.pos, 50, 5, 25);
   state.fireZones.push(zone);
+  // 亡灵火箭 synergy: killed enemies auto-resurrect
+  const undead = hasSynergy(state.player.config, 'undead_rocket');
   // Damage tanks in blast radius
   for (const tank of [state.player, ...state.enemies]) {
     if (!tank.alive) continue;
     if (tank.pos.dist(bullet.pos) < zone.radius) {
       takeDamage(tank, bullet.isPlayerBullet ? 60 : 40);
+      // 亡灵火箭: killed enemies become allies
+      if (undead && !tank.alive && !tank.isPlayer) {
+        const ally = createAllyTank(`undead_${Date.now()}_${Math.random()}`, tank.pos, tank.config, 'patrol_chase');
+        state.allies.push(ally);
+      }
     }
   }
 }
@@ -766,8 +784,12 @@ function handlePlanes(state: SiegeState, dt: number): void {
     }
 
     // Drop bomb
+    // 精确打击 synergy: faster bomb rate
+    const precisionStrike = hasSynergy(state.player.config, 'precision_strike');
+    const bombInterval = precisionStrike ? 0.6 : 1.2;
+
     if (plane.bombCooldown <= 0 && plane.x > 10 && plane.x < MAP_W - 10 && plane.y > 10 && plane.y < MAP_H - 10) {
-      plane.bombCooldown = 1.2;
+      plane.bombCooldown = bombInterval;
       const bombPos = new Vec2(plane.x, plane.y);
       const zone = createFireZone(bombPos, 35, 3, 20);
       state.fireZones.push(zone);
@@ -970,7 +992,10 @@ function handleBullets(state: SiegeState, dt: number): void {
         continue;
       }
       if (bullet.fireworkTimer <= 0) {
-        bullet.fireworkTimer = FIREWORK_INTERVAL;
+        // 烟花祭 synergy: double child spawn rate during barrage
+        const fwRate = (hasSynergy(state.player.config, 'firework_fest') && isBarrageActive(state.player))
+          ? FIREWORK_INTERVAL * 0.5 : FIREWORK_INTERVAL;
+        bullet.fireworkTimer = fwRate;
         // Spawn 6 children uniformly at 60° intervals (geometric pattern)
         for (let i = 0; i < FIREWORK_CHILD_COUNT; i++) {
           const angle = (Math.PI * 2 / FIREWORK_CHILD_COUNT) * i;

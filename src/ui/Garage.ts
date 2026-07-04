@@ -3,6 +3,7 @@ import { Inventory } from '../systems/Inventory';
 import { tryAssemble, AssemblyResult } from '../systems/Assembly';
 import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
 import { loadBuildSlots, saveBuildSlot } from '../systems/BuildSlots';
+import { checkSynergies } from '../systems/Synergy';
 
 /** Garage screen state */
 export interface GarageState {
@@ -183,6 +184,13 @@ function renderTankStats(ctx: CanvasRenderingContext2D, w: number, h: number, ga
     ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`总重: ${c.totalWeight} → ${wcLabel}`, w / 2, y);
+    // Synergies
+    const syns = checkSynergies(c);
+    if (syns.length > 0) {
+      ctx.fillStyle = '#ffaa33';
+      ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(syns.map(s => `${s.icon}${s.name}`).join('  '), w / 2, y + 18);
+    }
   } else {
     ctx.fillStyle = '#ff6b4a';
     ctx.font = '14px "PingFang SC", "Microsoft YaHei", sans-serif';

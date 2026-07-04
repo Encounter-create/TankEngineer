@@ -10,6 +10,7 @@ import { FireZone } from '../entities/FireZone';
 import { TurretEntity, Plane } from '../entities/Ally';
 import { DamageNumber } from '../entities/DamageNumber';
 import { isSmokeActive } from '../systems/Commander';
+import { checkSynergies } from '../systems/Synergy';
 
 // ============================================================
 // Color palette
@@ -934,6 +935,15 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
 
   // Kill count
   ctx.fillText(`击毁: ${state.enemiesKilled}`, 12, 38);
+
+  // Active synergy
+  const syns = checkSynergies(state.player.config);
+  if (syns.length > 0) {
+    ctx.fillStyle = '#ffaa33';
+    ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(syns.map(s => `${s.icon}${s.name}`).join(' '), 12, 54);
+  }
 
   // Combo kill display
   if (state.comboTimer > 0 && state.comboText) {
