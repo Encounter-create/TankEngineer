@@ -295,6 +295,10 @@ export function updateSiege(
   // Wave announcement timer
   state.waveAnnouncementTime -= dt;
   state.skillMessageTime -= 16;
+  // Time slow + restore timers
+  if ((state as any).timeSlowTimer > 0) (state as any).timeSlowTimer -= dt;
+  if ((state as any).restoreTimer > 0) (state as any).restoreTimer -= dt;
+
   // Lightning chain timer
   if ((state as any).lightningTimer > 0) (state as any).lightningTimer -= dt;
 
@@ -448,32 +452,36 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         (state as any).gravityPos = input.mousePos;
         (state as any).gravityTimer = 3;
       } else if (id === 'commander_time') {
-        // Time slow: 3s of 0.3x speed for enemies
-        state.slowMoTimer = 3;
+        // Time slow: 3s enemy-only slow (does NOT use global slowMoTimer which affects player too)
+        (state as any).timeSlowTimer = 3;
       } else if (id === 'commander_lightning') {
+        // 5 simultaneous zigzag branches from player to nearest enemies
         const aliveEnemies = state.enemies.filter(e => e.alive);
-        const chain: Vec2[] = [state.player.pos];
-        let current = state.player.pos;
+        const branches: Vec2[][] = [];
         const hit: Set<string> = new Set();
-        for (let step = 0; step < 5 && aliveEnemies.length > hit.size; step++) {
+        for (let b = 0; b < 5; b++) {
           let nearest: TankEntity | null = null;
-          let nearestDist = 250;
+          let nearestDist = 300;
           for (const e of aliveEnemies) {
             if (hit.has(e.id)) continue;
-            const d = e.pos.dist(current);
+            const d = e.pos.dist(state.player.pos);
             if (d < nearestDist) { nearestDist = d; nearest = e; }
           }
           if (!nearest) break;
           hit.add(nearest.id);
-          const dmg = Math.round(40 * Math.pow(0.8, step));
+          const dmg = 100;
           takeDamage(nearest, dmg, state.player);
-          state.damageNumbers.push(spawnDamageNumber(nearest.pos, dmg, false));
-          state.particles.push(...spawnParticles(nearest.pos, 'hit', 5, 60));
+          state.damageNumbers.push(spawnDamageNumber(nearest.pos, dmg, true));
+          state.particles.push(...spawnParticles(nearest.pos, 'hit', 8, 80));
           if (!nearest.alive) onEnemyKilled(state, nearest, 1);
-          current = nearest.pos;
-          chain.push(nearest.pos);
+          // Zigzag branch: start→mid1→mid2→target
+          const start = state.player.pos;
+          const end = nearest.pos;
+          const dx = end.x - start.x, dy = end.y - start.y;
+          const mid = new Vec2(start.x + dx*0.5 + dy*0.15, start.y + dy*0.5 - dx*0.15);
+          branches.push([start, mid, end]);
         }
-        (state as any).lightningChain = chain;
+        (state as any).lightningBranches = branches;
         (state as any).lightningTimer = 1.5;
       } else if (id === 'commander_restore') {
         // Restore destroyed bricks within 150px
@@ -491,6 +499,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
             }
           }
         }
+        (state as any).restoreTimer = 3;
         state.skillMessage = `恢复了${count}块砖墙`;
         state.skillMessageTime = 2000;
       }
@@ -685,8 +694,9 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const playerVisible = !isSmokeActive(state.player);
     const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
 
-    // Enemy speed: 55% base, ×1.4 if overclocked
-    const speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
+    // Enemy speed: 55% base, ×1.4 if overclocked, ×0.3 if time-slowed
+    let speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
+    if ((state as any).timeSlowTimer > 0) speedMul *= 0.3;
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
     const maxEnemySpeed = effectiveSpeed(enemy.config) * speedMul;

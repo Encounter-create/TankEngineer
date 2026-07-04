@@ -154,8 +154,8 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
       const ry = 25 * (1 + (3 - gravTimer) * 0.2);
       // Deep purple ellipse
       const grad = ctx.createRadialGradient(gPos.x, gPos.y, rx*0.3, gPos.x, gPos.y, rx);
-      grad.addColorStop(0, `rgba(40,0,60,${0.7*alpha})`);
-      grad.addColorStop(0.5, `rgba(80,0,120,${0.4*alpha})`);
+      grad.addColorStop(0, `rgba(20,0,30,${0.85*alpha})`);
+      grad.addColorStop(0.5, `rgba(60,0,100,${0.55*alpha})`);
       grad.addColorStop(1, `rgba(0,0,0,0)`);
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -178,8 +178,8 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
     }
   }
 
-  // Time slow: ↓ arrows on slowed enemies
-  if (state.slowMoTimer > 2.5) {
+  // Time slow: ↓ arrows on slowed enemies (full duration)
+  if ((state as any).timeSlowTimer > 0) {
     for (const enemy of state.enemies) {
       if (!enemy.alive) continue;
       const arrowY = enemy.pos.y - TANK_RADIUS - 22;
@@ -191,22 +191,19 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
     }
   }
 
-  // Lightning chains
-  const lChain = (state as any).lightningChain;
-  if (lChain && (state as any).lightningTimer > 0) {
-    for (let i = 0; i < lChain.length - 1; i++) {
-      const from = lChain[i], to = lChain[i+1];
+  // Lightning branches (star pattern from player)
+  const lBranches = (state as any).lightningBranches;
+  if (lBranches && (state as any).lightningTimer > 0) {
+    for (const branch of lBranches) {
       ctx.strokeStyle = '#ffcc00';
       ctx.lineWidth = 3;
       ctx.shadowColor = '#ffaa00';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      // Zigzag
-      const midX = (from.x + to.x)/2, midY = (from.y + to.y)/2;
-      const perp = {x: -(to.y-from.y)*0.15, y: (to.x-from.x)*0.15};
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(midX + perp.x, midY + perp.y);
-      ctx.lineTo(to.x, to.y);
+      ctx.moveTo(branch[0].x, branch[0].y);
+      for (let i = 1; i < branch.length; i++) {
+        ctx.lineTo(branch[i].x, branch[i].y);
+      }
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -1074,7 +1071,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
   }
 
   // Time slow: "SLOW DOWN" center text
-  if (state.slowMoTimer > 2.5) {
+  if ((state as any).timeSlowTimer > 0) {
     ctx.fillStyle = 'rgba(68,136,255,0.6)';
     ctx.font = 'bold 32px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
