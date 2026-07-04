@@ -781,7 +781,7 @@ function handlePlanes(state: SiegeState, dt: number): void {
     plane.y += plane.velY * dt;
     plane.bombCooldown -= dt;
     // Remove if far off-screen (planes start outside map, fly across)
-    if (plane.x < -(MAP_W + 100) || plane.x > MAP_W + 100 || plane.y < -(MAP_H + 100) || plane.y > MAP_H + 100) {
+    if (plane.x < -MAP_W * 2 || plane.x > MAP_W * 3 || plane.y < -MAP_H * 2 || plane.y > MAP_H * 3) {
       plane.alive = false; continue;
     }
 
