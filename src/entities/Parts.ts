@@ -58,7 +58,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'common',
     weight: 1,
-    description: '射出标准直线子弹。碰墙可反弹2次后消失。适用所有场景的通用炮管。',
+    description: '碰墙反弹2次后消失。反弹不伤墙体。子弹伤害35，2发可摧毁木块(HP50)。不反弹：第3次碰墙消失。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 35,
@@ -74,7 +74,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'rare',
     weight: 2,
-    description: '专为反弹设计的炮管。子弹碰墙严格按入射角=反射角弹射，最多弹2次。每次反弹后子弹伤害降为原来的80%。适合在交叉火力等金属墙密集地图打出几何弹道。🪞协同「镜面分身」: 装备忍者大师时分身也使用反射弹。',
+    description: '碰墙反弹2次（反射角=入射角）。反弹不伤墙体。每次反弹后伤害×0.8。最多弹2次，第3次碰墙消失。🪞协同「镜面分身」: 忍者大师的分身使用反射弹。',
     stats: {
       bulletStyle: 'bounce',
       bulletDamage: 30,
@@ -90,7 +90,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '子弹可穿透1层砖墙，穿过后伤害减半但继续飞行。可攻击躲在墙后的敌人。不可反弹。适合迷宫等砖墙密集地图，直接穿墙击杀掩体后的目标。',
+    description: '穿透砖墙1层：伤害40→穿墙后减半(20)并继续飞行。可攻击墙后敌人。不可反弹。对木块造成伤害可摧毁(2发)。不穿透铁块。',
     stats: {
       bulletStyle: 'pierce',
       bulletDamage: 40,
@@ -106,7 +106,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '子弹以抛物线轨迹飞行，可越过砖墙攻击后方敌人。子弹到达抛物线最高点时伤害翻倍。不可反弹。适合在有砖墙障碍的场景中曲线射击掩体后目标。',
+    description: '抛物线飞越砖墙（不碰撞砖块）。最高点伤害×2(50)。不可反弹。落点处若命中木块则造成伤害可摧毁。碰到铁块消失。',
     stats: {
       bulletStyle: 'arc',
       bulletDamage: 25,
@@ -122,7 +122,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '发射一颗缓慢飞行的母弹。母弹每0.28秒向正六边形6个方向各发射一颗子子弹，形成几何烟花图案。母弹2秒后自动消失。不可反弹。适合大范围压制和封锁敌人走位。🎆协同「烟花祭」: 装备弹幕指挥官时弹幕期间母弹分裂频率翻倍。',
+    description: '母弹不可反弹，碰墙即消失。飞行中每0.28s向6方向发射子子弹(伤害7)。母弹2s后自毁。子子弹可反弹2次。🎆协同「烟花祭」: 弹幕指挥官→分裂频率翻倍。',
     stats: {
       bulletStyle: 'firework',
       bulletDamage: 12,
@@ -138,7 +138,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '一次射出两颗子弹。两颗子弹以5px半径互相环绕旋转前进，始终保持180°相位差（永远在中心两侧对称位置）。不可反弹。几何对称之美，覆盖宽度比普通子弹大一倍。',
+    description: '双弹环绕(半径5px,180°相位差)，覆盖宽度×2。不可反弹，碰墙消失。每发伤害22，需3发摧毁木块。几何对称弹道。',
     stats: {
       bulletStyle: 'orbital',
       bulletDamage: 22,
@@ -154,7 +154,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 2,
-    description: '超高伤害(999)一击必杀。子弹速度极快(800)，可击穿木质和金属墙体后继续飞行。射速极慢(4秒一发)作为平衡。碰墙可反弹2次。适合精准狙击，一枪一个。🎯协同「精确打击」: 装备空军上校时飞机投弹频率翻倍。',
+    description: '伤害999一击必杀。穿透一切墙体(木块铁块一击摧毁)，子弹穿透后继续飞行。永不反弹。CD 2s。🎯协同「精确打击」: 空军上校→轰炸加倍。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 999,
@@ -170,7 +170,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '极高射速(70ms一发)的弹幕武器。每发伤害低(6)但火力密度极大。按住鼠标可连续倾泻子弹。碰墙反弹2次。六管旋转枪管外观。适合火力压制和近距离速射。',
+    description: '射速70ms弹幕倾泻。每发伤害6，碰墙反弹2次后消失。反弹不伤墙体。需9发摧毁木块(HP50)。按住连射。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 6,
@@ -186,7 +186,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '发射一枚火箭飞向鼠标方向。撞击任何物体(敌人/墙/方块)后爆炸，留下半径50px的火圈持续5秒。火圈内所有单位每秒受25点伤害。爆炸本身造成60点范围伤害。不可反弹。💀协同「亡灵火箭」: 装备巫师时火箭击杀的敌人自动复活为友军。',
+    description: '火箭飞向鼠标方向。撞击任意物体(敌/墙/方块)→爆炸(AoE 60伤害)+半径50px火圈(5秒,25dps)。不可反弹。爆炸摧毁范围内木块。💀协同「亡灵火箭」: 巫师→击杀自动复活。',
     stats: {
       bulletStyle: 'rocket',
       bulletDamage: 60,
