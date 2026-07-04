@@ -471,7 +471,7 @@ function spawnWaves(state: SiegeState): void {
   for (let i = state.wavesSpawned; i < TOTAL_WAVES; i++) {
     const wave = WAVES[i];
     if (state.elapsedTime >= wave.timeStart) {
-      spawnWave(state, wave);
+      spawnWave(state, wave, i === TOTAL_WAVES - 1);
       state.wavesSpawned = i + 1;
       // Pick wave modifiers
       state.activeModifiers = pickWaveModifiers(i);
@@ -494,7 +494,7 @@ function spawnWaves(state: SiegeState): void {
   }
 }
 
-function spawnWave(state: SiegeState, wave: WaveDef): void {
+function spawnWave(state: SiegeState, wave: WaveDef, isFinal: boolean = false): void {
   const rand = new Random();
   const spawnEdges = [
     { x: Math.floor(MAP_COLS / 2), y: 1 },
@@ -542,8 +542,8 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
 
     const config = configs[i % configs.length];
 
-    // Boss = first enemy of final wave (wave index = WAVES.length - 1)
-    const isBoss = (state.wavesSpawned === WAVES.length - 1) && i === 0;
+    // Boss = first enemy of the last wave
+    const isBoss = isFinal && i === 0;
     const enemyConfig = isBoss
       ? assembleTank(MVP_BARRELS.find(p => p.id === 'barrel_gatling')!, MVP_TURRETS.find(p => p.id === 'turret_heavy')!, MVP_CHASSIS.find(p => p.id === 'chassis_heavy')!)
       : config;
@@ -554,8 +554,9 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
       false,
     );
     if (isBoss) {
-      enemy.hp = enemy.maxHp * 2;
+      enemy.hp = enemy.maxHp * 3;
       enemy.maxHp = enemy.hp;
+      console.log('BOSS SPAWNED!', enemy.id, enemy.hp);
     }
     state.enemies.push(enemy);
 
