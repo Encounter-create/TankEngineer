@@ -58,7 +58,7 @@ import {
   selectChessTank, moveChessTank, fireChessTank,
   pixelToChessGrid,
 } from './modes/Chess';
-import { renderChess, hitTestChessBackButton } from './ui/ChessRenderer';
+import { renderChess, hitTestChessBackButton, hitTestChessGearButton } from './ui/ChessRenderer';
 import { MAP_W, MAP_H } from './utils/Grid';
 
 // ============================================================
@@ -331,6 +331,13 @@ function updateChess(): void {
   const state = app.chess;
   const mx = input.mousePos.x;
   const my = input.mousePos.y;
+
+  // Gear button — quit to lobby
+  if (hitTestChessGearButton(mx, my)) {
+    app.screen = 'lobby';
+    app.chess = null;
+    return;
+  }
 
   // Result screens
   if (state.phase === 'victory' || state.phase === 'defeat') {

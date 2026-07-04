@@ -50,6 +50,11 @@ export function renderChess(ctx: CanvasRenderingContext2D, state: ChessState): v
   // HUD
   drawChessHUD(ctx, state);
 
+  // Gear button (during gameplay)
+  if (state.phase === 'player_turn' || state.phase === 'player_fire' || state.phase === 'ai_turn') {
+    drawChessGearButton(ctx);
+  }
+
   // Overlays
   if (state.phase === 'intro') {
     drawOverlay(ctx, ['♟️ 棋类对战', '', '回合制策略对决', '移动1步+开1枪 vs 不动+开2枪', '', '点击屏幕开始']);
@@ -173,4 +178,31 @@ export function hitTestChessBackButton(px: number, py: number): boolean {
     label: '', color: '',
   };
   return hitTestButton(px, py, btn);
+}
+
+// ============================================================
+// Gear button (quit mid-game)
+// ============================================================
+
+const GEAR_R = 14;
+const GEAR_X = MAP_W - GEAR_R - 8;
+const GEAR_Y = GEAR_R + 8;
+
+function drawChessGearButton(ctx: CanvasRenderingContext2D): void {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.arc(GEAR_X, GEAR_Y, GEAR_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ccc';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚙', GEAR_X, GEAR_Y);
+}
+
+export function hitTestChessGearButton(px: number, py: number): boolean {
+  const dx = px - GEAR_X;
+  const dy = py - GEAR_Y;
+  return dx * dx + dy * dy < GEAR_R * GEAR_R;
 }
