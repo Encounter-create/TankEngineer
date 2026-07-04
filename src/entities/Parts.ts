@@ -58,7 +58,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'common',
     weight: 1,
-    description: '直线子弹，碰墙反弹2次(第3次消失)，可靠通用',
+    description: '射出标准直线子弹。碰墙可反弹2次后消失。适用所有场景的通用炮管。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 35,
@@ -74,7 +74,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'rare',
     weight: 2,
-    description: '专精反弹：碰墙反射角=入射角，可弹2次，反弹后伤害×0.8',
+    description: '专为反弹设计的炮管。子弹碰墙严格按入射角=反射角弹射，最多弹2次。每次反弹后子弹伤害降为原来的80%。适合在交叉火力等金属墙密集地图打出几何弹道。',
     stats: {
       bulletStyle: 'bounce',
       bulletDamage: 30,
@@ -90,7 +90,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '穿透砖墙1层(穿后伤害减半)，不可反弹，不可摧毁木块后的敌人',
+    description: '子弹可穿透1层砖墙，穿过后伤害减半但继续飞行。可攻击躲在墙后的敌人。不可反弹。适合迷宫等砖墙密集地图，直接穿墙击杀掩体后的目标。',
     stats: {
       bulletStyle: 'pierce',
       bulletDamage: 40,
@@ -106,7 +106,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '抛物线飞越砖墙(不可反弹)，最高点伤害×2，绕过掩体攻击',
+    description: '子弹以抛物线轨迹飞行，可越过砖墙攻击后方敌人。子弹到达抛物线最高点时伤害翻倍。不可反弹。适合在有砖墙障碍的场景中曲线射击掩体后目标。',
     stats: {
       bulletStyle: 'arc',
       bulletDamage: 25,
@@ -122,7 +122,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '母弹缓慢飞行绽放6向子子弹(不可反弹)，2s后自动消失',
+    description: '发射一颗缓慢飞行的母弹。母弹每0.28秒向正六边形6个方向各发射一颗子子弹，形成几何烟花图案。母弹2秒后自动消失。不可反弹。适合大范围压制和封锁敌人走位。',
     stats: {
       bulletStyle: 'firework',
       bulletDamage: 12,
@@ -138,7 +138,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '双子星旋转弹道(不可反弹)，双弹180°相位差紧密缠绕',
+    description: '一次射出两颗子弹。两颗子弹以5px半径互相环绕旋转前进，始终保持180°相位差（永远在中心两侧对称位置）。不可反弹。几何对称之美，覆盖宽度比普通子弹大一倍。',
     stats: {
       bulletStyle: 'orbital',
       bulletDamage: 22,
@@ -154,7 +154,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 2,
-    description: '一击必杀(伤害999)，击穿木墙铁墙，碰墙反弹2次',
+    description: '超高伤害(999)一击必杀。子弹速度极快(800)，可击穿木质和金属墙体后继续飞行。射速极慢(4秒一发)作为平衡。碰墙可反弹2次。适合精准狙击，一枪一个。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 999,
@@ -170,7 +170,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'epic',
     weight: 2,
-    description: '超高射速(70ms)，弹幕倾泻，碰墙反弹2次，适合压制',
+    description: '极高射速(70ms一发)的弹幕武器。每发伤害低(6)但火力密度极大。按住鼠标可连续倾泻子弹。碰墙反弹2次。六管旋转枪管外观。适合火力压制和近距离速射。',
     stats: {
       bulletStyle: 'straight',
       bulletDamage: 6,
@@ -186,7 +186,7 @@ export const MVP_BARRELS: Part[] = [
     type: 'barrel',
     rarity: 'legendary',
     weight: 3,
-    description: '发射火箭飞向瞄准点爆炸，留下火圈持续灼烧',
+    description: '发射一枚火箭飞向鼠标方向。撞击任何物体(敌人/墙/方块)后爆炸，留下半径50px的火圈持续5秒。火圈内所有单位每秒受25点伤害。爆炸本身造成60点范围伤害。不可反弹。',
     stats: {
       bulletStyle: 'rocket',
       bulletDamage: 60,
@@ -205,7 +205,7 @@ export const MVP_TURRETS: Part[] = [
     type: 'turret',
     rarity: 'common',
     weight: 1,
-    description: 'HP低但装填快',
+    description: '轻型炮塔(正三角△)。HP仅80但重量轻(1)，使坦克总重降低从而获得轻量级速度加成(+15%)。装填速度不受重量惩罚。适合追求速度和机动性的玻璃大炮build。',
     stats: {
       maxHp: 80,
       defenseRatio: 1.0,
@@ -217,7 +217,7 @@ export const MVP_TURRETS: Part[] = [
     type: 'turret',
     rarity: 'rare',
     weight: 3,
-    description: 'HP高但装填慢',
+    description: '重型炮塔(正五边⬠)。HP高达180，防御系数0.85（实际承受伤害减少15%）。但重量大(3)，搭配其他重零件可能进入重量级(-15%速度)。适合正面硬抗的肉盾build。',
     stats: {
       maxHp: 180,
       defenseRatio: 0.85,
@@ -229,7 +229,7 @@ export const MVP_TURRETS: Part[] = [
     type: 'turret',
     rarity: 'epic',
     weight: 2,
-    description: '受击后0.5s无敌，CD 8s',
+    description: '反应式装甲(正六边⬡)。受击瞬间触发0.5秒无敌帧（CD 8秒）。无敌期间所有伤害降为0。HP仅90但关键时刻的无敌可以抵挡致命一击。适合高手预判操作。',
     stats: {
       maxHp: 90,
       defenseRatio: 1.0,
@@ -246,7 +246,7 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'common',
     weight: 2,
-    description: '均衡的移动速度，无特殊效果',
+    description: '均衡的圆角矩形底盘。速度1.0倍标准，无特殊效果。重量适中(2)，与大多数零件搭配可保持中量级。适合新手入门。',
     stats: {
       speedRatio: 1.0,
       inertia: 0,
@@ -260,7 +260,7 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'rare',
     weight: 1,
-    description: '松手后继续滑行，速度更快',
+    description: '流线型椭圆底盘。松手后坦克因惯性继续滑行一段距离（类似冰面效果）。速度1.2倍比标准更快，重量仅1有助于保持轻量级。适合hit-and-run游击战术。',
     stats: {
       speedRatio: 1.2,
       inertia: 3,
@@ -274,7 +274,7 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'rare',
     weight: 3,
-    description: '速度慢但能碾碎砖墙，不受后坐力',
+    description: '梯形重装甲底盘。速度仅0.7倍但能直接碾碎接触的砖墙（无需开火）。不受开火后坐力影响。重量大(3)，配合重甲炮塔可达到重量级。适合推进式打法：碾碎掩体、推动方块砸敌人。',
     stats: {
       speedRatio: 0.7,
       inertia: 0,
@@ -288,7 +288,7 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'epic',
     weight: 2,
-    description: '可原地旋转，方向跟随移动瞬间切换',
+    description: '椭圆体紧凑底盘配大号履带。车身方向瞬间跟随移动方向切换（无转向延迟，普通底盘需角速度逐渐转向）。速度0.9倍略慢但转向灵活度极高。适合需要快速调整射击角度的场景。',
     stats: {
       speedRatio: 0.9,
       inertia: 0,
@@ -306,7 +306,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'common',
     weight: 1,
-    description: '立即恢复 40 HP',
+    description: '立即恢复自身40点HP，冷却60秒。简单直接的自愈能力，适合新手车长。',
     stats: { skillCdMs: 60000 },
   },
   {
@@ -315,7 +315,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'common',
     weight: 1,
-    description: '2秒内速度翻倍',
+    description: '2秒内自身移动速度翻倍，冷却30秒。适合快速突进、脱离包围或追击残血敌人。',
     stats: { skillCdMs: 30000 },
   },
   {
@@ -324,7 +324,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'rare',
     weight: 1,
-    description: '3秒内弹药无限',
+    description: '3秒内弹药无限（装填时间降为50ms），冷却45秒。按住鼠标疯狂倾泻火力。🎆协同: 装备烟花炮管时触发「烟花祭」——弹幕期间母弹分裂频率翻倍，铺天盖地的子子弹覆盖全场。',
     stats: { skillCdMs: 45000 },
   },
   {
@@ -333,7 +333,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'rare',
     weight: 1,
-    description: '释放烟雾阻挡敌人视线 3 秒',
+    description: '释放烟雾笼罩自身3秒，冷却25秒。烟雾期间敌方AI无法追踪你的位置，转而攻击指挥所。适合脱离战斗或保护指挥所时分担火力。',
     stats: { skillCdMs: 25000 },
   },
   {
@@ -342,7 +342,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'legendary',
     weight: 2,
-    description: '召唤3架轰炸机飞过投弹。🎯协同: 狙击管→精确打击(投弹频率×2)',
+    description: '召唤3架轰炸机呈三角阵型，沿炮塔朝向飞过战场投弹轰炸。飞机投下的炸弹造成范围伤害并留下火圈，冷却60秒。🎯协同「精确打击」: 装备狙击炮管时投弹频率翻倍(间隔0.6秒→密集轰炸)。',
     stats: { skillCdMs: 60000 },
   },
   {
@@ -351,7 +351,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'epic',
     weight: 2,
-    description: '放置自动炮塔攻击敌军。🏰协同: 重型底盘→移动堡垒(炮塔HP+50%射程+30%)',
+    description: '在当前位置部署一个自动炮塔，射程180px内自动索敌开火。炮塔有120HP，可被敌方攻击摧毁。冷却40秒。🏰协同「移动堡垒」: 装备重型底盘时炮塔HP提升50%(180)、射程扩大30%(234px)，变成真正的前线堡垒。',
     stats: { skillCdMs: 40000 },
   },
   {
@@ -360,7 +360,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'legendary',
     weight: 2,
-    description: '复活死敌为友军作战。💀协同: 火箭炮→亡灵火箭(火箭击杀自动复活)',
+    description: '复活最多3辆已被击毁的敌方坦克，转化为我方友军。复活的友军保留原配置，使用巡逻+追击+开火AI自动攻击敌军。冷却80秒。💀协同「亡灵火箭」: 装备火箭炮时，火箭直接击杀的敌人自动复活为友军（无需手动按技能）。',
     stats: { skillCdMs: 80000 },
   },
   {
@@ -369,7 +369,7 @@ export const MVP_COMMANDERS: Part[] = [
     type: 'commander',
     rarity: 'epic',
     weight: 2,
-    description: '分身同配友军坦克。🪞协同: 反射管→镜面分身(分身获得反射弹)',
+    description: '分出一辆与自身完全相同配置的友军坦克。分身使用三态AI：追随玩家(100px内)→侦察巡逻→发现敌人开火(200px内)。冷却50秒。🪞协同「镜面分身」: 装备反射管时，分身的炮管替换为反射管，双倍反弹火力覆盖战场。',
     stats: { skillCdMs: 50000 },
   },
 ];
