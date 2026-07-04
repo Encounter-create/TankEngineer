@@ -886,13 +886,21 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   for (let pass = 0; pass < 3; pass++) {
     resolveBlockBlockCollisions(state.physicsBlocks);
   }
-  // Block damage: check BEFORE collision (collision separates blocks from tanks!)
+  // Block damage: only if block is moving TOWARD the enemy (not enemy walking into block)
   const allTanks = [state.player, ...state.enemies, ...state.allies];
   for (const block of state.physicsBlocks) {
     if (!block.alive || block.vel.mag() < 25) continue;
     for (const enemy of state.enemies) {
       if (!enemy.alive) continue;
-      if (enemy.pos.dist(block.pos) < TANK_RADIUS + BLOCK_RADIUS + 6) {
+      // Block must be approaching the enemy (not the other way around)
+      const toEnemy = enemy.pos.sub(block.pos);
+      const dist = toEnemy.mag();
+      if (dist > TANK_RADIUS + BLOCK_RADIUS + 6) continue;
+      // Check if block is moving toward enemy (relative velocity along block→enemy direction)
+      const approach = block.vel.dot(toEnemy.norm());
+      if (approach < 10) continue; // block not moving toward enemy → no damage
+
+      if (dist < TANK_RADIUS + BLOCK_RADIUS + 6) {
         const ctx = calcKillMultiplier('block', 0, block.chainLength);
         const baseDmg = Math.round(block.vel.mag() * block.mass * 0.08);
         const dmg = takeDamage(enemy, Math.max(10, baseDmg * ctx.multiplier));
