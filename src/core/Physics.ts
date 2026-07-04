@@ -57,7 +57,8 @@ export function moveTank(
   newBlocks: PhysicsBlock[],
   allBlocks: PhysicsBlock[],
 ): void {
-  const maxSpeed = effectiveSpeed(tank.config) * getSkillSpeedMultiplier(tank);
+  const sprintMul = (tank as any).sprintMul ?? 1.0;
+  const maxSpeed = effectiveSpeed(tank.config) * getSkillSpeedMultiplier(tank) * sprintMul;
   const isMoving = moveDir.x !== 0 || moveDir.y !== 0;
 
   // Angular movement

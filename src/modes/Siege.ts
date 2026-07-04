@@ -1,7 +1,7 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, gridToPixel } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
-import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL } from '../entities/Tank';
+import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle } from '../core/Physics';
@@ -310,6 +310,19 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   }
 
   const moveDir = input.getMoveDir();
+
+  // Sprint chassis: speed ramps up while moving
+  if (state.player.config.chassis.id === 'chassis_sprint') {
+    if (moveDir.x !== 0 || moveDir.y !== 0) {
+      (state.player as any).sprintT ??= 0;
+      (state.player as any).sprintT += dt;
+      const sprintMul = 1 + Math.min(0.5, (state.player as any).sprintT * 0.5);
+      (state.player as any).sprintMul = sprintMul;
+    } else {
+      (state.player as any).sprintT = 0;
+      (state.player as any).sprintMul = 1.0;
+    }
+  }
   moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
   // Turret follows mouse cursor with angular velocity limit
@@ -429,7 +442,8 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
 
     const bulletStyle = cfg.barrel.stats.bulletStyle ?? 'straight';
     const bulletSpeed = cfg.barrel.stats.bulletSpeed ?? 400;
-    const bulletDamage = (cfg.barrel.stats.bulletDamage ?? 35) * 2; // player buff
+    const berserkerMul = getBerserkerMultiplier(state.player);
+    const bulletDamage = (cfg.barrel.stats.bulletDamage ?? 35) * 2 * berserkerMul; // player buff + berserker
     const bounces = cfg.barrel.stats.bounces ?? 0;
     const pierces = cfg.barrel.stats.pierces ?? 0;
 

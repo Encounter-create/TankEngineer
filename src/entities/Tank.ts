@@ -54,14 +54,12 @@ export function createTank(
   };
 }
 
-export function takeDamage(tank: TankEntity, rawDamage: number): number {
+export function takeDamage(tank: TankEntity, rawDamage: number, attacker?: TankEntity): number {
   const now = performance.now();
-  // Track last hit time (for repair armor)
   (tank as any).lastHitAt = now;
 
-  // Reactive armor: check invulnerability
   if (tank.config.turret.stats.invulnDurationMs && now < tank.invulnUntil) {
-    return 0; // invulnerable
+    return 0;
   }
 
   const actual = Math.round(rawDamage * (tank.config.turret.stats.defenseRatio ?? 1.0));
@@ -70,7 +68,13 @@ export function takeDamage(tank: TankEntity, rawDamage: number): number {
     tank.alive = false;
   }
 
-  // Reactive armor: trigger invulnerability on hit
+  // Mirror armor: 30% reflect
+  if (tank.config.turret.id === 'turret_mirror' && attacker && Math.random() < 0.3) {
+    attacker.hp = Math.max(0, attacker.hp - Math.round(actual * 0.5));
+    if (attacker.hp <= 0) attacker.alive = false;
+  }
+
+  // Reactive armor trigger
   if (tank.alive && tank.config.turret.stats.invulnDurationMs && tank.config.turret.stats.invulnCooldownMs) {
     if (now >= tank.invulnCooldownUntil) {
       tank.invulnUntil = now + tank.config.turret.stats.invulnDurationMs;
@@ -79,6 +83,13 @@ export function takeDamage(tank: TankEntity, rawDamage: number): number {
   }
 
   return actual;
+}
+
+/** Berserker damage multiplier: HP lower → damage higher */
+export function getBerserkerMultiplier(tank: TankEntity): number {
+  if (tank.config.turret.id !== 'turret_berserker') return 1.0;
+  const hpRatio = tank.hp / tank.maxHp;
+  return 1.0 + (1.0 - hpRatio); // 1.0 at full, 2.0 at 0
 }
 
 /** Tank radius in pixels for collision */

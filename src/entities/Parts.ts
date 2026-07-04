@@ -281,6 +281,30 @@ export const MVP_TURRETS: Part[] = [
       defenseRatio: 1.0,
     },
   },
+  {
+    id: 'turret_mirror',
+    name: '镜像装甲',
+    type: 'turret',
+    rarity: 'legendary',
+    weight: 1,
+    description: '30%概率将受到的伤害反弹给攻击者(自身仍受伤害)。HP仅60但关键时刻反弹可反杀。重量仅1。',
+    stats: {
+      maxHp: 60,
+      defenseRatio: 1.0,
+    },
+  },
+  {
+    id: 'turret_berserker',
+    name: '狂战装甲',
+    type: 'turret',
+    rarity: 'epic',
+    weight: 2,
+    description: 'HP越低伤害越高。满血时伤害×1.0，半血×1.5，残血×2.0。HP 70适合高风险高回报打法。',
+    stats: {
+      maxHp: 70,
+      defenseRatio: 1.0,
+    },
+  },
 ];
 
 export const MVP_CHASSIS: Part[] = [
@@ -347,10 +371,38 @@ export const MVP_CHASSIS: Part[] = [
     type: 'chassis',
     rarity: 'legendary',
     weight: 2,
-    description: '每12s可向鼠标方向瞬移3格(96px)。速度0.85倍。瞬移穿过墙壁和敌人，落地瞬间无敌0.3s。适合高风险高机动战术。',
+    description: 'Shift键向鼠标方向瞬移3格(96px)。落地0.3s无敌。适合高风险高机动战术。',
     stats: {
       speedRatio: 0.85,
       inertia: 0,
+      recoil: 0,
+      crushWalls: false,
+    },
+  },
+  {
+    id: 'chassis_sprint',
+    name: '冲刺底盘',
+    type: 'chassis',
+    rarity: 'rare',
+    weight: 2,
+    description: '持续移动时速度逐步提升，最高1.5倍。停止移动后加速重置。适合长距离奔袭和追击。',
+    stats: {
+      speedRatio: 0.9,
+      inertia: 0,
+      recoil: 0,
+      crushWalls: false,
+    },
+  },
+  {
+    id: 'chassis_hover',
+    name: '悬浮底盘',
+    type: 'chassis',
+    rarity: 'epic',
+    weight: 1,
+    description: '全地形滑行(类似冰面效果)，松手后持续滑行。速度1.1倍。所有地面均无摩擦。适合惯性漂移操作。',
+    stats: {
+      speedRatio: 1.1,
+      inertia: 4,
       recoil: 0,
       crushWalls: false,
     },
