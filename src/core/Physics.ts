@@ -144,12 +144,26 @@ export function moveTank(
     if (!col.hit) {
       tank.pos = clamped;
     } else {
-      // Wall collision: zero out velocity component along normal, slide along wall
       const normal = col.normal;
       const velDotNormal = tank.vel.dot(normal);
       if (velDotNormal < 0) {
-        // Reflect velocity off wall (damped)
-        tank.vel = tank.vel.sub(normal.scale(velDotNormal * 1.2));
+        const tankMass = tank.config.totalWeight;
+
+        if (col.tileType === TileType.BRICK) {
+          // ---- Brick: momentum transfer (push the brick) ----
+          const brickMass = 5;
+          // Fraction of velocity retained = (tankMass - brickMass) / (tankMass + brickMass)
+          const restitution = (tankMass - brickMass) / (tankMass + brickMass);
+          // Remove velocity component along normal, apply restitution
+          tank.vel = tank.vel.sub(normal.scale(velDotNormal * (1 - restitution)));
+          // Heavy tank crushes brick
+          if (tankMass > brickMass * 1.5) {
+            map[col.tileY][col.tileX].hp = 0;
+          }
+        } else {
+          // Metal: bounce off (elastic reflection)
+          tank.vel = tank.vel.sub(normal.scale(velDotNormal * 1.2));
+        }
       }
       // Try sliding along wall
       const slidePos = tank.pos.add(tank.vel.scale(dt));
@@ -164,6 +178,51 @@ export function moveTank(
   // Heavy chassis crushes brick walls
   if (tank.config.chassis.stats.crushWalls) {
     crushNearbyWalls(tank, map);
+  }
+}
+
+// ============================================================
+// Tank-tank collision (elastic, momentum + kinetic energy conserved)
+// ============================================================
+
+export function resolveTankCollisions(tanks: TankEntity[]): void {
+  for (let i = 0; i < tanks.length; i++) {
+    for (let j = i + 1; j < tanks.length; j++) {
+      const a = tanks[i];
+      const b = tanks[j];
+      if (!a.alive || !b.alive) continue;
+
+      const diff = b.pos.sub(a.pos);
+      const dist = diff.mag();
+      const minDist = TANK_RADIUS * 2;
+      if (dist >= minDist || dist < 0.01) continue;
+
+      const normal = diff.norm();
+      const overlap = minDist - dist;
+
+      // Masses from tank config
+      const ma = a.config.totalWeight;
+      const mb = b.config.totalWeight;
+
+      // Relative velocity along collision normal
+      const vRel = a.vel.dot(normal) - b.vel.dot(normal);
+
+      // Only resolve if approaching
+      if (vRel <= 0) continue;
+
+      // Elastic collision impulse: J = 2 * vRel / (1/ma + 1/mb)
+      const impulse = 2 * vRel / (1 / ma + 1 / mb);
+
+      // Apply impulse
+      a.vel = a.vel.sub(normal.scale(impulse / ma));
+      b.vel = b.vel.add(normal.scale(impulse / mb));
+
+      // Separate positions
+      const sepA = overlap * (mb / (ma + mb));
+      const sepB = overlap * (ma / (ma + mb));
+      a.pos = a.pos.sub(normal.scale(sepA + 1));
+      b.pos = b.pos.add(normal.scale(sepB + 1));
+    }
   }
 }
 

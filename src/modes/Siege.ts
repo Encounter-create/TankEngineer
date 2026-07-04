@@ -4,7 +4,7 @@ import { TileGrid, createMap, pickRandomMap, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage } from '../entities/Tank';
 import { BulletEntity, createBullet, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
-import { moveTank, moveBullet, checkBulletTankHit } from '../core/Physics';
+import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions } from '../core/Physics';
 import { Input } from '../core/Input';
 import { AIContext, createAIContext, updateAI } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
@@ -141,6 +141,9 @@ export function updateSiege(
 
   // Enemy AI
   handleEnemyAI(state, dt);
+
+  // Tank-tank collisions (momentum conservation)
+  resolveTankCollisions([state.player, ...state.enemies]);
 
   // Move bullets
   handleBullets(state, dt);
