@@ -57,13 +57,13 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   drawGrid(ctx);
   drawMap(ctx, state.map);
   drawCommandCenter(ctx, state);
-  drawTank(ctx, state.player);
+  drawTank(ctx, state.player, state);
   // Smoke skill: large obscuring cloud around player
   if (isSmokeActive(state.player)) {
     drawSmokeCloud(ctx, state.player);
   }
   for (const enemy of state.enemies) {
-    drawTank(ctx, enemy);
+    drawTank(ctx, enemy, state);
     // U-key debug: vision/fire radii (drawn after tank restore, in screen space)
     if (state.showDebug && enemy.alive) {
       const aiCtx = state.aiContexts.get(enemy.id);
@@ -636,12 +636,21 @@ function drawBarrel(
   spec.draw();
 }
 
-function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
+function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity, siegeState?: SiegeState): void {
   if (!tank.alive) return;
 
   const { x, y } = tank.pos;
   const r = TANK_RADIUS;
   const isBoss = !tank.isPlayer && tank.maxHp > 200;
+  // Cloaked modifier: enemies semi-transparent unless firing
+  let enemyAlpha = 1.0;
+  if (!tank.isPlayer && siegeState && siegeState.activeModifiers.some(m => m.id === 'cloaked')) {
+    const aiCtx = siegeState.aiContexts.get(tank.id);
+    const isFiring = aiCtx ? aiCtx.fireCooldown <= 0 && aiCtx.state === 2 : false; // AIState.FIRE
+    enemyAlpha = isFiring ? 1.0 : 0.35;
+  }
+  ctx.globalAlpha = enemyAlpha;
+
   const primary = tank.isPlayer ? C.PLAYER : (isBoss ? '#ffaa33' : C.ENEMY);
   const dark = tank.isPlayer ? C.PLAYER_DARK : (isBoss ? '#cc7700' : C.ENEMY_DARK);
 
@@ -692,6 +701,7 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
     ctx.fillStyle = ratio > 0.3 ? C.HP_BAR_OK : C.HP_BAR_LOW;
     ctx.fillRect(barX, barY, barW * ratio, barH);
   }
+  ctx.globalAlpha = 1;
 }
 
 function drawTurret(ctx: CanvasRenderingContext2D, t: TurretEntity): void {

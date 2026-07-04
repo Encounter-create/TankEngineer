@@ -17,6 +17,7 @@ import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
 import { AllyTank, TurretEntity, Plane, createAllyTank, createTurret, createPlanes } from '../entities/Ally';
 import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
+import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -89,6 +90,8 @@ export interface SiegeState {
   maxMultiplier: number;
   /** Slow-motion timer (seconds remaining) */
   slowMoTimer: number;
+  /** Active wave modifiers */
+  activeModifiers: WaveModifier[];
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -141,6 +144,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     killStreakTimer: 0,
     maxMultiplier: 1,
     slowMoTimer: 0,
+    activeModifiers: [],
   };
 }
 
@@ -457,9 +461,23 @@ function spawnWaves(state: SiegeState): void {
     if (state.elapsedTime >= wave.timeStart) {
       spawnWave(state, wave);
       state.wavesSpawned = i + 1;
+      // Pick wave modifiers
+      state.activeModifiers = pickWaveModifiers(i);
+      const modText = state.activeModifiers.map(m => `${m.icon}${m.name}`).join(' ');
       const isFinal = i === TOTAL_WAVES - 1;
-      state.waveAnnouncement = isFinal ? '⚠️ 最终波次 — BOSS来袭！' : `第 ${i + 1} 波`;
+      state.waveAnnouncement = isFinal
+        ? `⚠️ 最终波次 — BOSS来袭！ ${modText}`
+        : `第 ${i + 1} 波  ${modText}`;
       state.waveAnnouncementTime = isFinal ? 3.0 : 2.0;
+      // Apply armored: extra HP
+      if (state.activeModifiers.some(m => m.id === 'armored')) {
+        for (const e of state.enemies) {
+          if (!e.alive) continue;
+          const bonus = Math.round(e.maxHp * 0.5);
+          e.hp += bonus;
+          e.maxHp += bonus;
+        }
+      }
     }
   }
 }
@@ -545,10 +563,11 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const playerVisible = !isSmokeActive(state.player);
     const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
 
-    // Enemy speed limit (55% for easier environmental kills)
+    // Enemy speed: 55% base, ×1.4 if overclocked
+    const speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
-    const maxEnemySpeed = effectiveSpeed(enemy.config) * 0.55;
+    const maxEnemySpeed = effectiveSpeed(enemy.config) * speedMul;
     if (enemy.vel.mag() > maxEnemySpeed) {
       enemy.vel = enemy.vel.norm().scale(maxEnemySpeed);
     }
@@ -774,6 +793,19 @@ function onEnemyKilled(state: SiegeState, enemy: TankEntity, multiplier: number)
   state.enemiesKilled++;
   state.particles.push(...spawnExplosion(enemy.pos));
   playExplosion();
+  // Explosive modifier: bigger boom + AoE damage
+  if (state.activeModifiers.some(m => m.id === 'explosive')) {
+    state.particles.push(...spawnParticles(enemy.pos, 'explosion', 10, 150));
+    const zone = createFireZone(enemy.pos, 30, 1.5, 15);
+    state.fireZones.push(zone);
+    // Damage nearby enemies
+    for (const other of state.enemies) {
+      if (!other.alive || other.id === enemy.id) continue;
+      if (other.pos.dist(enemy.pos) < 50) {
+        takeDamage(other, 25);
+      }
+    }
+  }
   state.screenShake = 4 + multiplier * 2;
 
   // Track max multiplier for gold bonus
@@ -908,6 +940,15 @@ function handleBullets(state: SiegeState, dt: number): void {
       }
     }
     if (hitBlock) continue;
+
+    // Magnetic modifier: enemy bullets home toward player
+    if (!bullet.isPlayerBullet && state.activeModifiers.some(m => m.id === 'magnetic')) {
+      const toPlayer = state.player.pos.sub(bullet.pos);
+      if (toPlayer.mag() > 1) {
+        const desired = toPlayer.norm();
+        bullet.vel = bullet.vel.add(desired.scale(30 * dt)).norm().scale(bullet.vel.mag());
+      }
+    }
 
     // Firework: timer for child spawns, auto-destruct
     if (bullet.style === 'firework') {
