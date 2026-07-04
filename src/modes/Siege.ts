@@ -12,6 +12,7 @@ import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
 import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
+import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
 // Siege mode — 3 minute defense
@@ -57,6 +58,8 @@ export interface SiegeState {
   skillMessage: string;
   skillMessageTime: number; // ms remaining
   particles: Particle[];
+  /** Screen shake intensity (pixels, decays over time) */
+  screenShake: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -88,6 +91,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     skillMessage: '',
     skillMessageTime: 0,
     particles: [],
+    screenShake: 0,
   };
 }
 
@@ -116,6 +120,9 @@ export function updateSiege(
   }
 
   state.elapsedTime += dt;
+  // Decay screen shake
+  state.screenShake = Math.max(0, state.screenShake - dt * 50);
+  if (state.screenShake < 0.5) state.screenShake = 0;
 
   // Check time limit
   if (state.elapsedTime >= MATCH_DURATION) {
@@ -194,12 +201,16 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
       const id = state.player.config.commander.id;
       if (id === 'commander_repair') {
         state.particles.push(...spawnParticles(state.player.pos, 'repair', 10, 50));
+        playRepair();
       } else if (id === 'commander_sprint') {
         state.particles.push(...spawnParticles(state.player.pos, 'sprint', 6, 40));
+        playSprint();
       } else if (id === 'commander_barrage') {
         state.particles.push(...spawnParticles(state.player.pos, 'barrage', 6, 40));
+        playBarrage();
       } else if (id === 'commander_smoke') {
         state.particles.push(...spawnParticles(state.player.pos, 'smoke', 12, 30));
+        playSmoke();
       }
     }
   }
@@ -232,12 +243,14 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     );
     state.bullets.push(bullet);
 
-    // Muzzle flash particles
+    // Muzzle flash particles + sound
     const muzzlePos = state.player.pos.add(Vec2.fromAngle(state.player.turretAngle, 14));
     if (barrageActive) {
       state.particles.push(...spawnParticles(muzzlePos, 'barrage', 3, 50));
+      playBarrage();
     } else {
       state.particles.push(...spawnParticles(muzzlePos, 'impact', 2, 40));
+      playShoot();
     }
 
     // Lightweight recoil (opposite to turret)
@@ -377,6 +390,7 @@ function handleBullets(state: SiegeState, dt: number): void {
     const result = moveBullet(bullet, dt, state.map);
     if (result.hitWall) {
       state.particles.push(...spawnParticles(bullet.pos, 'impact', 10, 100));
+      playHitWall();
     }
   }
   state.bullets = state.bullets.filter(b => b.alive);
@@ -393,10 +407,13 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         if (checkBulletTankHit(bullet, enemy)) {
           takeDamage(enemy, bullet.damage);
           state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
+          playHitTank();
           bullet.alive = false;
           if (!enemy.alive) {
             state.enemiesKilled++;
             state.particles.push(...spawnExplosion(enemy.pos));
+            playExplosion();
+            state.screenShake = 8;
           }
           break;
         }
@@ -406,9 +423,12 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
       if (state.player.alive && checkBulletTankHit(bullet, state.player)) {
         takeDamage(state.player, bullet.damage);
         state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
+        playHitTank();
         bullet.alive = false;
         if (!state.player.alive) {
           state.particles.push(...spawnExplosion(state.player.pos));
+          playExplosion();
+          state.screenShake = 12;
           endSiege(state, false);
           return;
         }

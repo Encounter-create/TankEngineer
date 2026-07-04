@@ -40,6 +40,15 @@ const C = {
 // ============================================================
 
 export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  // Screen shake
+  const shakeX = state.screenShake > 0 ? (Math.random() - 0.5) * state.screenShake * 2 : 0;
+  const shakeY = state.screenShake > 0 ? (Math.random() - 0.5) * state.screenShake * 2 : 0;
+
+  ctx.save();
+  if (shakeX !== 0 || shakeY !== 0) {
+    ctx.translate(shakeX, shakeY);
+  }
+
   clear(ctx);
   drawGrid(ctx);
   drawMap(ctx, state.map);
@@ -58,6 +67,8 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   for (const p of state.particles) {
     drawParticle(ctx, p);
   }
+
+  ctx.restore(); // end screen shake — UI below is stable
 
   // Overlay for intro/victory/defeat
   if (state.phase === 'intro') {
