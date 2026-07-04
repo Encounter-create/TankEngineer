@@ -150,6 +150,19 @@ export function updateSiege(
   if (input.wasJustPressed('KeyU')) {
     state.showDebug = !state.showDebug;
   }
+  // O-key: spawn boss
+  if (input.wasJustPressed('KeyO')) {
+    const bossConfig = assembleTank(
+      MVP_BARRELS.find(p => p.id === 'barrel_gatling')!,
+      MVP_TURRETS.find(p => p.id === 'turret_heavy')!,
+      MVP_CHASSIS.find(p => p.id === 'chassis_heavy')!,
+    );
+    const spit = gridToPixel(Math.floor(MAP_COLS/2), 2);
+    const boss = createTank(`boss_${Date.now()}`, spit, bossConfig, false);
+    boss.hp = boss.maxHp * 2; boss.maxHp = boss.hp;
+    state.enemies.push(boss);
+    state.aiContexts.set(boss.id, createAIContext(boss, gridToPixel(Math.floor(MAP_COLS/2), Math.floor(MAP_ROWS/2))));
+  }
   // Decay screen shake
   state.screenShake = Math.max(0, state.screenShake - dt * 50);
   if (state.screenShake < 0.5) state.screenShake = 0;
