@@ -89,11 +89,15 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
       b.orbitalAngle += dt * 14;
     }
 
-    moveBullet(b, dt, ps.map);
+    const hitResult = moveBullet(b, dt, ps.map);
+
+    // Rocket hit wall → fire zone + particles
+    if (b.style === 'rocket' && hitResult.hitWall) {
+      ps.fireZones.push(createFireZone(b.pos, 40, 2, 15));
+      ps.particles.push(...spawnExplosion(b.pos));
+    }
 
     if (!b.alive) continue;
-
-    // Rocket/arc already handled by moveBullet above
 
     // Hit enemy
     if (ps.enemy.alive && b.isPlayerBullet && checkBulletTankHit(b, ps.enemy)) {
