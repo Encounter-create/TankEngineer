@@ -295,6 +295,9 @@ export function updateSiege(
   // Wave announcement timer
   state.waveAnnouncementTime -= dt;
   state.skillMessageTime -= 16;
+  // Lightning chain timer
+  if ((state as any).lightningTimer > 0) (state as any).lightningTimer -= dt;
+
   // Combo timer + kill streak decay
   state.comboTimer -= dt;
   state.killStreakTimer -= dt;
@@ -448,8 +451,8 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         // Time slow: 3s of 0.3x speed for enemies
         state.slowMoTimer = 3;
       } else if (id === 'commander_lightning') {
-        // Chain lightning between up to 5 nearest enemies
         const aliveEnemies = state.enemies.filter(e => e.alive);
+        const chain: Vec2[] = [state.player.pos];
         let current = state.player.pos;
         const hit: Set<string> = new Set();
         for (let step = 0; step < 5 && aliveEnemies.length > hit.size; step++) {
@@ -468,7 +471,10 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
           state.particles.push(...spawnParticles(nearest.pos, 'hit', 5, 60));
           if (!nearest.alive) onEnemyKilled(state, nearest, 1);
           current = nearest.pos;
+          chain.push(nearest.pos);
         }
+        (state as any).lightningChain = chain;
+        (state as any).lightningTimer = 1.5;
       } else if (id === 'commander_restore') {
         // Restore destroyed bricks within 150px
         let count = 0;

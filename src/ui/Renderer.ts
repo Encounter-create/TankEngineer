@@ -144,6 +144,74 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
     drawPlane(ctx, plane);
   }
 
+  // Gravity well visual (deep purple ellipse + orbiting particles)
+  const gravTimer = (state as any).gravityTimer;
+  if (gravTimer > 0) {
+    const gPos = (state as any).gravityPos as {x:number;y:number};
+    if (gPos) {
+      const alpha = Math.min(1, gravTimer / 0.5);
+      const rx = 40 * (1 + (3 - gravTimer) * 0.2);
+      const ry = 25 * (1 + (3 - gravTimer) * 0.2);
+      // Deep purple ellipse
+      const grad = ctx.createRadialGradient(gPos.x, gPos.y, rx*0.3, gPos.x, gPos.y, rx);
+      grad.addColorStop(0, `rgba(40,0,60,${0.7*alpha})`);
+      grad.addColorStop(0.5, `rgba(80,0,120,${0.4*alpha})`);
+      grad.addColorStop(1, `rgba(0,0,0,0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(gPos.x, gPos.y, rx, ry, 0, 0, Math.PI*2);
+      ctx.fill();
+      // Border glow
+      ctx.strokeStyle = `rgba(160,60,255,${0.6*alpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(gPos.x, gPos.y, rx, ry, 0, 0, Math.PI*2);
+      ctx.stroke();
+      // Orbiting particles
+      for (let i = 0; i < 8; i++) {
+        const a = performance.now()/1000 * 3 + i * Math.PI/4;
+        const px = gPos.x + Math.cos(a) * rx * 0.85;
+        const py = gPos.y + Math.sin(a) * ry * 0.85;
+        ctx.fillStyle = `rgba(180,100,255,${0.7*alpha})`;
+        ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  // Time slow: ↓ arrows on slowed enemies
+  if (state.slowMoTimer > 2.5) {
+    for (const enemy of state.enemies) {
+      if (!enemy.alive) continue;
+      const arrowY = enemy.pos.y - TANK_RADIUS - 22;
+      ctx.fillStyle = '#4488ff';
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'center';
+      const bounce = Math.sin(performance.now()/1000 * 8) * 4;
+      ctx.fillText('↓↓', enemy.pos.x, arrowY + bounce);
+    }
+  }
+
+  // Lightning chains
+  const lChain = (state as any).lightningChain;
+  if (lChain && (state as any).lightningTimer > 0) {
+    for (let i = 0; i < lChain.length - 1; i++) {
+      const from = lChain[i], to = lChain[i+1];
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffaa00';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      // Zigzag
+      const midX = (from.x + to.x)/2, midY = (from.y + to.y)/2;
+      const perp = {x: -(to.y-from.y)*0.15, y: (to.x-from.x)*0.15};
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(midX + perp.x, midY + perp.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+
   ctx.restore(); // end screen shake — UI below is stable
 
   // Overlay for intro/victory/defeat
@@ -1003,6 +1071,14 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
     ctx.beginPath();
     ctx.arc(state.player.pos.x, state.player.pos.y, TANK_RADIUS + 8, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // Time slow: "SLOW DOWN" center text
+  if (state.slowMoTimer > 2.5) {
+    ctx.fillStyle = 'rgba(68,136,255,0.6)';
+    ctx.font = 'bold 32px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('SLOW DOWN', MAP_W/2, MAP_H/2 + 60);
   }
 
   // Slow-motion vignette
