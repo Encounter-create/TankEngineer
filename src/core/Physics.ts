@@ -168,7 +168,9 @@ export function moveTank(
 // Physics block collisions with walls
 // ============================================================
 
-export function resolveBlockWallCollisions(blocks: PhysicsBlock[], map: TileGrid): void {
+export function resolveBlockWallCollisions(
+  blocks: PhysicsBlock[], map: TileGrid, newBlocks: PhysicsBlock[],
+): void {
   for (const block of blocks) {
     if (!block.alive) continue;
     const col = checkTileCollision(block.pos, block.radius, map);
@@ -176,11 +178,28 @@ export function resolveBlockWallCollisions(blocks: PhysicsBlock[], map: TileGrid
       const normal = col.normal;
       const vn = block.vel.dot(normal);
       if (vn < 0) {
-        // Elastic reflection with wall (massive object)
-        block.vel = block.vel.sub(normal.scale(vn * 2));
+        // Elastic collision: block ↔ tile (tile starts at rest, v2=0)
+        const tileMass = col.tileType === TileType.METAL ? METAL_MASS : BRICK_MASS;
+        const v1n = -vn; // impact speed (positive)
+        const v1nPrime = (block.mass - tileMass) / (block.mass + tileMass) * v1n;
+        const v2nPrime = 2 * block.mass / (block.mass + tileMass) * v1n;
+
+        // Update block velocity
+        block.vel = block.vel.sub(normal.scale(vn));            // remove old normal component
+        block.vel = block.vel.add(normal.scale(-v1nPrime));     // add post-collision velocity
+
+        // Tile becomes a physics block
+        const tilePos = new Vec2(
+          (col.tileX + 0.5) * CELL_SIZE,
+          (col.tileY + 0.5) * CELL_SIZE,
+        );
+        const tileVel = normal.scale(-v2nPrime);
+        const newBlock = createPhysicsBlock(tilePos, tileVel, col.tileType);
+        newBlocks.push(newBlock);
+        map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
       }
-      // Push out of wall
-      block.pos = block.pos.add(normal.scale(block.radius));
+      // Push block out of wall
+      block.pos = block.pos.add(col.normal.scale(block.radius + 1));
     }
   }
 }
