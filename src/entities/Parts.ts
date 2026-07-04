@@ -307,7 +307,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'common',
     weight: 1,
     description: '立即恢复自身40点HP，冷却60秒。简单直接的自愈能力，适合新手车长。',
-    stats: { skillCdMs: 60000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_sprint',
@@ -316,7 +316,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'common',
     weight: 1,
     description: '2秒内自身移动速度翻倍，冷却30秒。适合快速突进、脱离包围或追击残血敌人。',
-    stats: { skillCdMs: 30000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_barrage',
@@ -325,7 +325,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'rare',
     weight: 1,
     description: '3秒内弹药无限（装填时间降为50ms），冷却45秒。按住鼠标疯狂倾泻火力。🎆协同: 装备烟花炮管时触发「烟花祭」——弹幕期间母弹分裂频率翻倍，铺天盖地的子子弹覆盖全场。',
-    stats: { skillCdMs: 45000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_smoke',
@@ -334,7 +334,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'rare',
     weight: 1,
     description: '释放烟雾笼罩自身3秒，冷却25秒。烟雾期间敌方AI无法追踪你的位置，转而攻击指挥所。适合脱离战斗或保护指挥所时分担火力。',
-    stats: { skillCdMs: 25000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_colonel',
@@ -343,7 +343,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'legendary',
     weight: 2,
     description: '召唤3架轰炸机呈三角阵型，沿炮塔朝向飞过战场投弹轰炸。飞机投下的炸弹造成范围伤害并留下火圈，冷却60秒。🎯协同「精确打击」: 装备狙击炮管时投弹频率翻倍(间隔0.6秒→密集轰炸)。',
-    stats: { skillCdMs: 60000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_engineer',
@@ -352,7 +352,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'epic',
     weight: 2,
     description: '在当前位置部署一个自动炮塔，射程180px内自动索敌开火。炮塔有120HP，可被敌方攻击摧毁。冷却40秒。🏰协同「移动堡垒」: 装备重型底盘时炮塔HP提升50%(180)、射程扩大30%(234px)，变成真正的前线堡垒。',
-    stats: { skillCdMs: 40000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_wizard',
@@ -361,7 +361,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'legendary',
     weight: 2,
     description: '复活最多3辆已被击毁的敌方坦克，转化为我方友军。复活的友军保留原配置，使用巡逻+追击+开火AI自动攻击敌军。冷却80秒。💀协同「亡灵火箭」: 装备火箭炮时，火箭直接击杀的敌人自动复活为友军（无需手动按技能）。',
-    stats: { skillCdMs: 80000 },
+    stats: { skillCdMs: 20000 },
   },
   {
     id: 'commander_ninja',
@@ -370,7 +370,7 @@ export const MVP_COMMANDERS: Part[] = [
     rarity: 'epic',
     weight: 2,
     description: '分出一辆与自身完全相同配置的友军坦克。分身使用三态AI：追随玩家(100px内)→侦察巡逻→发现敌人开火(200px内)。冷却50秒。🪞协同「镜面分身」: 装备反射管时，分身的炮管替换为反射管，双倍反弹火力覆盖战场。',
-    stats: { skillCdMs: 50000 },
+    stats: { skillCdMs: 20000 },
   },
 ];
 

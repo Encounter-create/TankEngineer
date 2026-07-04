@@ -310,7 +310,6 @@ function updateShop(): void {
   const idx = hitTestShop(input.mousePos.x, input.mousePos.y, MAP_W, app.shopUI.slots.length);
   if (idx >= 0 && app.shopUI.slots[idx]) {
     attemptBuy(app.shopUI, app.shop, app.shopUI.slots[idx].part.id);
-    app.garage = createGarageState(app.inventory);
   }
 }
 
@@ -360,7 +359,6 @@ function handleSiegeUI(): void {
       app.siege.phase = 'playing';
     } else if (hitTestPauseQuit(mx, my)) {
       app.screen = 'lobby';
-      app.garage = createGarageState(app.inventory);
       app.siege = null;
     }
     return;
@@ -376,7 +374,6 @@ function handleSiegeUI(): void {
   if (phase === 'victory' || phase === 'defeat') {
     if (hitTestSiegeBackButton(mx, my)) {
       app.screen = 'lobby';
-      app.garage = createGarageState(app.inventory);
       app.siege = null;
     }
   }
@@ -413,7 +410,6 @@ function updateChess(): void {
   if (state.phase === 'victory' || state.phase === 'defeat') {
     if (hitTestChessBackButton(mx, my)) {
       app.screen = 'lobby';
-      app.garage = createGarageState(app.inventory);
       app.chess = null;
     }
     return;
