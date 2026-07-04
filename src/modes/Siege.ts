@@ -7,7 +7,7 @@ import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARREL
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
-import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
+import { AIContext, AIState, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
@@ -380,10 +380,17 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
-    // Turret follows target
-    const toTarget = target.sub(enemy.pos);
-    if (toTarget.mag() > 1) {
-      enemy.turretAngle = toTarget.angle();
+    // Turret follows target only in FIRE mode
+    if (ctx.state === AIState.FIRE) {
+      const toTarget = target.sub(enemy.pos);
+      if (toTarget.mag() > 1) {
+        enemy.turretAngle = toTarget.angle();
+      }
+    } else {
+      // Patrol/chase: turret points in movement direction
+      if (moveDir.x !== 0 || moveDir.y !== 0) {
+        enemy.turretAngle = moveDir.angle();
+      }
     }
 
     // Enemy fire logic (AI state machine driven)
