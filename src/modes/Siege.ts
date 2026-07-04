@@ -774,12 +774,13 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   resolveBlockTankCollisions(state.physicsBlocks, allTanks);
   // Block damage: fast blocks deal damage on collision
   for (const block of state.physicsBlocks) {
-    if (!block.alive || block.vel.mag() < 60) continue;
+    if (!block.alive || block.vel.mag() < 40) continue;
     for (const enemy of state.enemies) {
       if (!enemy.alive) continue;
       if (enemy.pos.dist(block.pos) < TANK_RADIUS + BLOCK_RADIUS) {
         const ctx = calcKillMultiplier('block', 0, block.chainLength);
-        const dmg = takeDamage(enemy, 20 * ctx.multiplier);
+        const baseDmg = Math.round(block.vel.mag() * block.mass * 0.04); // speed × mass scaling
+        const dmg = takeDamage(enemy, baseDmg * ctx.multiplier);
         state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, ctx.multiplier >= 3));
         state.particles.push(...spawnParticles(enemy.pos, 'hit', 12, 120));
         if (ctx.multiplier >= 2) {

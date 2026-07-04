@@ -18,7 +18,7 @@ export interface PhysicsBlock {
 
 let blockId = 0;
 
-export const BRICK_MASS = 5;
+export const BRICK_MASS = 2; // light, easily pushed
 export const METAL_MASS = 8;
 export const BLOCK_RADIUS = CELL_SIZE / 2; // 16px, matches tile size
 export const GROUND_FRICTION = 2.5; // per-second friction factor

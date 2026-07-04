@@ -62,7 +62,8 @@ export function createBullet(
     vel,
     style,
     damage,
-    bouncesLeft: bounces,
+    // All standard bullets get 2 bounces by default (pierce/arc/rocket use their own)
+    bouncesLeft: (style === 'pierce' || style === 'arc' || style === 'rocket' || style === 'firework' || style === 'orbital') ? bounces : Math.max(bounces, 2),
     piercesLeft: pierces,
     ownerId,
     isPlayerBullet,
