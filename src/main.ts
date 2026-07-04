@@ -52,13 +52,20 @@ import {
   hitTestPauseResume,
   hitTestPauseQuit,
 } from './ui/Renderer';
+import {
+  ChessState,
+  createChessState,
+  selectChessTank, moveChessTank, fireChessTank,
+  pixelToChessGrid,
+} from './modes/Chess';
+import { renderChess, hitTestChessBackButton } from './ui/ChessRenderer';
 import { MAP_W, MAP_H } from './utils/Grid';
 
 // ============================================================
 // App state machine
 // ============================================================
 
-type AppScreen = 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege';
+type AppScreen = 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege' | 'chess';
 
 interface AppState {
   screen: AppScreen;
@@ -69,6 +76,7 @@ interface AppState {
   shopUI: ShopUIState;
   encyclopedia: EncyclopediaState;
   siege: SiegeState | null;
+  chess: ChessState | null;
   shopSelected: number;
   selectedCol: number;
   selectedRow: number;
@@ -101,6 +109,7 @@ const app: AppState = {
   shopUI: createShopUIState(),
   encyclopedia: createEncyclopediaState(),
   siege: null,
+  chess: null,
   shopSelected: 0,
   selectedCol: 0,
   selectedRow: 0,
@@ -114,6 +123,8 @@ function update(dt: number): void {
   if (app.screen === 'siege' && app.siege) {
     updateSiege(app.siege, input, dt);
     handleSiegeUI();
+  } else if (app.screen === 'chess' && app.chess) {
+    updateChess();
   } else if (app.screen === 'lobby') {
     updateLobby();
   } else if (app.screen === 'garage') {
@@ -134,6 +145,8 @@ function render(_alpha: number): void {
     if (app.siege.phase === 'playing' || app.siege.phase === 'paused') {
       drawHUD(ctx, app.siege);
     }
+  } else if (app.screen === 'chess' && app.chess) {
+    renderChess(ctx, app.chess);
   } else if (app.screen === 'lobby') {
     const config = getCurrentConfig(app.garage);
     renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid);
@@ -182,7 +195,11 @@ function updateLobby(): void {
     // Start battle
     const config = getCurrentConfig(app.garage);
     if (config && app.garage.assemblyResult.valid) {
-      startSiege(config);
+      if (app.lobby.selectedMode === 'chess') {
+        startChess(config);
+      } else {
+        startSiege(config);
+      }
     }
   }
 }
@@ -291,6 +308,67 @@ function handleSiegeUI(): void {
       app.screen = 'lobby';
       app.garage = createGarageState(app.inventory);
       app.siege = null;
+    }
+  }
+}
+
+// ============================================================
+// Start
+// ============================================================
+
+// ============================================================
+// Chess mode
+// ============================================================
+
+function startChess(config: TankConfig): void {
+  app.chess = createChessState(config, app.inventory);
+  app.screen = 'chess';
+}
+
+function updateChess(): void {
+  if (!app.chess || !input.isMouseJustPressed()) return;
+
+  const state = app.chess;
+  const mx = input.mousePos.x;
+  const my = input.mousePos.y;
+
+  // Result screens
+  if (state.phase === 'victory' || state.phase === 'defeat') {
+    if (hitTestChessBackButton(mx, my)) {
+      app.screen = 'lobby';
+      app.garage = createGarageState(app.inventory);
+      app.chess = null;
+    }
+    return;
+  }
+
+  // Intro → start
+  if (state.phase === 'intro') {
+    state.phase = 'player_turn';
+    state.message = '你的回合 — 点击坦克';
+    return;
+  }
+
+  const grid = pixelToChessGrid(mx, my);
+  if (!grid) return;
+
+  if (state.phase === 'player_turn') {
+    // If clicked on own tank, select it
+    const ownTank = state.playerTanks.find(t => t.alive && t.gridX === grid.gx && t.gridY === grid.gy);
+    if (ownTank) {
+      selectChessTank(state, grid.gx, grid.gy);
+      return;
+    }
+    // If tank selected and clicked valid move, move there
+    if (state.selectedTank && state.validMoves.some(m => m.gx === grid.gx && m.gy === grid.gy)) {
+      moveChessTank(state, grid.gx, grid.gy);
+      return;
+    }
+  }
+
+  if (state.phase === 'player_fire') {
+    if (state.validMoves.some(m => m.gx === grid.gx && m.gy === grid.gy)) {
+      fireChessTank(state, grid.gx, grid.gy);
     }
   }
 }
