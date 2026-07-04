@@ -238,14 +238,9 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
     }
   }
 
-  // Buttons
+  // Back button only (save/load via top bar slots)
   const btnY = h - 50;
-  const buttons: ButtonDef[] = [
-    { x: previewX, y: btnY, w: 100, h: 32, label: '💾 保存', color: '#3a5a3a' },
-    { x: previewX + 110, y: btnY, w: 100, h: 32, label: '📂 加载', color: '#3a4a5a' },
-    { x: previewX + 220, y: btnY, w: 120, h: 32, label: '← 返回大厅', color: '#444' },
-  ];
-  for (const btn of buttons) drawButton(ctx, btn);
+  drawButton(ctx, { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32, label: '← 返回大厅', color: '#444' });
 }
 
 // ============================================================
@@ -434,18 +429,10 @@ export function hitTestGarage(px: number, py: number, _w: number, inventory: Inv
   return null;
 }
 
-export function hitTestGarageButtons(px: number, py: number, _w: number, h: number): number {
-  const previewX = CENTER_X;
+export function hitTestGarageButtons(px: number, py: number, _w: number, h: number): boolean {
   const btnY = h - 50;
-  const btns: ButtonDef[] = [
-    { x: previewX, y: btnY, w: 100, h: 32, label: '', color: '' },
-    { x: previewX + 110, y: btnY, w: 100, h: 32, label: '', color: '' },
-    { x: previewX + 220, y: btnY, w: 120, h: 32, label: '', color: '' },
-  ];
-  for (let i = 0; i < btns.length; i++) {
-    if (hitTestButton(px, py, btns[i])) return i;
-  }
-  return -1;
+  const btn = { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32 } as ButtonDef;
+  return hitTestButton(px, py, btn);
 }
 
 // ============================================================
@@ -454,7 +441,7 @@ export function hitTestGarageButtons(px: number, py: number, _w: number, h: numb
 
 function drawBuildSlotsBar(ctx: CanvasRenderingContext2D, w: number, _garage: GarageState, _inventory: Inventory): void {
   const slots = loadBuildSlots();
-  const slotW = 110, slotH = 24, barY = 6, gap = 6;
+  const slotW = 150, slotH = 26, barY = 4, gap = 8;
   const startX = w - (slotW * 3 + gap * 2) - 12;
 
   for (let i = 0; i < 3; i++) {
@@ -462,22 +449,33 @@ function drawBuildSlotsBar(ctx: CanvasRenderingContext2D, w: number, _garage: Ga
     const slot = slots[i];
     const filled = slot.barrelId !== '';
 
+    // Slot background
     ctx.fillStyle = filled ? '#2a3a3a' : '#2a2d35';
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 1;
     roundRect(ctx, sx, barY, slotW, slotH, 4);
     ctx.fill(); ctx.stroke();
 
+    // Slot name
     ctx.fillStyle = filled ? '#4ae0a0' : '#666';
     ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(filled ? slot.name : `空位${i + 1}`, sx + slotW / 2, barY + slotH / 2);
+    ctx.fillText(filled ? slot.name : `配置${i + 1}`, sx + slotW / 2, barY + slotH / 2);
+
+    // Save button (left half of slot) — implicit: click saves
+    // Load button (right half) — implicit: click loads
   }
+
+  // Hint
+  ctx.fillStyle = '#555';
+  ctx.font = '9px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('点击加载 | Shift+点击保存', w - 16, barY + slotH + 12);
 }
 
 export function getBuildSlotHitIndex(px: number, py: number, w: number): number {
-  const slotW = 110, slotH = 24, barY = 6, gap = 6;
+  const slotW = 150, slotH = 26, barY = 4, gap = 8;
   const startX = w - (slotW * 3 + gap * 2) - 12;
   for (let i = 0; i < 3; i++) {
     const sx = startX + i * (slotW + gap);
