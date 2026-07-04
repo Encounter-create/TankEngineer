@@ -56,6 +56,8 @@ export function createTank(
 
 export function takeDamage(tank: TankEntity, rawDamage: number): number {
   const now = performance.now();
+  // Track last hit time (for repair armor)
+  (tank as any).lastHitAt = now;
 
   // Reactive armor: check invulnerability
   if (tank.config.turret.stats.invulnDurationMs && now < tank.invulnUntil) {

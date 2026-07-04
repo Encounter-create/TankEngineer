@@ -336,6 +336,22 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
     state.particles.push(...spawnParticles(state.player.pos, 'smoke', 3, 15));
   }
 
+  // Blink chassis: Shift to teleport toward mouse
+  if (state.player.config.chassis.id === 'chassis_blink' && input.wasJustPressed('ShiftLeft')) {
+    const dir = input.mousePos.sub(state.player.pos).norm();
+    state.player.pos = state.player.pos.add(dir.scale(CELL_SIZE * 3));
+    state.player.invulnUntil = performance.now() + 300;
+  }
+
+  // Repair armor: out-of-combat regen
+  if (state.player.config.turret.id === 'turret_repair') {
+    const now = performance.now();
+    if (!(state.player as any).lastHitAt) (state.player as any).lastHitAt = 0;
+    if (now - (state.player as any).lastHitAt > 3000 && state.player.hp < state.player.maxHp) {
+      state.player.hp = Math.min(state.player.maxHp, state.player.hp + dt * 5);
+    }
+  }
+
   // Commander skill: E key
   if (input.wasJustPressed('KeyE')) {
     const result = activateSkill(state.player);
@@ -417,8 +433,14 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     const bounces = cfg.barrel.stats.bounces ?? 0;
     const pierces = cfg.barrel.stats.pierces ?? 0;
 
-    // Rocket: fire toward mouse click position
-    if (bulletStyle === 'rocket') {
+    // Scatter: fire 3 bullets in a 15° fan
+    if (bulletStyle === 'scatter') {
+      for (let j = -1; j <= 1; j++) {
+        const angle = state.player.turretAngle + j * (Math.PI / 12); // 15° spread
+        const bullet = createBullet(state.player.pos, angle, 'straight', bulletSpeed, bulletDamage, 2, 0, state.player.id, true);
+        state.bullets.push(bullet);
+      }
+    } else if (bulletStyle === 'rocket') {
       const bullet = createBullet(
         state.player.pos, state.player.turretAngle,
         'rocket', bulletSpeed, bulletDamage, 0, 0,

@@ -9,7 +9,7 @@ export interface InventoryData {
 }
 
 const STORAGE_KEY = 'tank_engineer_inventory';
-const DATA_VERSION = 3; // bump when adding new parts to force refresh
+const DATA_VERSION = 4; // bump when adding new parts to force refresh
 
 function defaultInventory(): InventoryData {
   return {
@@ -24,13 +24,17 @@ function defaultInventory(): InventoryData {
       'barrel_sniper',
       'barrel_gatling',
       'barrel_rocket',
+      'barrel_scatter',
+      'barrel_magnetic',
       'turret_light',
       'turret_heavy',
       'turret_reactive',
+      'turret_repair',
       'chassis_standard',
       'chassis_inertia',
       'chassis_heavy',
       'chassis_track',
+      'chassis_blink',
       'commander_repair',
       'commander_sprint',
       'commander_barrage',

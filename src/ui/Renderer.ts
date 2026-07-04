@@ -419,6 +419,7 @@ function drawChassis(
     chassis_inertia: { body: '#66aadd', accent: '#336688' },
     chassis_heavy: { body: '#8B7355', accent: '#5C4A32' },
     chassis_track: { body: '#88aa66', accent: '#446633' },
+    chassis_blink: { body: '#aa66cc', accent: '#663388' },
   };
   const bc = colors[chassisId] ?? { body: primary, accent: dark };
 
@@ -609,6 +610,29 @@ function drawBarrel(
         ctx.lineWidth = 1;
         roundRect(ctx, w * 0.25, -4, w * 0.3, 8, 2);
         ctx.stroke();
+      },
+    },
+    barrel_scatter: {
+      color: '#ff8844',
+      draw: () => {
+        // Triple muzzle
+        ctx.fillRect(w * 0.3, -4, w * 0.8, 2);
+        ctx.fillRect(w * 0.3, 0, w * 0.9, 2);
+        ctx.fillRect(w * 0.3, 4, w * 0.8, 2);
+      },
+    },
+    barrel_magnetic: {
+      color: '#44aacc',
+      draw: () => {
+        // Coil-wrapped barrel
+        ctx.fillRect(w * 0.3, -2, w * 1.3, 4);
+        for (let i = 0; i < 5; i++) {
+          ctx.strokeStyle = '#3388aa';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(w * 0.5 + i * w * 0.2, 0, 4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       },
     },
     barrel_rocket: {

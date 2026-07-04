@@ -360,6 +360,15 @@ export function moveBullet(
       if (bullet.style === 'arc' && col.tileType === TileType.BRICK) {
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
+      // Magnetic/rail: slide along metal walls
+      if (bullet.style === 'magnetic' && col.tileType === TileType.METAL) {
+        // Project velocity onto wall tangent (perpendicular to normal)
+        const tangent = new Vec2(-col.normal.y, col.normal.x);
+        const vAlong = bullet.vel.dot(tangent);
+        bullet.vel = tangent.scale(Math.sign(vAlong) * bullet.vel.mag());
+        bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
+      }
       // Sniper (damage >= 500): ALWAYS destroys walls and continues — never bounces
       if (bullet.damage >= 500) {
         map[gy][gx] = { type: TileType.EMPTY, hp: 0 };

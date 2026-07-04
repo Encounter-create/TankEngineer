@@ -5,7 +5,7 @@
 export type PartType = 'barrel' | 'turret' | 'chassis' | 'commander';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type WeightClass = 'light' | 'medium' | 'heavy';
-export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc' | 'firework' | 'orbital' | 'rocket';
+export type BulletStyle = 'straight' | 'bounce' | 'pierce' | 'arc' | 'firework' | 'orbital' | 'rocket' | 'scatter' | 'magnetic';
 
 /** Core part definition */
 export interface Part {
@@ -196,6 +196,38 @@ export const MVP_BARRELS: Part[] = [
       cooldownMs: 2500,
     },
   },
+  {
+    id: 'barrel_scatter',
+    name: '散射管',
+    type: 'barrel',
+    rarity: 'legendary',
+    weight: 3,
+    description: '一次射出3颗子弹呈15°扇形散布。每发伤害25。碰墙反弹2次后消失，反弹不伤墙体。中近距离覆盖范围大。',
+    stats: {
+      bulletStyle: 'scatter',
+      bulletDamage: 25,
+      bulletSpeed: 380,
+      bounces: 0,
+      pierces: 0,
+      cooldownMs: 1200,
+    },
+  },
+  {
+    id: 'barrel_magnetic',
+    name: '磁轨管',
+    type: 'barrel',
+    rarity: 'legendary',
+    weight: 3,
+    description: '子弹碰到金属墙后沿墙表面滑行(不反弹)，滑行速度不变。碰木块反弹2次。适合交叉火力等金属墙密集地图，子弹沿铁轨滑动直击墙后敌人。',
+    stats: {
+      bulletStyle: 'magnetic',
+      bulletDamage: 35,
+      bulletSpeed: 350,
+      bounces: 2,
+      pierces: 0,
+      cooldownMs: 1400,
+    },
+  },
 ];
 
 export const MVP_TURRETS: Part[] = [
@@ -235,6 +267,18 @@ export const MVP_TURRETS: Part[] = [
       defenseRatio: 1.0,
       invulnDurationMs: 500,
       invulnCooldownMs: 8000,
+    },
+  },
+  {
+    id: 'turret_repair',
+    name: '修复装甲',
+    type: 'turret',
+    rarity: 'rare',
+    weight: 2,
+    description: '脱离战斗3秒后缓慢回血(每秒5HP)。HP 100。适合打游击——受伤后撤，等回血再出击。',
+    stats: {
+      maxHp: 100,
+      defenseRatio: 1.0,
     },
   },
 ];
@@ -295,6 +339,20 @@ export const MVP_CHASSIS: Part[] = [
       recoil: 0,
       crushWalls: false,
       instantTurn: true,
+    },
+  },
+  {
+    id: 'chassis_blink',
+    name: '闪现底盘',
+    type: 'chassis',
+    rarity: 'legendary',
+    weight: 2,
+    description: '每12s可向鼠标方向瞬移3格(96px)。速度0.85倍。瞬移穿过墙壁和敌人，落地瞬间无敌0.3s。适合高风险高机动战术。',
+    stats: {
+      speedRatio: 0.85,
+      inertia: 0,
+      recoil: 0,
+      crushWalls: false,
     },
   },
 ];
