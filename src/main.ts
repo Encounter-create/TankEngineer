@@ -144,8 +144,8 @@ function update(dt: number): void {
       updatePractice(ps, input, dt);
       if (input.isMouseJustPressed()) {
         const ax = 284, ay = 46, aw = 470, ah = 640 - 160;
-        const bx = ax + aw - 82, by = ay + 6;
-        if (input.mousePos.x >= bx && input.mousePos.x <= bx + 76 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
+        const bx = ax + aw / 2 - 40, by = ay + ah - 32;
+        if (input.mousePos.x >= bx && input.mousePos.x <= bx + 80 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
           app.practice = null; app.garage.practiceMode = false; return;
         }
         const rx = ax + aw / 2 - 50, ry = ay + ah / 2 + 20;

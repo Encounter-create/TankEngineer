@@ -52,7 +52,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
         ps.player.id, true);
       if (bullet.style === 'firework') { bullet.fireworkLife = FIREWORK_MAX_LIFE; bullet.fireworkTimer = 0.25; }
       // Rocket: target the enemy
-      if (bullet.style === 'rocket') { bullet.targetPos = ps.enemy.pos; }
+      // Rocket flies toward mouse position, not auto-homing enemy
       ps.bullets.push(bullet);
     }
   }
@@ -183,10 +183,10 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
 
   for (const b of ps.bullets) { if (b.alive) { ctx.fillStyle = '#ffcc44'; ctx.beginPath(); ctx.arc(b.pos.x, b.pos.y, 3, 0, Math.PI * 2); ctx.fill(); } }
 
-  const exitX = ax + aw - 82, exitY = ay + 6;
-  ctx.fillStyle = '#6a3a3a'; ctx.strokeStyle = '#ff6b4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(exitX, exitY, 76, 24, 4); ctx.fill(); ctx.stroke();
+  const exitX = ax + aw / 2 - 40, exitY = ay + ah - 32;
+  ctx.fillStyle = '#6a3a3a'; ctx.strokeStyle = '#ff6b4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(exitX, exitY, 80, 24, 4); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('⏹ 退出演习', exitX + 38, exitY + 12);
+  ctx.fillText('⏹ 退出演习', exitX + 40, exitY + 12);
 
   ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
   ctx.fillText('🎯 靶子', ps.enemy.pos.x, ps.enemy.pos.y - 20);
