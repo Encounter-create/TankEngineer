@@ -15,6 +15,7 @@ import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '..
 import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
 import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
 import { AllyTank, TurretEntity, Plane, createAllyTank, createTurret, createPlanes } from '../entities/Ally';
+import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -72,6 +73,9 @@ export interface SiegeState {
   allies: AllyTank[];
   turrets: TurretEntity[];
   planes: Plane[];
+  damageNumbers: DamageNumber[];
+  waveAnnouncement: string;
+  waveAnnouncementTime: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -111,6 +115,9 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     allies: [],
     turrets: [],
     planes: [],
+    damageNumbers: [],
+    waveAnnouncement: '',
+    waveAnnouncementTime: 0,
   };
 }
 
@@ -208,6 +215,13 @@ export function updateSiege(
   // Update particles
   updateParticles(state.particles, dt);
   state.particles = state.particles.filter(p => p.alive);
+
+  // Update damage numbers
+  updateDamageNumbers(state.damageNumbers, dt);
+  state.damageNumbers = state.damageNumbers.filter(n => n.alive);
+  // Wave announcement timer
+  state.waveAnnouncementTime -= dt;
+  state.skillMessageTime -= 16;
 
   // Update fire zones
   handleFireZones(state, dt);
@@ -385,6 +399,9 @@ function spawnWaves(state: SiegeState): void {
     if (state.elapsedTime >= wave.timeStart) {
       spawnWave(state, wave);
       state.wavesSpawned = i + 1;
+      const isFinal = i === TOTAL_WAVES - 1;
+      state.waveAnnouncement = isFinal ? '⚠️ 最终波次 — BOSS来袭！' : `第 ${i + 1} 波`;
+      state.waveAnnouncementTime = isFinal ? 3.0 : 2.0;
     }
   }
 }
@@ -437,12 +454,20 @@ function spawnWave(state: SiegeState, wave: WaveDef): void {
 
     const config = configs[i % configs.length];
 
+    const isBoss = state.wavesSpawned === TOTAL_WAVES - 1 && i === 0;
+    const enemyConfig = isBoss
+      ? assembleTank(MVP_BARRELS.find(p => p.id === 'barrel_gatling')!, MVP_TURRETS.find(p => p.id === 'turret_heavy')!, MVP_CHASSIS.find(p => p.id === 'chassis_heavy')!)
+      : config;
     const enemy = createTank(
       `enemy_${state.enemies.length}_${Date.now()}`,
       spawnPos,
-      config,
+      enemyConfig,
       false,
     );
+    if (isBoss) {
+      enemy.hp = enemy.maxHp * 2;
+      enemy.maxHp = enemy.hp;
+    }
     state.enemies.push(enemy);
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
@@ -832,7 +857,8 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
           if (bullet.style === 'rocket') {
             explodeRocket(bullet, state);
           } else {
-            takeDamage(enemy, bullet.damage);
+            const dmg = takeDamage(enemy, bullet.damage);
+            state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, dmg >= 50));
             state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
             playHitTank();
             bullet.alive = false;
@@ -851,7 +877,8 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         if (bullet.style === 'rocket') {
           explodeRocket(bullet, state);
         } else {
-          takeDamage(state.player, bullet.damage);
+          const dmg = takeDamage(state.player, bullet.damage);
+          state.damageNumbers.push(spawnDamageNumber(state.player.pos, dmg, dmg >= 50));
           state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
           playHitTank();
           bullet.alive = false;

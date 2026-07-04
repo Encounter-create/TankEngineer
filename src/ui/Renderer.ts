@@ -8,6 +8,7 @@ import { Particle } from '../entities/Particle';
 import { PhysicsBlock } from '../entities/PhysicsBlock';
 import { FireZone } from '../entities/FireZone';
 import { TurretEntity, Plane } from '../entities/Ally';
+import { DamageNumber } from '../entities/DamageNumber';
 import { isSmokeActive } from '../systems/Commander';
 
 // ============================================================
@@ -99,6 +100,11 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   for (const p of state.particles) {
     drawParticle(ctx, p);
   }
+  for (const n of state.damageNumbers) {
+    drawDamageNumber(ctx, n);
+  }
+  // Wave announcement
+  drawWaveAnnouncement(ctx, state);
   for (const zone of state.fireZones) {
     drawFireZone(ctx, zone);
   }
@@ -635,8 +641,17 @@ function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
 
   const { x, y } = tank.pos;
   const r = TANK_RADIUS;
-  const primary = tank.isPlayer ? C.PLAYER : C.ENEMY;
-  const dark = tank.isPlayer ? C.PLAYER_DARK : C.ENEMY_DARK;
+  const isBoss = !tank.isPlayer && tank.maxHp > 200;
+  const primary = tank.isPlayer ? C.PLAYER : (isBoss ? '#ffaa33' : C.ENEMY);
+  const dark = tank.isPlayer ? C.PLAYER_DARK : (isBoss ? '#cc7700' : C.ENEMY_DARK);
+
+  // Boss glow
+  if (isBoss) {
+    ctx.fillStyle = 'rgba(255,170,50,0.15)';
+    ctx.beginPath();
+    ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
   const chassisId = tank.config.chassis.id;
   const turretId = tank.config.turret.id;
   const barrelId = tank.config.barrel.id;
@@ -714,6 +729,31 @@ function drawPlane(ctx: CanvasRenderingContext2D, p: Plane): void {
   ctx.stroke();
   ctx.fillStyle = '#667766';
   ctx.fillRect(-2, -10, 6, 20);
+  ctx.restore();
+}
+
+function drawDamageNumber(ctx: CanvasRenderingContext2D, n: DamageNumber): void {
+  if (!n.alive) return;
+  const alpha = n.life / n.maxLife;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = n.color;
+  ctx.font = `bold ${12 + (1-n.life)*6}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`-${n.value}`, n.pos.x, n.pos.y);
+  ctx.globalAlpha = 1;
+}
+
+function drawWaveAnnouncement(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.waveAnnouncementTime <= 0 || !state.waveAnnouncement) return;
+  const alpha = Math.min(1, state.waveAnnouncementTime / 0.5);
+  const scale = 1 + (1 - Math.min(1, state.waveAnnouncementTime)) * 0.3;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${Math.round(24 * scale)}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(state.waveAnnouncement, MAP_W / 2, MAP_H / 2 - 40);
   ctx.restore();
 }
 
