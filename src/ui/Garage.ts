@@ -21,6 +21,13 @@ export interface GarageState {
   activeType: PartType;
   /** Part ID being inspected (shows tooltip) */
   detailPartId: string | null;
+  /** Practice mode */
+  practiceMode: boolean;
+  practicePlayerX: number; practicePlayerY: number;
+  practicePlayerDir: number; practiceTurretAngle: number;
+  practiceEnemyHp: number;
+  practiceBullets: { x: number; y: number; vx: number; vy: number; alive: boolean; bounced: number }[];
+  practiceMsg: string;
 }
 
 export function createGarageState(inventory: Inventory): GarageState {
@@ -38,6 +45,12 @@ export function createGarageState(inventory: Inventory): GarageState {
     visible: false,
     activeType: 'barrel',
     detailPartId: null,
+    practiceMode: false,
+    practicePlayerX: 0, practicePlayerY: 0,
+    practicePlayerDir: 0, practiceTurretAngle: 0,
+    practiceEnemyHp: 100,
+    practiceBullets: [],
+    practiceMsg: '',
   };
 
   state.assemblyResult = tryAssemble(
@@ -209,14 +222,31 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   roundRect(ctx, previewX, previewY, previewW, previewH, 6);
   ctx.fill();
 
-  // Draw mini tank preview
-  if (garage.assemblyResult.valid && garage.assemblyResult.config) {
-    drawTankPreview(ctx, previewX + previewW / 2, previewY + previewH / 2, garage.assemblyResult.config);
-  } else {
-    ctx.fillStyle = '#555';
-    ctx.font = '14px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('请完成零件选择', previewX + previewW / 2, previewY + previewH / 2);
+  // Practice button (top right of preview)
+  const practiceBtnW = 70, practiceBtnH = 22;
+  const pBtnX = previewX + previewW - practiceBtnW - 6;
+  const pBtnY = previewY + 4;
+  ctx.fillStyle = garage.practiceMode ? '#4a7a4a' : '#3a4a5a';
+  ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+  roundRect(ctx, pBtnX, pBtnY, practiceBtnW, practiceBtnH, 4);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(garage.practiceMode ? '⏹ 结束' : '🎯 演习', pBtnX + practiceBtnW / 2, pBtnY + practiceBtnH / 2);
+
+  if (garage.practiceMode && garage.assemblyResult.valid) {
+    drawPracticeArena(ctx, previewX, previewY, previewW, previewH, garage);
+  } else if (!garage.practiceMode) {
+    // Normal tank preview
+    if (garage.assemblyResult.valid && garage.assemblyResult.config) {
+      drawTankPreview(ctx, previewX + previewW / 2, previewY + previewH / 2, garage.assemblyResult.config);
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.font = '14px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('请完成零件选择', previewX + previewW / 2, previewY + previewH / 2);
+    }
   }
 
   // Tank stats
@@ -241,6 +271,178 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   // Back button only (save/load via top bar slots)
   const btnY = h - 50;
   drawButton(ctx, { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32, label: '← 返回大厅', color: '#444' });
+}
+
+// ============================================================
+// Practice arena
+// ============================================================
+
+function drawPracticeArena(
+  ctx: CanvasRenderingContext2D, px: number, py: number, pw: number, ph: number,
+  garage: GarageState,
+): void {
+  // Init practice state once
+  if (garage.practicePlayerX === 0) {
+    garage.practicePlayerX = px + pw * 0.25;
+    garage.practicePlayerY = py + ph * 0.5;
+    garage.practicePlayerDir = 0;
+    garage.practiceTurretAngle = 0;
+    garage.practiceEnemyHp = 100;
+    garage.practiceBullets = [];
+  }
+
+  // Draw arena bg
+  ctx.fillStyle = '#1a1d15';
+  ctx.fillRect(px, py, pw, ph);
+
+  // Draw bricks (test row)
+  for (let i = 0; i < 6; i++) {
+    const bx = px + pw * 0.35 + i * 22;
+    const by = py + ph * 0.65;
+    ctx.fillStyle = '#8B7355';
+    ctx.strokeStyle = '#6B5335'; ctx.lineWidth = 1;
+    roundRect(ctx, bx, by, 18, 14, 2);
+    ctx.fill(); ctx.stroke();
+  }
+
+  // Stationary enemy tank
+  const ex = px + pw * 0.75, ey = py + ph * 0.35;
+  if (garage.practiceEnemyHp > 0) {
+    const er = 14;
+    ctx.fillStyle = '#ff6b4a'; ctx.strokeStyle = '#cc4422'; ctx.lineWidth = 1.5;
+    roundRect(ctx, ex - er, ey - er * 0.6, er * 2, er * 1.2, 4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#882222';
+    ctx.fillRect(ex + er * 0.3, ey - 3, er * 1.1, 6);
+    // HP bar
+    ctx.fillStyle = '#333';
+    ctx.fillRect(ex - er, ey - er - 10, er * 2, 3);
+    ctx.fillStyle = '#ff4444';
+    ctx.fillRect(ex - er, ey - er - 10, er * 2 * (garage.practiceEnemyHp / 100), 3);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎯 靶子', ex, ey - er - 14);
+  }
+
+  // Player tank
+  const pr = 14, ppx = garage.practicePlayerX, ppy = garage.practicePlayerY;
+  ctx.save(); ctx.translate(ppx, ppy);
+  // Body
+  ctx.fillStyle = '#4a9eff'; ctx.strokeStyle = '#2a6ecc'; ctx.lineWidth = 1.5;
+  roundRect(ctx, -pr, -pr * 0.6, pr * 2, pr * 1.2, 4);
+  ctx.fill(); ctx.stroke();
+  // Turret
+  ctx.rotate(garage.practiceTurretAngle);
+  ctx.fillStyle = '#88bbee';
+  ctx.beginPath(); ctx.arc(0, 0, pr * 0.5, 0, Math.PI * 2); ctx.fill();
+  // Barrel
+  ctx.fillStyle = '#556677';
+  ctx.fillRect(pr * 0.3, -3, pr * 1.2, 6);
+  ctx.restore();
+
+  // Draw practice bullets
+  for (const b of garage.practiceBullets) {
+    if (!b.alive) continue;
+    ctx.fillStyle = '#ffcc44';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Control hint
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('WASD移动 鼠标瞄准 左键射击 E技能(无CD)', px + pw / 2, py + ph - 8);
+
+  // Message
+  if (garage.practiceMsg) {
+    ctx.fillStyle = '#ffcc44';
+    ctx.font = 'bold 14px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(garage.practiceMsg, px + pw / 2, py + ph / 2 - 30);
+  }
+}
+
+export function hitTestPracticeButton(px: number, py: number, garage: GarageState): boolean {
+  if (!garage.assemblyResult.valid) return false;
+  const previewX = CENTER_X, previewY = 46;
+  const previewW = CENTER_W;
+  const btnW = 70, btnH = 22;
+  const bx = previewX + previewW - btnW - 6;
+  const by = previewY + 4;
+  return px >= bx && px <= bx + btnW && py >= by && py <= by + btnH;
+}
+
+export function isPracticeMode(garage: GarageState): boolean {
+  return garage.practiceMode;
+}
+
+export function updatePracticeMode(garage: GarageState, input: { getMoveDir: () => {x:number;y:number}; mousePos: {x:number;y:number}; isMouseDown: () => boolean; isFirePressed: () => boolean; wasJustPressed: (k: string) => boolean }): void {
+  if (!garage.practiceMode) return;
+
+  // Movement
+  const md = input.getMoveDir();
+  const speed = 120;
+  garage.practicePlayerX += md.x * speed * 0.016;
+  garage.practicePlayerY += md.y * speed * 0.016;
+  // Clamp to arena
+  const px = CENTER_X, py = 46, pw = CENTER_W, ph = 640 - 160;
+  garage.practicePlayerX = Math.max(px + 20, Math.min(px + pw - 20, garage.practicePlayerX));
+  garage.practicePlayerY = Math.max(py + 20, Math.min(py + ph - 20, garage.practicePlayerY));
+
+  if (md.x !== 0 || md.y !== 0) garage.practicePlayerDir = Math.atan2(md.y, md.x);
+
+  // Turret follows mouse
+  const mx = input.mousePos.x, my = input.mousePos.y;
+  garage.practiceTurretAngle = Math.atan2(my - garage.practicePlayerY, mx - garage.practicePlayerX);
+
+  // Skill (E, no cooldown)
+  if (input.wasJustPressed('KeyE')) {
+    garage.practiceEnemyHp = Math.max(0, garage.practiceEnemyHp - 40);
+    garage.practiceMsg = garage.practiceEnemyHp <= 0 ? '💀 击杀!' : '⚡ 技能!';
+    setTimeout(() => { garage.practiceMsg = ''; }, 1000);
+  }
+
+  // Fire
+  if (input.isMouseDown() || input.isFirePressed()) {
+    const speed = 400;
+    const angle = garage.practiceTurretAngle;
+    garage.practiceBullets.push({
+      x: garage.practicePlayerX + Math.cos(angle) * 16,
+      y: garage.practicePlayerY + Math.sin(angle) * 16,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alive: true, bounced: 0,
+    });
+  }
+
+  // Update bullets
+  for (const b of garage.practiceBullets) {
+    if (!b.alive) continue;
+    b.x += b.vx * 0.016;
+    b.y += b.vy * 0.016;
+    // Bounce off arena walls
+    if (b.x < px + 4 || b.x > px + pw - 4) { b.vx *= -1; b.bounced++; }
+    if (b.y < py + 4 || b.y > py + ph - 4) { b.vy *= -1; b.bounced++; }
+    if (b.bounced > 2) { b.alive = false; continue; }
+    // Out of bounds
+    if (b.x < px - 20 || b.x > px + pw + 20 || b.y < py - 20 || b.y > py + ph + 20) b.alive = false;
+    // Hit enemy
+    const ex = px + CENTER_W * 0.75, ey = py + (640 - 160) * 0.35;
+    if (garage.practiceEnemyHp > 0 && Math.hypot(b.x - ex, b.y - ey) < 16) {
+      b.alive = false;
+      const cfg = garage.assemblyResult.config!;
+      const dmg = (cfg.barrel.stats.bulletDamage ?? 35) * 2;
+      garage.practiceEnemyHp = Math.max(0, garage.practiceEnemyHp - dmg);
+      if (garage.practiceEnemyHp <= 0) {
+        garage.practiceMsg = '💀 击杀! 演习成功!';
+        setTimeout(() => { garage.practiceEnemyHp = 100; garage.practiceMsg = ''; }, 1500);
+      }
+    }
+  }
+  // Limit bullets
+  if (garage.practiceBullets.length > 30) garage.practiceBullets = garage.practiceBullets.slice(-20);
 }
 
 // ============================================================

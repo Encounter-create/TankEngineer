@@ -19,6 +19,9 @@ import {
   applyBuildSlot,
   saveToBuildSlot,
   getBuildSlotHitIndex,
+  hitTestPracticeButton,
+  isPracticeMode,
+  updatePracticeMode,
 } from './ui/Garage';
 import {
   ShopUIState,
@@ -223,7 +226,24 @@ function updateLobby(): void {
 // ============================================================
 
 function updateGarage(): void {
+  // Practice mode: handle input exclusively
+  if (isPracticeMode(app.garage)) {
+    updatePracticeMode(app.garage, input);
+    if (input.isMouseJustPressed() && hitTestPracticeButton(input.mousePos.x, input.mousePos.y, app.garage)) {
+      app.garage.practiceMode = false;
+      app.garage.practiceBullets = [];
+    }
+    return;
+  }
+
   if (input.isMouseJustPressed()) {
+    // Practice button
+    if (hitTestPracticeButton(input.mousePos.x, input.mousePos.y, app.garage)) {
+      app.garage.practiceMode = true;
+      app.garage.practicePlayerX = 0; // reset position
+      app.garage.practiceEnemyHp = 100;
+      return;
+    }
     // Back button
     if (hitTestGarageButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
       app.screen = 'lobby'; return;
