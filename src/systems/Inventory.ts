@@ -9,6 +9,7 @@ export interface InventoryData {
 }
 
 const STORAGE_KEY = 'tank_engineer_inventory';
+const DATA_VERSION = 2; // bump when adding new parts to force refresh
 
 function defaultInventory(): InventoryData {
   return {
@@ -54,13 +55,14 @@ export class Inventory {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Validate critical fields to prevent corruption crash
+        // Check version — if outdated, reset to defaults
+        if (parsed.version !== DATA_VERSION) return defaultInventory();
+        // Validate critical fields
         if (
           typeof parsed.gold === 'number' &&
           Array.isArray(parsed.ownedPartIds) &&
           Array.isArray(parsed.shopPartIds)
         ) {
-          // Merge: keep old data but also include all default parts (catches new parts added in updates)
           const defaults = defaultInventory();
           const mergedIds = [...new Set([...defaults.ownedPartIds, ...parsed.ownedPartIds])];
           return { ...defaults, ...parsed, ownedPartIds: mergedIds };
@@ -74,7 +76,8 @@ export class Inventory {
 
   save(): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      const toSave = { ...this.data, version: DATA_VERSION };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch {
       // storage full or unavailable - silently fail
     }
