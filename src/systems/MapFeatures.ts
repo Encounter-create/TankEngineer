@@ -31,15 +31,21 @@ export function applyTerrainEffects(
     }
   }
 
+  // Ice: lock direction + speed on entry, no steering possible
   if (tile.type === TileType.ICE) {
-    // Ice: no friction, slide continuously in locked direction
-    if (tank.vel.mag() < 2) {
-      tank.vel = Vec2.zero();
-    } else {
-      // Lock direction and maintain speed (even slightly accelerate)
-      tank.vel = Vec2.fromAngle(tank.dir, tank.vel.mag() * 1.005);
-      tank.dir = Math.atan2(tank.vel.y, tank.vel.x);
+    if (!(tank as any).iceDir) {
+      // First frame on ice: lock current speed and direction
+      (tank as any).iceDir = tank.vel.mag() > 10 ? tank.dir : null;
+      (tank as any).iceSpeed = tank.vel.mag() > 10 ? tank.vel.mag() : 0;
     }
+    if ((tank as any).iceSpeed > 0 && (tank as any).iceDir != null) {
+      tank.vel = Vec2.fromAngle((tank as any).iceDir, (tank as any).iceSpeed);
+      tank.dir = (tank as any).iceDir;
+    }
+  } else {
+    // Exit ice: clear locked direction
+    (tank as any).iceDir = null;
+    (tank as any).iceSpeed = 0;
   }
 }
 

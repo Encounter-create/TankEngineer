@@ -33,8 +33,9 @@ export function checkTileCollision(pos: Vec2, radius: number, map: TileGrid): Co
       const tile = map[ty][tx];
       if (tile.type === TileType.EMPTY) continue;
       if (tile.type === TileType.BRICK && tile.hp <= 0) continue;
-      // Water/Grass/Ice don't block bullets — Barrel DOES block (triggers explosion)
-      if (tile.type === TileType.WATER || tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
+      // Water blocks tanks AND bullets (tanks stop at edge)
+      // Grass/Ice pass for both
+      if (tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
       const tl = tx * CELL_SIZE, tt = ty * CELL_SIZE;
       const tr = tl + CELL_SIZE, tb = tt + CELL_SIZE;
       const closestX = Math.max(tl, Math.min(pos.x, tr));
@@ -352,6 +353,8 @@ export function moveBullet(
     const col = checkTileCollision(nextPos, BULLET_RADIUS, map);
     if (col.hit) {
       const gx = col.tileX, gy = col.tileY;
+      // Water: bullets fly over (tanks blocked by water collision above)
+      if (col.tileType === TileType.WATER) { bullet.pos = nextPos; return { hitWall: false, hitTileX: -1, hitTileY: -1 }; }
       // Rocket blows up on any wall hit
       if (bullet.style === 'rocket') {
         bullet.alive = false; bullet.pos = nextPos;
@@ -387,9 +390,9 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Barrel: explode on bullet hit, disappears after one use
-      if (col.tileType === TileType.BARREL) {
-        map[gy][gx].hp = 0; map[gy][gx].type = TileType.EMPTY;
+      // Barrel: bullet triggers explosion (returns hit so Siege can spawn fire zone)
+      if (col.tileType === TileType.BARREL && map[gy][gx].hp > 0) {
+        map[gy][gx].hp = 0;
         bullet.alive = false; bullet.pos = nextPos;
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }

@@ -1179,6 +1179,21 @@ function handleBullets(state: SiegeState, dt: number): void {
       if (bullet.style === 'rocket') {
         explodeRocket(bullet, state);
       } else {
+        // Barrel explosion
+        const gx2 = result.hitTileX, gy2 = result.hitTileY;
+        if (gx2 >= 0 && gy2 >= 0 && state.map[gy2]?.[gx2]?.type === TileType.BARREL) {
+          state.map[gy2][gx2] = { type: TileType.EMPTY, hp: 0 };
+          state.fireZones.push(createFireZone(bullet.pos, 55, 3, 25));
+          state.particles.push(...spawnParticles(bullet.pos, 'explosion', 18, 150));
+          playExplosion(); state.screenShake = 8;
+          for (const enemy of state.enemies) {
+            if (!enemy.alive) continue;
+            if (enemy.pos.dist(bullet.pos) < 60) {
+              takeDamage(enemy, 40);
+              if (!enemy.alive) onEnemyKilled(state, enemy, 1);
+            }
+          }
+        }
         state.particles.push(...spawnParticles(bullet.pos, 'impact', 10, 100));
         playHitWall();
       }
