@@ -407,7 +407,7 @@ export function moveBullet(
           bullet.vel = bullet.vel.sub(col.normal.scale(impulse / bullet.mass));
           bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
           // Convert brick to PhysicsBlock with post-collision velocity + remaining HP
-          const blockVel = col.normal.scale(-brickSpeed);
+          const blockVel = col.normal.scale(brickSpeed); // brickSpeed already has correct sign from impulse
           const remainingHp = map[gy][gx].hp;
           const block = createPhysicsBlock(tileCenter, blockVel, TileType.BRICK, remainingHp);
           block.chainLength = 0;
