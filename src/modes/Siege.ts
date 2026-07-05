@@ -1004,6 +1004,11 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Update movement + friction
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
+    // Water: check BEFORE moving (same as tanks — don't enter)
+    const nextBg = pixelToGrid(block.pos.x + block.vel.x * dt, block.pos.y + block.vel.y * dt);
+    if (nextBg && inBounds(nextBg.x, nextBg.y) && state.map[nextBg.y]?.[nextBg.x]?.type === TileType.WATER) {
+      block.vel = Vec2.zero();
+    }
     const bg = pixelToGrid(block.pos.x, block.pos.y);
     const onIce = bg && inBounds(bg.x, bg.y) && state.map[bg.y]?.[bg.x]?.type === TileType.ICE;
     if (!onIce) updatePhysicsBlock(block, dt, state.frictionMul);
