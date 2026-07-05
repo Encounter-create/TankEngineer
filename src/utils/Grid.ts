@@ -22,7 +22,7 @@ export function createEmptyTile(): Tile {
 }
 
 export function createBrickTile(): Tile {
-  return { type: TileType.BRICK, hp: 50 }; // 50 HP, bullets chip away
+  return { type: TileType.BRICK, hp: 500 }; // 500 HP — brick is primarily for bouncing/knocking
 }
 
 export function createMetalTile(): Tile {

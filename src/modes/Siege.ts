@@ -500,7 +500,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
               const tx = gx * CELL_SIZE + CELL_SIZE / 2;
               const ty = gy * CELL_SIZE + CELL_SIZE / 2;
               if (Math.hypot(tx - state.player.pos.x, ty - state.player.pos.y) < 150) {
-                state.map[gy][gx] = { type: TileType.BRICK, hp: 50 };
+                state.map[gy][gx] = { type: TileType.BRICK, hp: 500 };
                 count++;
               }
             }
