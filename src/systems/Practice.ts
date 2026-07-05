@@ -63,60 +63,55 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     ps.skillMessage = r.message; ps.skillMessageTime = 2;
   }
 
-  // Bullets with type-specific handling (rocket, firework, orbital, arc)
+  // Bullets — same handling as Siege.ts
   const newBullets: BulletEntity[] = [];
   for (const b of ps.bullets) {
     if (!b.alive) continue;
 
-    // Rocket flies straight in firing direction (no homing in practice)
+    // Rocket: steer toward enemy
+    if (b.style === 'rocket') {
+      const toTarget = ps.enemy.pos.sub(b.pos);
+      if (toTarget.mag() > 1) b.vel = toTarget.norm().scale(b.vel.mag());
+    }
 
-    // Firework: periodic child spawn + lifetime
+    // Firework
     if (b.style === 'firework') {
-      b.fireworkTimer -= dt;
-      b.fireworkLife -= dt;
-      if (b.fireworkLife <= 0) { b.alive = false; continue; }
+      if (b.fireworkLife === 0) b.fireworkLife = FIREWORK_MAX_LIFE;
+      b.fireworkTimer -= dt; b.fireworkLife -= dt;
+      if (b.fireworkLife <= 0) { b.alive = false; ps.particles.push(...spawnExplosion(b.pos)); continue; }
       if (b.fireworkTimer <= 0) {
         b.fireworkTimer = FIREWORK_INTERVAL;
-        for (let i = 0; i < FIREWORK_CHILD_COUNT; i++) {
-          const a = (Math.PI * 2 / FIREWORK_CHILD_COUNT) * i;
-          newBullets.push(createBullet(b.pos, a, 'straight', 110, 7, 0, 0, b.ownerId, b.isPlayerBullet));
-        }
+        for (let i = 0; i < FIREWORK_CHILD_COUNT; i++)
+          newBullets.push(createBullet(b.pos, (Math.PI*2/FIREWORK_CHILD_COUNT)*i, 'straight', 110, 7, 0, 0, b.ownerId, b.isPlayerBullet));
       }
     }
 
-    // Orbital: update rotation
-    if (b.style === 'orbital') {
-      b.orbitalAngle += dt * 14;
+    // Orbital
+    if (b.style === 'orbital') b.orbitalAngle += dt * 14;
+
+    // Arc: gravity + damage doubling
+    if (b.style === 'arc') {
+      b.arcVy += 600 * dt;
+      if (!b.arcDescending && b.arcVy > 0) { b.arcDescending = true; b.damage = Math.round(b.damage * 2); }
     }
 
     const hitResult = moveBullet(b, dt, ps.map, ps.blocks);
 
-    // Rocket hit wall → fire zone + particles
+    // Rocket hit wall → explode
     if (b.style === 'rocket' && hitResult.hitWall) {
       ps.fireZones.push(createFireZone(b.pos, 40, 2, 15));
       ps.particles.push(...spawnExplosion(b.pos));
+      b.alive = false; ps.particles.push(...spawnParticles(b.pos, 'impact', 6, 60));
     }
-
     if (!b.alive) continue;
 
-    // Hit enemy
+    // Hit enemy (with knockback matching Siege)
     if (ps.enemy.alive && b.isPlayerBullet && checkBulletTankHit(b, ps.enemy)) {
-      takeDamage(ps.enemy, b.damage);
-      ps.particles.push(...spawnParticles(b.pos, 'hit', 8, 80));
-      b.alive = false;
-      if (!ps.enemy.alive) {
-        ps.particles.push(...spawnExplosion(ps.enemy.pos));
-      }
-      // Rocket explosion
-      if (b.style === 'rocket') {
-        ps.fireZones.push(createFireZone(b.pos, 40, 2, 15));
-        takeDamage(ps.enemy, 40);
-      }
+      takeDamage(ps.enemy, b.damage); ps.particles.push(...spawnParticles(b.pos, 'hit', 8, 80)); b.alive = false;
+      if (!ps.enemy.alive) ps.particles.push(...spawnExplosion(ps.enemy.pos));
+      if (b.style === 'rocket') { ps.fireZones.push(createFireZone(b.pos, 40, 2, 15)); takeDamage(ps.enemy, 40); }
     }
-    // Hit wall → impact particles
-    if (!b.alive) {
-      ps.particles.push(...spawnParticles(b.pos, 'impact', 6, 60));
-    }
+    if (!b.alive) ps.particles.push(...spawnParticles(b.pos, 'impact', 6, 60));
   }
   for (const nb of newBullets) ps.bullets.push(nb);
   ps.bullets = ps.bullets.filter(b => b.alive);
