@@ -131,8 +131,9 @@ export function moveTank(
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       tank.pos = clampToMapBounds(slidePos);
     } else if (col.tileType === TileType.WATER) {
-      // Water: just stop, no bounce, no tile conversion
-      tank.vel = Vec2.zero();
+      // Water: stop only if moving into it, allow moving away
+      const vn = tank.vel.dot(col.normal);
+      if (vn < 0) tank.vel = Vec2.zero(); // only stop approaching
     } else if (col.tileType === TileType.BRICK || col.tileType === TileType.METAL || col.tileType === TileType.BARREL) {
       // Bricks, metal and barrels: momentum transfer → create PhysicsBlock
       const normal = col.normal;
@@ -179,9 +180,10 @@ export function resolveBlockWallCollisions(
     const col = checkTileCollision(block.pos, block.radius, map);
     if (!col.hit) continue;
 
-    // Water: stop block, no push
+    // Water: stop block only if approaching, allow moving away
     if (col.tileType === TileType.WATER) {
-      block.vel = Vec2.zero();
+      const vn = block.vel.dot(col.normal);
+      if (vn < 0) block.vel = Vec2.zero();
       continue;
     }
 
