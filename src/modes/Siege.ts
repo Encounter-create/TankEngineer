@@ -1149,6 +1149,17 @@ function handleBullets(state: SiegeState, dt: number): void {
     }
     if (hitBlock) continue;
 
+    // Command center collision (solid, blocks bullets, takes damage)
+    const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    if (Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
+      state.commandCenterHp -= bullet.damage;
+      state.particles.push(...spawnParticles(bullet.pos, 'impact', 8, 80));
+      playHitWall();
+      bullet.alive = false;
+      continue;
+    }
+
     // Magnetic modifier: enemy bullets home toward player
     if (!bullet.isPlayerBullet && state.activeModifiers.some(m => m.id === 'magnetic')) {
       const toPlayer = state.player.pos.sub(bullet.pos);

@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, TileType, inBounds, MAP_W, MAP_H, pixelToGrid } from '../utils/Grid';
+import { CELL_SIZE, TileType, inBounds, MAP_W, MAP_H, MAP_COLS, MAP_ROWS, pixelToGrid } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
 import {
   TankEntity, TANK_RADIUS,
@@ -90,6 +90,16 @@ export function moveTank(
       const ns = Math.max(0, s - decel);
       tank.vel = ns < MIN_SPEED ? Vec2.zero() : tank.vel.norm().scale(ns);
     }
+  }
+
+  // Command center collision (solid circle, blocks everything)
+  const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+  const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+  const ccR = CELL_SIZE * 1.5;
+  const toCc = tank.pos.sub(new Vec2(ccX, ccY));
+  if (toCc.mag() < TANK_RADIUS + ccR) {
+    tank.vel = Vec2.zero();
+    tank.pos = tank.pos.add(toCc.norm().scale(TANK_RADIUS + ccR - toCc.mag() + 1));
   }
 
   // Apply velocity
