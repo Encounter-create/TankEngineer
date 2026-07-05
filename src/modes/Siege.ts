@@ -333,9 +333,6 @@ export function updateSiege(
   // Update fire zones
   handleFireZones(state, dt);
 
-  // Check enemies reaching command center (must run before HP check!)
-  handleEnemyReachCenter(state);
-
   // Check command center destroyed
   if (state.commandCenterHp <= 0) {
     endSiege(state, false);
@@ -1336,17 +1333,7 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
 // Command Center
 // ============================================================
 
-function handleEnemyReachCenter(state: SiegeState): void {
-  for (const enemy of state.enemies) {
-    if (!enemy.alive) continue;
-    const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    const dist = enemy.pos.dist(centerPos);
-    if (dist < CELL_SIZE * 2) {
-      // Enemy near command center — deal damage over time (collision blocks entry)
-      state.commandCenterHp -= 10;
-    }
-  }
-}
+// Enemy-CC collision handled by moveTank + bullet-CC in handleBullets
 
 // ============================================================
 // Victory / Defeat
