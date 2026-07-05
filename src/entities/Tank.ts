@@ -55,6 +55,8 @@ export function createTank(
 }
 
 export function takeDamage(tank: TankEntity, rawDamage: number, attacker?: TankEntity): number {
+  // DEBUG: player invincible for testing
+  if (tank.isPlayer) return 0;
   const now = performance.now();
   (tank as any).lastHitAt = now;
 

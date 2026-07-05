@@ -200,7 +200,7 @@ export function updateSiege(
     const boss = createTank(`boss_${Date.now()}`, spit, bossConfig, false);
     boss.hp = boss.maxHp * 2; boss.maxHp = boss.hp;
     state.enemies.push(boss);
-    state.aiContexts.set(boss.id, createAIContext(boss, gridToPixel(Math.floor(MAP_COLS/2), Math.floor(MAP_ROWS/2))));
+    state.aiContexts.set(boss.id, createAIContext(boss, gridToPixel(Math.floor(MAP_COLS/2), Math.floor(MAP_ROWS/2)), 330, 150));
     state.waveAnnouncement = '⚠ WARNING! WARNING! ⚠';
     state.waveAnnouncementTime = 2.5;
   }
@@ -702,7 +702,7 @@ function spawnWave(state: SiegeState, wave: WaveDef, isFinal: boolean = false): 
     state.enemies.push(enemy);
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    state.aiContexts.set(enemy.id, createAIContext(enemy, centerPos, 220, 150));
+    state.aiContexts.set(enemy.id, createAIContext(enemy, centerPos, 330, 150));
   }
 }
 
