@@ -1048,9 +1048,11 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Block ↔ wall (last, after block-block resolved)
   resolveBlockWallCollisions(state.physicsBlocks, state.map, state.physicsBlocks);
 
-  // Freeze stopped blocks at their exact position
+  // Freeze stopped blocks, destroy hp-depleted blocks
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
+    // Destroy blocks with depleted HP
+    if (block.hp <= 0) block.alive = false;
     if (block.vel.mag() < 2) {
       block.vel = Vec2.zero();
     }
