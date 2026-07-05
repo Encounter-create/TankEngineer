@@ -26,7 +26,7 @@ export const BLOCK_RADIUS = CELL_SIZE / 2; // 16px, matches tile size
 export const GROUND_FRICTION = 2.5; // per-second friction factor
 
 export function createPhysicsBlock(
-  pos: Vec2, vel: Vec2, tileType: TileType, hp: number = 0,
+  pos: Vec2, vel: Vec2, tileType: TileType, hp: number = -1,
 ): PhysicsBlock {
   return {
     id: `block_${++blockId}`,

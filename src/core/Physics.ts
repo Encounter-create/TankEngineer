@@ -388,9 +388,9 @@ export function moveBullet(
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp -= bullet.damage;
         const tileCenter = new Vec2((col.tileX + 0.5) * CELL_SIZE, (col.tileY + 0.5) * CELL_SIZE);
-        // Compute momentum transfer along collision normal
+        // Compute momentum transfer along collision normal (vn < 0 = approaching)
         const vn = bullet.vel.dot(col.normal);
-        if (vn > 0) {
+        if (vn < 0) {
           const impulse = 2 * vn / (1 / bullet.mass + 1 / BRICK_MASS);
           const brickSpeed = impulse / BRICK_MASS;
           // Bullet reflects (bounce) AND brick gets pushed (knockback) — same impulse

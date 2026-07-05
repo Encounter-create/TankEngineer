@@ -1051,8 +1051,8 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Freeze stopped blocks, destroy hp-depleted blocks
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
-    // Destroy blocks with depleted HP
-    if (block.hp <= 0) block.alive = false;
+    // Destroy bullet-hit blocks whose HP is depleted (hp != -1 means tracked by bullet system)
+    if (block.hp !== -1 && block.hp <= 0) block.alive = false;
     if (block.vel.mag() < 2) {
       block.vel = Vec2.zero();
     }
