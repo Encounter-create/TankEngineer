@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, TileType, inBounds, MAP_W, MAP_H } from '../utils/Grid';
+import { CELL_SIZE, TileType, inBounds, MAP_W, MAP_H, pixelToGrid } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
 import {
   TankEntity, TANK_RADIUS,
@@ -33,9 +33,8 @@ export function checkTileCollision(pos: Vec2, radius: number, map: TileGrid): Co
       const tile = map[ty][tx];
       if (tile.type === TileType.EMPTY) continue;
       if (tile.type === TileType.BRICK && tile.hp <= 0) continue;
-      // Water blocks tanks AND bullets (tanks stop at edge)
-      // Grass/Ice pass for both
-      if (tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
+      // Water/Grass/Ice pass for both tanks and bullets (water handled separately)
+      if (tile.type === TileType.WATER || tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
       const tl = tx * CELL_SIZE, tt = ty * CELL_SIZE;
       const tr = tl + CELL_SIZE, tb = tt + CELL_SIZE;
       const closestX = Math.max(tl, Math.min(pos.x, tr));
@@ -155,11 +154,24 @@ export function moveTank(
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       const sc = checkTileCollision(clampToMapBounds(slidePos), TANK_RADIUS, map);
       if (!sc.hit) tank.pos = clampToMapBounds(slidePos);
-    } else if (col.tileType === TileType.WATER) {
-      // Water: just stop, no bounce
-      tank.vel = Vec2.zero();
+  }
+
+  // Water tank detection (water passes through checkTileCollision, so check grid here)
+  const tGrid = pixelToGrid(tank.pos.x, tank.pos.y);
+  if (tGrid && inBounds(tGrid.x, tGrid.y) && map[tGrid.y][tGrid.x].type === TileType.WATER) {
+    tank.vel = Vec2.zero();
+    // Push tank back to nearest non-water
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = tGrid.x + dx, ny = tGrid.y + dy;
+        if (!inBounds(nx, ny)) continue;
+        if (map[ny][nx].type !== TileType.WATER) {
+          tank.pos = tank.pos.add(new Vec2(dx * 12, dy * 12));
+          return;
+        }
+      }
     }
-    // Other solids just block movement
+  }
   }
 }
 
@@ -175,10 +187,9 @@ export function resolveBlockWallCollisions(
     const col = checkTileCollision(block.pos, block.radius, map);
     if (!col.hit) continue;
 
-    // Water: stop block, no tile conversion
+    // Water: stop block, no push
     if (col.tileType === TileType.WATER) {
       block.vel = Vec2.zero();
-      block.pos = block.pos.add(col.normal.scale(block.radius + 1));
       continue;
     }
 
@@ -348,8 +359,6 @@ export function moveBullet(
     const col = checkTileCollision(nextPos, BULLET_RADIUS, map);
     if (col.hit) {
       const gx = col.tileX, gy = col.tileY;
-      // Water: bullets fly over (tanks blocked by water collision above)
-      if (col.tileType === TileType.WATER) { bullet.pos = nextPos; return { hitWall: false, hitTileX: -1, hitTileY: -1 }; }
       // Rocket blows up on any wall hit
       if (bullet.style === 'rocket') {
         bullet.alive = false; bullet.pos = nextPos;

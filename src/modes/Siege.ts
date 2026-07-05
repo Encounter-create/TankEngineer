@@ -1004,15 +1004,14 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Update movement + friction
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
-    updatePhysicsBlock(block, dt, state.frictionMul);
-    block.pos = block.pos.add(block.vel.scale(dt));
-    // Ice effect for blocks
+    // Check if on ice (skip friction)
     const bg = pixelToGrid(block.pos.x, block.pos.y);
-    if (bg && inBounds(bg.x, bg.y) && state.map[bg.y]?.[bg.x]?.type === TileType.ICE) {
-      if (block.vel.mag() > 5) {
-        const a = Math.atan2(block.vel.y, block.vel.x);
-        block.vel = Vec2.fromAngle(a, block.vel.mag() * 1.005);
-      }
+    const onIce = bg && inBounds(bg.x, bg.y) && state.map[bg.y]?.[bg.x]?.type === TileType.ICE;
+    if (!onIce) updatePhysicsBlock(block, dt, state.frictionMul);
+    block.pos = block.pos.add(block.vel.scale(dt));
+    // Ice: lock direction, no deceleration
+    if (onIce && block.vel.mag() > 5) {
+      block.vel = Vec2.fromAngle(Math.atan2(block.vel.y, block.vel.x), block.vel.mag());
     }
     // Clamp to map
     const r = block.radius;
