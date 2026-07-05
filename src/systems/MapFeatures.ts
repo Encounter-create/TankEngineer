@@ -16,17 +16,30 @@ export function applyTerrainEffects(
   if (!tile) return;
 
   if (tile.type === TileType.WATER) {
-    // Stop the tank — no bouncing
+    // Water: push tank back to previous position + stop velocity
     tank.vel = Vec2.zero();
+    // Find nearest non-water cell and push toward it
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = g.x + dx, ny = g.y + dy;
+        if (!inBounds(nx, ny)) continue;
+        if (map[ny][nx].type !== TileType.WATER) {
+          tank.pos = tank.pos.add(new Vec2(dx * 8, dy * 8));
+          return;
+        }
+      }
+    }
   }
 
   if (tile.type === TileType.ICE) {
-    // Lock direction: keep moving straight in current heading
-    if (tank.vel.mag() > 5) {
-      tank.vel = Vec2.fromAngle(tank.dir, tank.vel.mag());
+    // Ice: no friction, slide continuously in locked direction
+    if (tank.vel.mag() < 2) {
+      tank.vel = Vec2.zero();
+    } else {
+      // Lock direction and maintain speed (even slightly accelerate)
+      tank.vel = Vec2.fromAngle(tank.dir, tank.vel.mag() * 1.005);
+      tank.dir = Math.atan2(tank.vel.y, tank.vel.x);
     }
-    // VERY low friction
-    if (tank.vel.mag() < 2) tank.vel = Vec2.zero();
   }
 }
 

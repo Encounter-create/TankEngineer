@@ -33,8 +33,8 @@ export function checkTileCollision(pos: Vec2, radius: number, map: TileGrid): Co
       const tile = map[ty][tx];
       if (tile.type === TileType.EMPTY) continue;
       if (tile.type === TileType.BRICK && tile.hp <= 0) continue;
-      // Water, grass, ice don't block bullets
-      if (tile.type === TileType.WATER || tile.type === TileType.GRASS || tile.type === TileType.ICE || tile.type === TileType.BARREL) continue;
+      // Water/Grass/Ice don't block bullets — Barrel DOES block (triggers explosion)
+      if (tile.type === TileType.WATER || tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
       const tl = tx * CELL_SIZE, tt = ty * CELL_SIZE;
       const tr = tl + CELL_SIZE, tb = tt + CELL_SIZE;
       const closestX = Math.max(tl, Math.min(pos.x, tr));
