@@ -319,6 +319,16 @@ export function updateSiege(
   // Check enemies reaching command center (must run before HP check!)
   handleEnemyReachCenter(state);
 
+  // Safety: clean up any brick tiles with hp <= 0 (turn to EMPTY)
+  for (let gy = 0; gy < MAP_ROWS; gy++) {
+    for (let gx = 0; gx < MAP_COLS; gx++) {
+      const t = state.map[gy][gx];
+      if (t.type === TileType.BRICK && t.hp <= 0) {
+        state.map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+      }
+    }
+  }
+
   // Check command center destroyed
   if (state.commandCenterHp <= 0) {
     endSiege(state, false);
