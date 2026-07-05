@@ -131,30 +131,20 @@ export function moveTank(
       // Slide
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       tank.pos = clampToMapBounds(slidePos);
-    } else {
-      // Map wall collision (momentum transfer to tile)
+    } else if (col.tileType === TileType.BRICK || col.tileType === TileType.METAL) {
+      // ONLY bricks and metal: momentum transfer → create PhysicsBlock
       const normal = col.normal;
       const velDotNormal = tank.vel.dot(normal);
       if (velDotNormal < 0) {
         const tankMass = tank.config.totalWeight;
         const tileMass = col.tileType === TileType.METAL ? METAL_MASS : BRICK_MASS;
-
-        // Compute post-collision velocities via elastic collision
-        // v1' = (m1-m2)/(m1+m2) * v1 + 2*m2/(m1+m2) * v2  (v2=0)
-        const v1n = -velDotNormal; // impact speed (positive)
+        const v1n = -velDotNormal;
         const v1nPrime = (tankMass - tileMass) / (tankMass + tileMass) * v1n;
         const v2nPrime = 2 * tankMass / (tankMass + tileMass) * v1n;
-
-        // Tank loses normal velocity component, gains back the post-collision value
-        tank.vel = tank.vel.sub(normal.scale(velDotNormal)); // remove old
-        tank.vel = tank.vel.add(normal.scale(-v1nPrime));    // add new (reversed direction)
-
-        // Tile becomes a physics block with the transferred momentum
-        const blockVel = normal.scale(-v2nPrime); // opposite direction
-        const tilePos = new Vec2(
-          (col.tileX + 0.5) * CELL_SIZE,
-          (col.tileY + 0.5) * CELL_SIZE,
-        );
+        tank.vel = tank.vel.sub(normal.scale(velDotNormal));
+        tank.vel = tank.vel.add(normal.scale(-v1nPrime));
+        const blockVel = normal.scale(-v2nPrime);
+        const tilePos = new Vec2((col.tileX + 0.5) * CELL_SIZE, (col.tileY + 0.5) * CELL_SIZE);
         const tileHp = map[col.tileY][col.tileX].hp;
         map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
         const block = createPhysicsBlock(tilePos, blockVel, col.tileType, tileHp);
@@ -162,11 +152,11 @@ export function moveTank(
         block.chainLength = 0;
         newBlocks.push(block);
       }
-      // Slide
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       const sc = checkTileCollision(clampToMapBounds(slidePos), TANK_RADIUS, map);
       if (!sc.hit) tank.pos = clampToMapBounds(slidePos);
     }
+    // Water/Barrel: just stop the tank, no tile conversion
   }
 }
 
