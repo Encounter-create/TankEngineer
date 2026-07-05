@@ -110,7 +110,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
   for (let gy = 0; gy < MAP_ROWS; gy++) {
     for (let gx = 0; gx < MAP_COLS; gx++) {
       const tile = map[gy][gx];
-      if ((tile.type === TileType.BRICK || tile.type === TileType.BARREL) && tile.hp > 0) {
+      if ((tile.type === TileType.BRICK || tile.type === TileType.BARREL || tile.type === TileType.METAL) && tile.hp > 0) {
         const pos = new Vec2((gx + 0.5) * CELL_SIZE, (gy + 0.5) * CELL_SIZE);
         const block = createPhysicsBlock(pos, Vec2.zero(), tile.type, tile.hp);
         initialBlocks.push(block);
@@ -194,6 +194,8 @@ export function updateSiege(
   if (state.phase === 'intro') {
     if (input.isConfirmPressed() || input.isFirePressed()) {
       state.phase = 'playing';
+      // Consume fire input so first frame doesn't auto-shoot
+      state.playerCooldownRemaining = 200;
     }
     return;
   }
