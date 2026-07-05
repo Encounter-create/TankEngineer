@@ -38,6 +38,7 @@ const MAP_LABELS: Record<MapName, string> = {
   spiral: '螺旋',
   icerink: '溜冰场',
   colosseum: '修罗场',
+  testgrounds: '试验场',
 };
 
 const MAP_DESCS: Record<MapName, string> = {
@@ -50,6 +51,7 @@ const MAP_DESCS: Record<MapName, string> = {
   spiral: '螺旋金属阵，弹道轨迹的几何艺术',
   icerink: '冰面零摩擦，方块永动，多米诺骨牌天堂',
   colosseum: '完全空旷，无任何掩体，硬碰硬死斗',
+  testgrounds: '全地形测试: 水域·草丛·冰面·爆桶',
 };
 
 export function renderLobby(

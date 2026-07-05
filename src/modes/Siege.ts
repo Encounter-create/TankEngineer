@@ -19,6 +19,7 @@ import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entitie
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
 import { hasSynergy } from '../systems/Synergy';
+import { applyTerrainEffects } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -221,6 +222,12 @@ export function updateSiege(
 
   // Player firing
   handlePlayerFire(state, input, dt);
+
+  // Terrain: water/ice/grass/barrel effects
+  applyTerrainEffects(state.player, state.map, state.fireZones, state.particles);
+  for (const enemy of state.enemies) {
+    applyTerrainEffects(enemy, state.map, state.fireZones, state.particles);
+  }
 
   // Enemy AI
   handleEnemyAI(state, dt);

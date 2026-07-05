@@ -230,7 +230,7 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
     const mapLabel = {
       classic: '经典防线', arena: '角斗场', maze: '迷宫', crossfire: '交叉火力',
       rivers: '两河流域', fortress: '堡垒', spiral: '螺旋',
-      icerink: '溜冰场', colosseum: '修罗场',
+      icerink: '溜冰场', colosseum: '修罗场', testgrounds: '试验场',
     }[state.mapName] ?? state.mapName;
     drawOverlay(ctx, ['🏰 围城模式', '', `地图: ${mapLabel}`, '保护指挥所，存活 3 分钟', '', '点击屏幕 或 按 Enter/Space 开始']);
   } else if (state.phase === 'victory') {
@@ -433,6 +433,41 @@ function drawMap(ctx: CanvasRenderingContext2D, map: TileGrid): void {
         ctx.moveTo(px + 1, py + CELL_SIZE / 2);
         ctx.lineTo(px + CELL_SIZE - 1, py + CELL_SIZE / 2);
         ctx.stroke();
+      } else if (tile.type === TileType.WATER) {
+        ctx.fillStyle = '#3388aa88';
+        ctx.fillRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        // Wave lines
+        ctx.strokeStyle = '#55aacc66';
+        ctx.lineWidth = 1;
+        for (let wy = 2; wy < CELL_SIZE - 2; wy += 6) {
+          ctx.beginPath(); ctx.moveTo(px + 2, py + wy); ctx.lineTo(px + CELL_SIZE - 2, py + wy); ctx.stroke();
+        }
+      } else if (tile.type === TileType.GRASS) {
+        ctx.fillStyle = '#3a5a2a88';
+        ctx.fillRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        // Grass blades
+        ctx.strokeStyle = '#4a7a3a66';
+        ctx.lineWidth = 1;
+        for (let gx = 4; gx < CELL_SIZE - 2; gx += 8) {
+          ctx.beginPath(); ctx.moveTo(px + gx, py + CELL_SIZE - 4); ctx.lineTo(px + gx + 2, py + 4); ctx.stroke();
+        }
+      } else if (tile.type === TileType.ICE) {
+        ctx.fillStyle = '#cceeff88';
+        ctx.fillRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        ctx.strokeStyle = '#ffffff44';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+      } else if (tile.type === TileType.BARREL) {
+        ctx.fillStyle = tile.hp > 0 ? '#884422' : '#333';
+        ctx.strokeStyle = '#aa6633';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(px + CELL_SIZE/2, py + CELL_SIZE/2, CELL_SIZE/3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        if (tile.hp > 0) {
+          ctx.fillStyle = '#ff0';
+          ctx.font = '8px monospace';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('💣', px + CELL_SIZE/2, py + CELL_SIZE/2);
+        }
       } else if (tile.type === TileType.METAL) {
         ctx.fillStyle = C.METAL;
         ctx.fillRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);

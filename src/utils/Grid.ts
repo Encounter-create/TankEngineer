@@ -8,8 +8,12 @@ export const MAP_H = MAP_ROWS * CELL_SIZE; // 704
 
 export enum TileType {
   EMPTY = 0,
-  BRICK = 1,  // destroyable
-  METAL = 2,  // indestructible, reflects bullets
+  BRICK = 1,   // destroyable (500 HP)
+  METAL = 2,   // indestructible, reflects
+  WATER = 3,   // tanks can't enter, bullets fly over
+  GRASS = 4,   // tanks can enter, hides vision
+  ICE = 5,     // tanks slide with inertia
+  BARREL = 6,  // explodes when hit, AoE damage
 }
 
 export interface Tile {
@@ -26,7 +30,23 @@ export function createBrickTile(): Tile {
 }
 
 export function createMetalTile(): Tile {
-  return { type: TileType.METAL, hp: 200 }; // only sniper (>=500 dmg) can destroy
+  return { type: TileType.METAL, hp: 200 };
+}
+
+export function createWaterTile(): Tile {
+  return { type: TileType.WATER, hp: -1 };
+}
+
+export function createGrassTile(): Tile {
+  return { type: TileType.GRASS, hp: -1 };
+}
+
+export function createIceTile(): Tile {
+  return { type: TileType.ICE, hp: -1 };
+}
+
+export function createBarrelTile(): Tile {
+  return { type: TileType.BARREL, hp: 30 }; // low HP, explodes on destroy
 }
 
 /** Convert pixel position to grid cell coordinate */

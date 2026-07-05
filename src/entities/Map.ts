@@ -1,11 +1,11 @@
-import { Tile, TileType, createEmptyTile, createBrickTile, createMetalTile, MAP_COLS, MAP_ROWS } from '../utils/Grid';
+import { Tile, TileType, createEmptyTile, createBrickTile, createMetalTile, createWaterTile, createGrassTile, createIceTile, createBarrelTile, MAP_COLS, MAP_ROWS } from '../utils/Grid';
 import { rand } from '../utils/Random';
 
 export type TileGrid = Tile[][];
 
-export type MapName = 'classic' | 'arena' | 'maze' | 'crossfire' | 'rivers' | 'fortress' | 'spiral' | 'icerink' | 'colosseum';
+export type MapName = 'classic' | 'arena' | 'maze' | 'crossfire' | 'rivers' | 'fortress' | 'spiral' | 'icerink' | 'colosseum' | 'testgrounds';
 
-export const ALL_MAPS: MapName[] = ['classic', 'arena', 'maze', 'crossfire', 'rivers', 'fortress', 'spiral', 'icerink', 'colosseum'];
+export const ALL_MAPS: MapName[] = ['classic', 'arena', 'maze', 'crossfire', 'rivers', 'fortress', 'spiral', 'icerink', 'colosseum', 'testgrounds'];
 
 export function pickRandomMap(): MapName {
   return rand.pick(ALL_MAPS);
@@ -33,6 +33,7 @@ export function createMap(name: MapName): TileGrid {
     case 'spiral': return createSpiralMap();
     case 'icerink': return createIceRinkMap();
     case 'colosseum': return createColosseumMap();
+    case 'testgrounds': return createTestGroundsMap();
   }
 }
 
@@ -311,6 +312,47 @@ function createColosseumMap(): TileGrid {
   const map = createEmptyMap();
   addBorders(map);
   // Nothing else — pure arena
+  return map;
+}
+
+// ============================================================
+// 10. Test Grounds — all terrain types demo
+// ============================================================
+
+function createTestGroundsMap(): TileGrid {
+  const map = createEmptyMap();
+  addBorders(map);
+  const midX = Math.floor(MAP_COLS / 2);
+  const midY = Math.floor(MAP_ROWS / 2);
+
+  // Water river (vertical)
+  for (let y = 3; y < MAP_ROWS - 3; y++) {
+    map[y][5] = createWaterTile(); map[y][6] = createWaterTile();
+  }
+  // Open bridge at center
+  map[midY][5] = createEmptyTile(); map[midY][6] = createEmptyTile();
+
+  // Grass patches (top-left, bottom-right)
+  for (let x = 12; x < 16; x++) for (let y = 2; y < 6; y++) map[y][x] = createGrassTile();
+  for (let x = 18; x < 22; x++) for (let y = MAP_ROWS - 7; y < MAP_ROWS - 2; y++) map[y][x] = createGrassTile();
+
+  // Ice rink (right side)
+  for (let x = 22; x < 28; x++) for (let y = 4; y < 10; y++) map[y][x] = createIceTile();
+
+  // Barrels scattered
+  const barrelPositions = [[8,4],[8, MAP_ROWS-5],[18,6],[20, MAP_ROWS-6],[14,9],[16, MAP_ROWS-7]];
+  for (const [bx, by] of barrelPositions) map[by][bx] = createBarrelTile();
+
+  // Regular bricks for cover
+  placeBrick(map, midX-2, midY); placeBrick(map, midX+2, midY);
+  placeBrick(map, midX, midY-2); placeBrick(map, midX, midY+2);
+  placeBrick(map, midX-4, midY-3); placeBrick(map, midX+4, midY-3);
+  placeBrick(map, midX-4, midY+3); placeBrick(map, midX+4, midY+3);
+
+  // Metal pillars
+  placeMetal(map, 2, 2); placeMetal(map, MAP_COLS-3, 2);
+  placeMetal(map, 2, MAP_ROWS-3); placeMetal(map, MAP_COLS-3, MAP_ROWS-3);
+
   return map;
 }
 
