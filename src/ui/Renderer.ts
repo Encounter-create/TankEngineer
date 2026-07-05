@@ -58,6 +58,10 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   drawGrid(ctx);
   drawMap(ctx, state.map);
   drawCommandCenter(ctx, state);
+  // U-key debug: brick HP bars
+  if (state.showDebug) {
+    drawBrickHPBars(ctx, state.map);
+  }
   drawTank(ctx, state.player, state);
   // Smoke skill: large obscuring cloud around player
   if (isSmokeActive(state.player)) {
@@ -376,6 +380,23 @@ function drawGrid(ctx: CanvasRenderingContext2D): void {
     ctx.moveTo(0, y * CELL_SIZE);
     ctx.lineTo(MAP_W, y * CELL_SIZE);
     ctx.stroke();
+  }
+}
+
+function drawBrickHPBars(ctx: CanvasRenderingContext2D, map: TileGrid): void {
+  for (let gy = 0; gy < MAP_ROWS; gy++) {
+    for (let gx = 0; gx < MAP_COLS; gx++) {
+      const tile = map[gy][gx];
+      if (tile.type !== TileType.BRICK || tile.hp <= 0) continue;
+      const px = gx * CELL_SIZE, py = gy * CELL_SIZE;
+      const barW = CELL_SIZE - 6, barH = 3;
+      const barX = px + 3, barY = py - 5;
+      const ratio = tile.hp / 50;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = ratio > 0.3 ? '#4ae0a0' : '#ff4444';
+      ctx.fillRect(barX, barY, barW * ratio, barH);
+    }
   }
 }
 
