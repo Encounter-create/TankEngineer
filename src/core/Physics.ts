@@ -383,30 +383,16 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Bounce: don't damage brick, just reflect (regular bullets, NOT sniper)
-      if (bullet.bouncesLeft > 0) {
-        bullet.bouncesLeft--;
-        bullet.bounceCount++;
-        bullet.vel = bullet.vel.reflect(col.normal);
-        bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
-        bullet.damage = Math.round(bullet.damage * 0.8);
-        return { hitWall: true, hitTileX: gx, hitTileY: gy };
-      }
-      // Metal: only sniper can damage it
-      if (col.tileType === TileType.METAL) {
-        bullet.alive = false; bullet.pos = nextPos;
-        return { hitWall: true, hitTileX: gx, hitTileY: gy };
-      }
-      // Brick: subtract bullet damage from HP
+      // Brick: damage HP first, then decide bounce or die
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp -= bullet.damage;
         if (map[gy][gx].hp <= 0) {
-          // Brick destroyed — bullet continues through
+          // Brick destroyed — bullet punches through
           map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
           bullet.pos = nextPos;
           return { hitWall: true, hitTileX: gx, hitTileY: gy };
         }
-        // Brick survives — bullet dies (or bounces if it can)
+        // Brick survives — bullet bounces (if it can) or dies
         if (bullet.bouncesLeft > 0) {
           bullet.bouncesLeft--;
           bullet.bounceCount++;
@@ -415,8 +401,11 @@ export function moveBullet(
           bullet.damage = Math.round(bullet.damage * 0.8);
           return { hitWall: true, hitTileX: gx, hitTileY: gy };
         }
+        // Can't bounce — bullet dies
+        bullet.alive = false; bullet.pos = nextPos;
+        return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Metal: bullet always dies (unless sniper, handled above)
+      // Metal: bullet dies (unless sniper/magnetic, handled above)
       bullet.alive = false; bullet.pos = nextPos;
       return { hitWall: true, hitTileX: gx, hitTileY: gy };
     }
