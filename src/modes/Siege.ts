@@ -704,9 +704,10 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     if (!ctx) continue;
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    // Smoke/Grass: enemies can't see player → target CC instead
+    // Target priority: visible player > command center (attack base when player out of sight!)
     const playerHidden = isSmokeActive(state.player) || isTankInGrass(state.player, state.map);
-    const target = (state.player.alive && !playerHidden) ? state.player.pos : centerPos;
+    const playerInVision = state.player.alive && !playerHidden && enemy.pos.dist(state.player.pos) <= (ctx.visionRadius || 220);
+    const target = playerInVision ? state.player.pos : centerPos;
 
     // Enemy speed: 55% base, ×1.4 if overclocked, ×0.3 if time-slowed
     let speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
