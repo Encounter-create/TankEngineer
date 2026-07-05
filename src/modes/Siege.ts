@@ -358,6 +358,9 @@ export function updateSiege(
     state.slowMoTimer -= dt;
   }
 
+  // Command Center auto-attack
+  handleCCAttack(state, dt);
+
   // Update fire zones
   handleFireZones(state, dt);
 
@@ -1361,6 +1364,37 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
 // ============================================================
 // Command Center
 // ============================================================
+
+// ============================================================
+// Command Center auto-attack
+// ============================================================
+
+const CC_ATTACK_RANGE = 200;
+let ccFireCooldown = 0;
+
+function handleCCAttack(state: SiegeState, dt: number): void {
+  ccFireCooldown -= dt * 1000;
+  if (ccFireCooldown > 0) return;
+
+  const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+  const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+  const ccPos = new Vec2(ccX, ccY);
+
+  let nearestEnemy: TankEntity | null = null;
+  let nearestDist = CC_ATTACK_RANGE;
+  for (const e of state.enemies) {
+    if (!e.alive) continue;
+    const d = e.pos.dist(ccPos);
+    if (d < nearestDist) { nearestDist = d; nearestEnemy = e; }
+  }
+
+  if (nearestEnemy) {
+    const angle = nearestEnemy.pos.sub(ccPos).angle();
+    const bullet = createBullet(ccPos, angle, 'straight', 450, 20, 0, 0, 'cc', true);
+    state.bullets.push(bullet);
+    ccFireCooldown = 800; // fire every 0.8s
+  }
+}
 
 // Enemy-CC collision handled by moveTank + bullet-CC in handleBullets
 

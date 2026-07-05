@@ -58,6 +58,18 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   drawGrid(ctx);
   drawMap(ctx, state.map);
   drawCommandCenter(ctx, state);
+  // U-key: CC attack range
+  if (state.showDebug) {
+    const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    ctx.strokeStyle = 'rgba(74,224,160,0.5)';
+    ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.arc(ccX, ccY, 200, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(74,224,160,0.8)';
+    ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('防御范围', ccX + 200 + 4, ccY);
+  }
   // U-key debug: brick HP bars
   if (state.showDebug) {
     drawBrickHPBars(ctx, state.map);
@@ -1011,22 +1023,22 @@ function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): v
 export function drawBullet(ctx: CanvasRenderingContext2D, bullet: BulletEntity): void {
   if (!bullet.alive) return;
 
+  const isCC = bullet.ownerId === 'cc';
   // Trail
-  ctx.strokeStyle = bullet.isPlayerBullet ? C.BULLET_TRAIL : 'rgba(255,100,100,0.2)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = isCC ? 'rgba(74,224,160,0.7)' : (bullet.isPlayerBullet ? C.BULLET_TRAIL : 'rgba(255,100,100,0.2)');
+  ctx.lineWidth = isCC ? 3 : 2;
   ctx.beginPath();
   ctx.moveTo(bullet.pos.x, bullet.pos.y);
-  ctx.lineTo(
-    bullet.pos.x - bullet.vel.x * 0.02,
-    bullet.pos.y - bullet.vel.y * 0.02,
-  );
+  ctx.lineTo(bullet.pos.x - bullet.vel.x * (isCC ? 0.04 : 0.02), bullet.pos.y - bullet.vel.y * (isCC ? 0.04 : 0.02));
   ctx.stroke();
 
   // Bullet dot
-  ctx.fillStyle = bullet.isPlayerBullet ? C.BULLET_PLAYER : C.BULLET_ENEMY;
+  ctx.fillStyle = isCC ? '#4ae0a0' : (bullet.isPlayerBullet ? C.BULLET_PLAYER : C.BULLET_ENEMY);
+  if (isCC) { ctx.shadowColor = '#4ae0a0'; ctx.shadowBlur = 8; }
   ctx.beginPath();
   ctx.arc(bullet.pos.x, bullet.pos.y, BULLET_RADIUS + 1, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
   // Glow
   ctx.fillStyle = bullet.isPlayerBullet ? 'rgba(255,224,102,0.4)' : 'rgba(255,68,68,0.4)';
