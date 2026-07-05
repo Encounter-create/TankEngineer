@@ -105,8 +105,16 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
   const map = createMap(mapName);
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
-  // Player spawns below command center
-  const playerSpawn = new Vec2(centerPos.x, centerPos.y + CELL_SIZE * 2.5);
+  // Random spawn near base in an empty cell
+  const ccGx = Math.floor(MAP_COLS / 2), ccGy = Math.floor(MAP_ROWS / 2);
+  let playerSpawn = centerPos;
+  const offsets = [[0,3],[3,0],[0,-3],[-3,0],[2,2],[-2,2],[2,-2],[-2,-2]];
+  for (const [dx, dy] of offsets) {
+    const gx = ccGx + dx, gy = ccGy + dy;
+    if (gx >= 0 && gx < MAP_COLS && gy >= 0 && gy < MAP_ROWS && map[gy][gx].type === TileType.EMPTY) {
+      playerSpawn = gridToPixel(gx, gy); break;
+    }
+  }
   const player = createTank('player', playerSpawn, playerConfig, true);
   player.hp = player.maxHp * 3; // player HP buff
   player.maxHp = player.hp;
@@ -1007,11 +1015,15 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Update movement + friction
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
-    // Water: check BEFORE moving (same as tanks — don't enter)
+    // Water + Command Center: check BEFORE moving (solid obstacles)
     const nextBg = pixelToGrid(block.pos.x + block.vel.x * dt, block.pos.y + block.vel.y * dt);
     if (nextBg && inBounds(nextBg.x, nextBg.y) && state.map[nextBg.y]?.[nextBg.x]?.type === TileType.WATER) {
       block.vel = Vec2.zero();
     }
+    const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    const nextCc = Math.hypot(block.pos.x + block.vel.x * dt - ccX, block.pos.y + block.vel.y * dt - ccY);
+    if (nextCc < CELL_SIZE * 1.5 + BLOCK_RADIUS) { block.vel = Vec2.zero(); }
     const bg = pixelToGrid(block.pos.x, block.pos.y);
     const onIce = bg && inBounds(bg.x, bg.y) && state.map[bg.y]?.[bg.x]?.type === TileType.ICE;
     if (!onIce) updatePhysicsBlock(block, dt, state.frictionMul);
@@ -1155,11 +1167,11 @@ function handleBullets(state: SiegeState, dt: number): void {
     const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
     const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
     if (Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
+      state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
       if (!bullet.isPlayerBullet) {
         state.commandCenterHp -= bullet.damage;
-        state.particles.push(...spawnParticles(bullet.pos, 'explosion', 10, 100));
         playExplosion();
-        state.screenShake = 4;
+        state.screenShake = 3;
       }
       bullet.alive = false;
       continue;
