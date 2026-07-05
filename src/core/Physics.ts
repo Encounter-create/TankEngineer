@@ -156,21 +156,10 @@ export function moveTank(
       if (!sc.hit) tank.pos = clampToMapBounds(slidePos);
   }
 
-  // Water tank detection (water passes through checkTileCollision, so check grid here)
+  // Water: stop tank (same logic as blocks)
   const tGrid = pixelToGrid(tank.pos.x, tank.pos.y);
   if (tGrid && inBounds(tGrid.x, tGrid.y) && map[tGrid.y][tGrid.x].type === TileType.WATER) {
     tank.vel = Vec2.zero();
-    // Push tank back to nearest non-water
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const nx = tGrid.x + dx, ny = tGrid.y + dy;
-        if (!inBounds(nx, ny)) continue;
-        if (map[ny][nx].type !== TileType.WATER) {
-          tank.pos = tank.pos.add(new Vec2(dx * 12, dy * 12));
-          return;
-        }
-      }
-    }
   }
   }
 }
