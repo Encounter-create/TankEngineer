@@ -221,7 +221,7 @@ interface BodyRef {
   set vel(v: Vec2);
 }
 
-function bodyRef(pos: Vec2, vel: Vec2): BodyRef {
+export function bodyRef(pos: Vec2, vel: Vec2): BodyRef {
   let p = pos, v = vel;
   return {
     get pos() { return p; }, set pos(v2: Vec2) { p = v2; },
@@ -230,7 +230,7 @@ function bodyRef(pos: Vec2, vel: Vec2): BodyRef {
 }
 
 /** Generic elastic collision: directly updates vel and pos on a and b */
-function elasticBounce(
+export function elasticBounce(
   a: BodyRef, aMass: number, aRadius: number,
   b: BodyRef, bMass: number, bRadius: number,
 ): void {

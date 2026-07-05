@@ -4,7 +4,7 @@ import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../
 import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
-import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle } from '../core/Physics';
+import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
 import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { AIContext, AIState, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
@@ -1081,7 +1081,7 @@ function handleBullets(state: SiegeState, dt: number): void {
       bullet.vel = toTarget.norm().scale(bullet.vel.mag());
     }
 
-    // Check collision with physics blocks
+    // Check collision with physics blocks (with knockback)
     let hitBlock = false;
     for (const block of state.physicsBlocks) {
       if (!block.alive) continue;
@@ -1089,6 +1089,12 @@ function handleBullets(state: SiegeState, dt: number): void {
         if (bullet.style === 'rocket') {
           explodeRocket(bullet, state);
         } else {
+          // Knockback: bullet momentum to block
+          const bulletBody = bodyRef(bullet.pos, bullet.vel);
+          const blockBody = bodyRef(block.pos, block.vel);
+          elasticBounce(bulletBody, bullet.mass, BULLET_RADIUS, blockBody, block.mass, BLOCK_RADIUS);
+          block.pos = blockBody.pos; block.vel = blockBody.vel;
+          bullet.pos = bulletBody.pos; bullet.vel = bulletBody.vel;
           bullet.alive = false;
           state.particles.push(...spawnParticles(bullet.pos, 'impact', 6, 80));
         }
@@ -1190,6 +1196,13 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
           if (bullet.style === 'rocket') {
             explodeRocket(bullet, state);
           } else {
+            // Knockback: elastic momentum transfer from bullet to enemy
+            const bulletBody = bodyRef(bullet.pos, bullet.vel);
+            const enemyBody = bodyRef(enemy.pos, enemy.vel);
+            elasticBounce(bulletBody, bullet.mass, BULLET_RADIUS, enemyBody, enemy.config.totalWeight, TANK_RADIUS);
+            enemy.pos = enemyBody.pos; enemy.vel = enemyBody.vel;
+            bullet.pos = bulletBody.pos; bullet.vel = bulletBody.vel;
+
             const dmg = takeDamage(enemy, bullet.damage * killCtx.multiplier);
             state.damageNumbers.push(spawnDamageNumber(enemy.pos, dmg, killCtx.multiplier >= 3));
             state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));

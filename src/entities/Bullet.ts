@@ -32,6 +32,8 @@ export interface BulletEntity {
   targetPos: Vec2;
   /** How many times this bullet has bounced off walls */
   bounceCount: number;
+  /** Bullet mass for knockback physics (damage × 0.1) */
+  mass: number;
 }
 
 let bulletIdCounter = 0;
@@ -78,6 +80,7 @@ export function createBullet(
     orbitalCenter: pos,
     targetPos: pos,
     bounceCount: 0,
+    mass: damage * 0.1,
   };
 }
 
