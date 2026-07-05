@@ -419,21 +419,8 @@ function drawMap(ctx: CanvasRenderingContext2D, map: TileGrid): void {
       const px = x * CELL_SIZE;
       const py = y * CELL_SIZE;
 
-      if (tile.type === TileType.BRICK) {
-        if (tile.hp <= 0) continue; // destroyed
-        ctx.fillStyle = C.BRICK;
-        ctx.fillRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
-        ctx.strokeStyle = C.BRICK_STROKE;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
-        // Brick pattern line
-        ctx.beginPath();
-        ctx.moveTo(px + CELL_SIZE / 2, py + 1);
-        ctx.lineTo(px + CELL_SIZE / 2, py + CELL_SIZE - 1);
-        ctx.moveTo(px + 1, py + CELL_SIZE / 2);
-        ctx.lineTo(px + CELL_SIZE - 1, py + CELL_SIZE / 2);
-        ctx.stroke();
-      } else if (tile.type === TileType.WATER) {
+      // BRICK tiles no longer exist (all converted to PhysicsBlocks at start)
+      if (tile.type === TileType.WATER) {
         ctx.fillStyle = '#3388aa88';
         ctx.fillRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
         // Wave lines
