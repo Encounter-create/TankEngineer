@@ -292,10 +292,10 @@ export function resolveTankCollisions(tanks: TankEntity[]): void {
   }
 }
 
-/** Block-tank collisions */
+/** Block-tank collisions (skip stationary blocks) */
 export function resolveBlockTankCollisions(blocks: PhysicsBlock[], tanks: TankEntity[]): void {
   for (const block of blocks) {
-    if (!block.alive) continue;
+    if (!block.alive || block.vel.mag() < 0.5) continue;
     for (const tank of tanks) {
       if (!tank.alive) continue;
       const rb = bodyRef(block.pos, block.vel), rt = bodyRef(tank.pos, tank.vel);
@@ -306,12 +306,14 @@ export function resolveBlockTankCollisions(blocks: PhysicsBlock[], tanks: TankEn
   }
 }
 
-/** Block-block collisions */
+/** Block-block collisions (skip stationary pairs for performance) */
 export function resolveBlockBlockCollisions(blocks: PhysicsBlock[]): void {
   for (let i = 0; i < blocks.length; i++) {
+    const a = blocks[i];
+    if (!a.alive || a.vel.mag() < 0.5) continue;
     for (let j = i + 1; j < blocks.length; j++) {
-      const a = blocks[i], b = blocks[j];
-      if (!a.alive || !b.alive) continue;
+      const b = blocks[j];
+      if (!b.alive || b.vel.mag() < 0.5) continue;
       const ra = bodyRef(a.pos, a.vel), rb = bodyRef(b.pos, b.vel);
       elasticBounce(ra, a.mass, a.radius, rb, b.mass, b.radius);
       a.pos = ra.pos; a.vel = ra.vel;
