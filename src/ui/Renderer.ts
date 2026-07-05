@@ -1007,6 +1007,12 @@ function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): v
     ctx.fillStyle = '#4488cc'; ctx.strokeStyle = '#2266aa'; ctx.lineWidth = 1;
   } else if (block.tileType === TileType.BARREL) {
     ctx.fillStyle = '#cc6633'; ctx.strokeStyle = '#994422'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // Danger X mark
+    ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-s*0.4, -s*0.4); ctx.lineTo(s*0.4, s*0.4);
+    ctx.moveTo(s*0.4, -s*0.4); ctx.lineTo(-s*0.4, s*0.4); ctx.stroke();
+    ctx.restore(); return;
   } else {
     ctx.fillStyle = C.BRICK; ctx.strokeStyle = C.BRICK_STROKE; ctx.lineWidth = 1;
   }
