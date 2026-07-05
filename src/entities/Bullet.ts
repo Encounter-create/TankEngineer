@@ -94,4 +94,4 @@ export const FIREWORK_INTERVAL = 0.28;
 /** Firework: child bullet count per burst (uniformly spaced) */
 export const FIREWORK_CHILD_COUNT = 6;
 /** Firework: mother bullet max lifetime */
-export const FIREWORK_MAX_LIFE = 2.0;
+export const FIREWORK_MAX_LIFE = 4.0;
