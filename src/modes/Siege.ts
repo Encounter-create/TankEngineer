@@ -1156,7 +1156,7 @@ function handleBullets(state: SiegeState, dt: number): void {
       bullet.orbitalAngle += dt * 14; // fast rotation for visible binary-star effect
     }
 
-    const result = moveBullet(bullet, dt, state.map);
+    const result = moveBullet(bullet, dt, state.map, state.physicsBlocks);
     if (result.hitWall) {
       if (bullet.style === 'rocket') {
         explodeRocket(bullet, state);

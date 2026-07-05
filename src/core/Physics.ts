@@ -309,6 +309,7 @@ export function resolveBlockBlockCollisions(blocks: PhysicsBlock[]): void {
 
 export function moveBullet(
   bullet: BulletEntity, dt: number, map: TileGrid,
+  newBlocks?: PhysicsBlock[],
 ): { hitWall: boolean; hitTileX: number; hitTileY: number } {
   if (bullet.style === 'arc') {
     bullet.arcVy += ARC_GRAVITY * dt;
@@ -383,26 +384,39 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Brick: damage HP first, then decide bounce or die
+      // Brick: HP damage + elastic collision (bounce = knockback, same event)
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp -= bullet.damage;
+        const brickMass = BRICK_MASS;
+        const tileCenter = new Vec2((col.tileX + 0.5) * CELL_SIZE, (col.tileY + 0.5) * CELL_SIZE);
+        // Create temp BodyRef for the brick tile (starts at rest)
+        let brickVel = Vec2.zero();
+        let brickPos = tileCenter;
+        const bulletBody = bodyRef(bullet.pos, bullet.vel);
+        const brickBody = bodyRef(brickPos, brickVel);
+        elasticBounce(bulletBody, bullet.mass, BULLET_RADIUS, brickBody, brickMass, CELL_SIZE / 2);
+        // Write back bullet velocity from elastic collision (this IS the bounce/reflect)
+        bullet.pos = bulletBody.pos; bullet.vel = bulletBody.vel;
+
         if (map[gy][gx].hp <= 0) {
-          // Brick destroyed — bullet punches through
+          // Brick destroyed — bullet continues with post-collision velocity
           map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
-          bullet.pos = nextPos;
-          return { hitWall: true, hitTileX: gx, hitTileY: gy };
+        } else {
+          // Brick survives — becomes a physics block with post-collision velocity
+          const blockVel = brickBody.vel;
+          const block = createPhysicsBlock(tileCenter, blockVel, TileType.BRICK);
+          block.chainLength = 0;
+          if (newBlocks) newBlocks.push(block);
+          map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         }
-        // Brick survives — bullet bounces (if it can) or dies
+        // Bullet continues if it can bounce, otherwise dies
         if (bullet.bouncesLeft > 0) {
           bullet.bouncesLeft--;
           bullet.bounceCount++;
-          bullet.vel = bullet.vel.reflect(col.normal);
-          bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
           bullet.damage = Math.round(bullet.damage * 0.8);
           return { hitWall: true, hitTileX: gx, hitTileY: gy };
         }
-        // Can't bounce — bullet dies
-        bullet.alive = false; bullet.pos = nextPos;
+        bullet.alive = false;
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
       // Metal: bullet dies (unless sniper/magnetic, handled above)

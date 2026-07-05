@@ -89,7 +89,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
       b.orbitalAngle += dt * 14;
     }
 
-    const hitResult = moveBullet(b, dt, ps.map);
+    const hitResult = moveBullet(b, dt, ps.map, ps.blocks);
 
     // Rocket hit wall → fire zone + particles
     if (b.style === 'rocket' && hitResult.hitWall) {
