@@ -5,7 +5,7 @@ import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, ge
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
-import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
+import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
@@ -105,6 +105,20 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
   const map = createMap(mapName);
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
+  // Convert all bricks and barrels to physics blocks (pre-spawn, not tile→block on collision)
+  const initialBlocks: PhysicsBlock[] = [];
+  for (let gy = 0; gy < MAP_ROWS; gy++) {
+    for (let gx = 0; gx < MAP_COLS; gx++) {
+      const tile = map[gy][gx];
+      if ((tile.type === TileType.BRICK || tile.type === TileType.BARREL) && tile.hp > 0) {
+        const pos = new Vec2((gx + 0.5) * CELL_SIZE, (gy + 0.5) * CELL_SIZE);
+        const block = createPhysicsBlock(pos, Vec2.zero(), tile.type, tile.hp);
+        initialBlocks.push(block);
+        map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+      }
+    }
+  }
+
   // Random spawn near base in an empty cell
   const ccGx = Math.floor(MAP_COLS / 2), ccGy = Math.floor(MAP_ROWS / 2);
   let playerSpawn = centerPos;
@@ -138,7 +152,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     skillMessageTime: 0,
     particles: [],
     screenShake: 0,
-    physicsBlocks: [],
+    physicsBlocks: initialBlocks,
     showDebug: false,
     frictionMul: getMapFriction(mapName),
     fireZones: [],
