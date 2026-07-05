@@ -7,7 +7,7 @@ import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARREL
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
 import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
-import { AIContext, AIState, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
+import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
@@ -729,24 +729,17 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
       enemy.vel = enemy.vel.norm().scale(maxEnemySpeed);
     }
 
-    // Turret follows target only in FIRE mode (gradual rotation)
-    if (ctx.state === AIState.FIRE) {
-      const toTarget = target.sub(enemy.pos);
-      if (toTarget.mag() > 1) {
-        const targetAngle = toTarget.angle();
-        const diff = normalizeAngle(targetAngle - enemy.turretAngle);
-        const maxStep = TURRET_ANGULAR_VEL * dt;
-        if (Math.abs(diff) < maxStep) {
-          enemy.turretAngle = targetAngle;
-        } else {
-          enemy.turretAngle += Math.sign(diff) * maxStep;
-          enemy.turretAngle = normalizeAngle(enemy.turretAngle);
-        }
-      }
-    } else {
-      // Patrol/chase: turret points in movement direction
-      if (moveDir.x !== 0 || moveDir.y !== 0) {
-        enemy.turretAngle = moveDir.angle();
+    // Turret follows target with gradual rotation (same as player)
+    const toTarget = target.sub(enemy.pos);
+    if (toTarget.mag() > 1) {
+      const targetAngle = toTarget.angle();
+      const diff = normalizeAngle(targetAngle - enemy.turretAngle);
+      const maxStep = TURRET_ANGULAR_VEL * dt;
+      if (Math.abs(diff) < maxStep) {
+        enemy.turretAngle = targetAngle;
+      } else {
+        enemy.turretAngle += Math.sign(diff) * maxStep;
+        enemy.turretAngle = normalizeAngle(enemy.turretAngle);
       }
     }
 
@@ -1349,16 +1342,8 @@ function handleEnemyReachCenter(state: SiegeState): void {
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
     const dist = enemy.pos.dist(centerPos);
     if (dist < CELL_SIZE * 2) {
-      // Enemy is at the command center — deal damage over time
+      // Enemy near command center — deal damage over time (collision blocks entry)
       state.commandCenterHp -= 10;
-      // Push enemy away (handle zero-distance edge case)
-      if (dist > 0.01) {
-        const away = enemy.pos.sub(centerPos).norm();
-        enemy.pos = enemy.pos.add(away.scale(CELL_SIZE * 2));
-      } else {
-        // Enemy exactly at center — push in random direction
-        enemy.pos = enemy.pos.add(new Vec2(CELL_SIZE * 2, 0));
-      }
     }
   }
 }
