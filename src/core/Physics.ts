@@ -152,12 +152,12 @@ export function moveTank(
           (col.tileX + 0.5) * CELL_SIZE,
           (col.tileY + 0.5) * CELL_SIZE,
         );
-        const block = createPhysicsBlock(tilePos, blockVel, col.tileType);
-        block.pushedByTankId = tank.id; // track who pushed it
+        const tileHp = map[col.tileY][col.tileX].hp;
+        map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
+        const block = createPhysicsBlock(tilePos, blockVel, col.tileType, tileHp);
+        block.pushedByTankId = tank.id;
         block.chainLength = 0;
         newBlocks.push(block);
-        // Remove tile from grid
-        map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
       }
       // Slide
       const slidePos = tank.pos.add(tank.vel.scale(dt));
@@ -197,11 +197,12 @@ export function resolveBlockWallCollisions(
           (col.tileY + 0.5) * CELL_SIZE,
         );
         const tileVel = normal.scale(-v2nPrime);
-        const newBlock = createPhysicsBlock(tilePos, tileVel, col.tileType);
-        newBlock.pushedByTankId = block.pushedByTankId; // inherit pusher
-        newBlock.chainLength = block.chainLength + 1; // chain grows
-        newBlocks.push(newBlock);
+        const tileHp = map[col.tileY][col.tileX].hp;
         map[col.tileY][col.tileX] = { type: TileType.EMPTY, hp: 0 };
+        const newBlock = createPhysicsBlock(tilePos, tileVel, col.tileType, tileHp);
+        newBlock.pushedByTankId = block.pushedByTankId;
+        newBlock.chainLength = block.chainLength + 1;
+        newBlocks.push(newBlock);
       }
       // Push block out of wall
       block.pos = block.pos.add(col.normal.scale(block.radius + 1));
