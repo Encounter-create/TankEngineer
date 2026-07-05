@@ -33,8 +33,8 @@ export function checkTileCollision(pos: Vec2, radius: number, map: TileGrid): Co
       const tile = map[ty][tx];
       if (tile.type === TileType.EMPTY) continue;
       if (tile.type === TileType.BRICK && tile.hp <= 0) continue;
-      // Water/Grass/Ice pass for both tanks and bullets (water handled separately)
-      if (tile.type === TileType.WATER || tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
+      // Grass/Ice pass through for all; Water triggers collision (handled in response)
+      if (tile.type === TileType.GRASS || tile.type === TileType.ICE) continue;
       const tl = tx * CELL_SIZE, tt = ty * CELL_SIZE;
       const tr = tl + CELL_SIZE, tb = tt + CELL_SIZE;
       const closestX = Math.max(tl, Math.min(pos.x, tr));
@@ -92,12 +92,6 @@ export function moveTank(
     }
   }
 
-  // Water check BEFORE moving: if about to enter water, stop
-  const nextGrid = pixelToGrid(tank.pos.x + tank.vel.x * dt, tank.pos.y + tank.vel.y * dt);
-  if (nextGrid && inBounds(nextGrid.x, nextGrid.y) && map[nextGrid.y][nextGrid.x].type === TileType.WATER) {
-    tank.vel = Vec2.zero();
-  }
-
   // Apply velocity
   if (tank.vel.mag() > 0) {
     const desired = tank.pos.add(tank.vel.scale(dt));
@@ -136,6 +130,9 @@ export function moveTank(
       // Slide
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       tank.pos = clampToMapBounds(slidePos);
+    } else if (col.tileType === TileType.WATER) {
+      // Water: just stop, no bounce, no tile conversion
+      tank.vel = Vec2.zero();
     } else if (col.tileType === TileType.BRICK || col.tileType === TileType.METAL || col.tileType === TileType.BARREL) {
       // Bricks, metal and barrels: momentum transfer → create PhysicsBlock
       const normal = col.normal;
@@ -354,6 +351,8 @@ export function moveBullet(
     const col = checkTileCollision(nextPos, BULLET_RADIUS, map);
     if (col.hit) {
       const gx = col.tileX, gy = col.tileY;
+      // Water: bullets fly over
+      if (col.tileType === TileType.WATER) { bullet.pos = nextPos; return { hitWall: false, hitTileX: -1, hitTileY: -1 }; }
       // Rocket blows up on any wall hit
       if (bullet.style === 'rocket') {
         bullet.alive = false; bullet.pos = nextPos;
