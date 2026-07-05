@@ -292,12 +292,13 @@ export function resolveTankCollisions(tanks: TankEntity[]): void {
   }
 }
 
-/** Block-tank collisions (skip stationary blocks) */
+/** Block-tank collisions (skip only when both stationary) */
 export function resolveBlockTankCollisions(blocks: PhysicsBlock[], tanks: TankEntity[]): void {
   for (const block of blocks) {
-    if (!block.alive || block.vel.mag() < 0.5) continue;
+    if (!block.alive) continue;
     for (const tank of tanks) {
       if (!tank.alive) continue;
+      if (block.vel.mag() < 0.5 && tank.vel.mag() < 0.5) continue;
       const rb = bodyRef(block.pos, block.vel), rt = bodyRef(tank.pos, tank.vel);
       elasticBounce(rb, block.mass, block.radius, rt, tank.config.totalWeight, TANK_RADIUS);
       block.pos = rb.pos; block.vel = rb.vel;
@@ -306,14 +307,16 @@ export function resolveBlockTankCollisions(blocks: PhysicsBlock[], tanks: TankEn
   }
 }
 
-/** Block-block collisions (skip stationary pairs for performance) */
+/** Block-block collisions (skip only when both stationary) */
 export function resolveBlockBlockCollisions(blocks: PhysicsBlock[]): void {
   for (let i = 0; i < blocks.length; i++) {
     const a = blocks[i];
-    if (!a.alive || a.vel.mag() < 0.5) continue;
+    if (!a.alive) continue;
     for (let j = i + 1; j < blocks.length; j++) {
       const b = blocks[j];
-      if (!b.alive || b.vel.mag() < 0.5) continue;
+      if (!b.alive) continue;
+      // Skip only when both stationary (one moving → check collision)
+      if (a.vel.mag() < 0.5 && b.vel.mag() < 0.5) continue;
       const ra = bodyRef(a.pos, a.vel), rb = bodyRef(b.pos, b.vel);
       elasticBounce(ra, a.mass, a.radius, rb, b.mass, b.radius);
       a.pos = ra.pos; a.vel = ra.vel;
