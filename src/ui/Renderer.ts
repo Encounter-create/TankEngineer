@@ -999,23 +999,19 @@ function drawSmokeCloud(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
 
 function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): void {
   if (!block.alive) return;
-  ctx.save();
-  ctx.translate(block.pos.x, block.pos.y);
-
+  ctx.save(); ctx.translate(block.pos.x, block.pos.y);
   const s = block.radius;
   if (block.tileType === TileType.METAL) {
-    ctx.fillStyle = C.METAL;
-    ctx.strokeStyle = C.METAL_STROKE;
-    ctx.lineWidth = 2;
-    roundRect(ctx, -s, -s, s * 2, s * 2, 3);
-    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.METAL; ctx.strokeStyle = C.METAL_STROKE; ctx.lineWidth = 2;
+  } else if (block.tileType === TileType.WATER) {
+    ctx.fillStyle = '#4488cc'; ctx.strokeStyle = '#2266aa'; ctx.lineWidth = 1;
+  } else if (block.tileType === TileType.BARREL) {
+    ctx.fillStyle = '#cc6633'; ctx.strokeStyle = '#994422'; ctx.lineWidth = 2;
   } else {
-    ctx.fillStyle = C.BRICK;
-    ctx.strokeStyle = C.BRICK_STROKE;
-    ctx.lineWidth = 1;
-    roundRect(ctx, -s, -s, s * 2, s * 2, 3);
-    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.BRICK; ctx.strokeStyle = C.BRICK_STROKE; ctx.lineWidth = 1;
   }
+  roundRect(ctx, -s, -s, s * 2, s * 2, 3);
+  ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 

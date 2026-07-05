@@ -155,8 +155,12 @@ export function moveTank(
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       const sc = checkTileCollision(clampToMapBounds(slidePos), TANK_RADIUS, map);
       if (!sc.hit) tank.pos = clampToMapBounds(slidePos);
+    } else if (col.tileType === TileType.WATER) {
+      // Water: bounce back, can't enter
+      tank.vel = tank.vel.reflect(col.normal).scale(0.3);
+      tank.pos = tank.pos.add(col.normal.scale(TANK_RADIUS));
     }
-    // Water/Barrel: just stop the tank, no tile conversion
+    // Other solids just block movement
   }
 }
 
