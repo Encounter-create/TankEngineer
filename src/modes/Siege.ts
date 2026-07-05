@@ -1129,10 +1129,11 @@ function handleBullets(state: SiegeState, dt: number): void {
       bullet.vel = toTarget.norm().scale(bullet.vel.mag());
     }
 
-    // Check collision with physics blocks (with knockback)
+    // Check collision with physics blocks (only nearby blocks)
     let hitBlock = false;
     for (const block of state.physicsBlocks) {
       if (!block.alive) continue;
+      if (block.vel.mag() < 0.5 && bullet.pos.dist(block.pos) > BLOCK_RADIUS * 2) continue; // far stationary block
       if (bullet.pos.dist(block.pos) < BLOCK_RADIUS + BULLET_RADIUS) {
         if (bullet.style === 'rocket' || block.tileType === TileType.BARREL) {
           // Rocket or barrel: explode

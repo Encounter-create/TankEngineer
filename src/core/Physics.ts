@@ -116,6 +116,7 @@ export function moveTank(
     let blockCol: { block: PhysicsBlock; normal: Vec2 } | null = null;
     for (const b of allBlocks) {
       if (!b.alive) continue;
+      if (b.vel.mag() < 0.5 && clamped.sub(b.pos).mag() > TANK_RADIUS + b.radius + 16) continue; // far stationary
       const diff = clamped.sub(b.pos);
       const dist = diff.mag();
       if (dist < TANK_RADIUS + b.radius) {
@@ -189,7 +190,7 @@ export function resolveBlockWallCollisions(
   blocks: PhysicsBlock[], map: TileGrid, newBlocks: PhysicsBlock[],
 ): void {
   for (const block of blocks) {
-    if (!block.alive) continue;
+    if (!block.alive || block.vel.mag() < 0.5) continue; // stationary = already settled
     const col = checkTileCollision(block.pos, block.radius, map);
     if (!col.hit) continue;
 
