@@ -400,8 +400,23 @@ export function moveBullet(
       // Brick: subtract bullet damage from HP
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp -= bullet.damage;
-        if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+        if (map[gy][gx].hp <= 0) {
+          // Brick destroyed — bullet continues through
+          map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+          bullet.pos = nextPos;
+          return { hitWall: true, hitTileX: gx, hitTileY: gy };
+        }
+        // Brick survives — bullet dies (or bounces if it can)
+        if (bullet.bouncesLeft > 0) {
+          bullet.bouncesLeft--;
+          bullet.bounceCount++;
+          bullet.vel = bullet.vel.reflect(col.normal);
+          bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
+          bullet.damage = Math.round(bullet.damage * 0.8);
+          return { hitWall: true, hitTileX: gx, hitTileY: gy };
+        }
       }
+      // Metal: bullet always dies (unless sniper, handled above)
       bullet.alive = false; bullet.pos = nextPos;
       return { hitWall: true, hitTileX: gx, hitTileY: gy };
     }
