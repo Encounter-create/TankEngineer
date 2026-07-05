@@ -384,28 +384,30 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Brick: HP damage → reflect bullet → if destroyed, debris flies off
+      // Brick: unified bounce+knockback via elastic collision
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp -= bullet.damage;
-        const destroyed = map[gy][gx].hp <= 0;
         const tileCenter = new Vec2((col.tileX + 0.5) * CELL_SIZE, (col.tileY + 0.5) * CELL_SIZE);
-
-        if (destroyed) {
-          // Brick destroyed — debris flies away, bullet punches through
+        // Compute momentum transfer along collision normal
+        const vn = bullet.vel.dot(col.normal);
+        if (vn > 0) {
+          const impulse = 2 * vn / (1 / bullet.mass + 1 / BRICK_MASS);
+          const brickSpeed = impulse / BRICK_MASS;
+          // Bullet reflects (bounce) AND brick gets pushed (knockback) — same impulse
+          bullet.vel = bullet.vel.sub(col.normal.scale(impulse / bullet.mass));
+          bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
+          // Convert brick to PhysicsBlock with post-collision velocity + remaining HP
+          const blockVel = col.normal.scale(-brickSpeed);
+          const remainingHp = map[gy][gx].hp;
+          const block = createPhysicsBlock(tileCenter, blockVel, TileType.BRICK, remainingHp);
+          block.chainLength = 0;
+          if (newBlocks) newBlocks.push(block);
           map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
-          const debrisVel = bullet.vel.scale(bullet.mass / BRICK_MASS * 0.5); // momentum transfer
-          const debris = createPhysicsBlock(tileCenter, debrisVel, TileType.BRICK);
-          if (newBlocks) newBlocks.push(debris);
-          bullet.pos = nextPos;
-          return { hitWall: true, hitTileX: gx, hitTileY: gy };
         }
-
-        // Brick survives — bullet bounces off collision normal
+        // Bounce count tracking + damage reduction
         if (bullet.bouncesLeft > 0) {
           bullet.bouncesLeft--;
           bullet.bounceCount++;
-          bullet.vel = bullet.vel.reflect(col.normal);
-          bullet.pos = bullet.pos.add(col.normal.scale(CELL_SIZE / 4));
           bullet.damage = Math.round(bullet.damage * 0.8);
           return { hitWall: true, hitTileX: gx, hitTileY: gy };
         }

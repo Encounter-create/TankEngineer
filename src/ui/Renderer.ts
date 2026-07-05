@@ -98,6 +98,16 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const block of state.physicsBlocks) {
     drawPhysicsBlock(ctx, block);
+    // U-key: HP bar for physics blocks (brick debris)
+    if (state.showDebug && block.hp > 0 && block.tileType === TileType.BRICK) {
+      const barW = block.radius * 2, barH = 3;
+      const barX = block.pos.x - barW / 2, barY = block.pos.y - block.radius - 8;
+      const ratio = block.hp / 500;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = ratio > 0.3 ? '#4ae0a0' : '#ff4444';
+      ctx.fillRect(barX, barY, barW * ratio, barH);
+    }
   }
   for (const bullet of state.bullets) {
     drawBullet(ctx, bullet);

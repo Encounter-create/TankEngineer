@@ -1089,14 +1089,23 @@ function handleBullets(state: SiegeState, dt: number): void {
         if (bullet.style === 'rocket') {
           explodeRocket(bullet, state);
         } else {
-          // Knockback: bullet momentum to block
+          // Knockback: bullet momentum to block (bounce if can, die if can't)
           const bulletBody = bodyRef(bullet.pos, bullet.vel);
           const blockBody = bodyRef(block.pos, block.vel);
           elasticBounce(bulletBody, bullet.mass, BULLET_RADIUS, blockBody, block.mass, BLOCK_RADIUS);
           block.pos = blockBody.pos; block.vel = blockBody.vel;
           bullet.pos = bulletBody.pos; bullet.vel = bulletBody.vel;
-          bullet.alive = false;
+          // Subtract HP from block if it has HP
+          if (block.hp > 0) block.hp -= bullet.damage;
+          if (!bullet.isPlayerBullet && block.hp > 0 && block.hp <= 0) block.alive = false;
           state.particles.push(...spawnParticles(bullet.pos, 'impact', 6, 80));
+          if (bullet.bouncesLeft > 0) {
+            bullet.bouncesLeft--;
+            bullet.bounceCount++;
+            bullet.damage = Math.round(bullet.damage * 0.8);
+          } else {
+            bullet.alive = false;
+          }
         }
         hitBlock = true;
         break;

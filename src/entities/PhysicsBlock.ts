@@ -14,6 +14,8 @@ export interface PhysicsBlock {
   pushedByTankId: string;
   /** How many blocks were in the chain before this one */
   chainLength: number;
+  /** Remaining HP (carried from original tile) */
+  hp: number;
 }
 
 let blockId = 0;
@@ -24,7 +26,7 @@ export const BLOCK_RADIUS = CELL_SIZE / 2; // 16px, matches tile size
 export const GROUND_FRICTION = 2.5; // per-second friction factor
 
 export function createPhysicsBlock(
-  pos: Vec2, vel: Vec2, tileType: TileType,
+  pos: Vec2, vel: Vec2, tileType: TileType, hp: number = 0,
 ): PhysicsBlock {
   return {
     id: `block_${++blockId}`,
@@ -35,6 +37,7 @@ export function createPhysicsBlock(
     alive: true,
     pushedByTankId: '',
     chainLength: 0,
+    hp,
   };
 }
 
