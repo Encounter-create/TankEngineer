@@ -59,7 +59,7 @@ export function moveTank(
   newBlocks: PhysicsBlock[],
   allBlocks: PhysicsBlock[],
 ): void {
-  const sprintMul = (tank as any).sprintMul ?? 1.0;
+  const sprintMul = tank.sprintMul ?? 1.0;
   const maxSpeed = effectiveSpeed(tank.config) * getSkillSpeedMultiplier(tank) * sprintMul;
   const isMoving = moveDir.x !== 0 || moveDir.y !== 0;
 
@@ -389,8 +389,8 @@ export function moveBullet(
       }
       // Magnetic/rail: slide along metal walls (max 8 slides, then die)
       if (bullet.style === 'magnetic' && col.tileType === TileType.METAL) {
-        (bullet as any).railSlides = ((bullet as any).railSlides ?? 0) + 1;
-        if ((bullet as any).railSlides > 8) { bullet.alive = false; bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy }; }
+        bullet.railSlides = (bullet.railSlides ?? 0) + 1;
+        if (bullet.railSlides > 8) { bullet.alive = false; bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy }; }
         const tangent = new Vec2(-col.normal.y, col.normal.x);
         const vAlong = bullet.vel.dot(tangent);
         bullet.vel = tangent.scale(Math.sign(vAlong || 1) * bullet.vel.mag());

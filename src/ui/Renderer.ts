@@ -159,9 +159,9 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
 
   // Gravity well visual (deep purple ellipse + orbiting particles)
-  const gravTimer = (state as any).gravityTimer;
+  const gravTimer = state.gravityTimer;
   if (gravTimer > 0) {
-    const gPos = (state as any).gravityPos as {x:number;y:number};
+    const gPos = state.gravityPos as {x:number;y:number};
     if (gPos) {
       const alpha = Math.min(1, gravTimer / 0.5);
       const rx = 40 * (1 + (3 - gravTimer) * 0.2);
@@ -193,7 +193,7 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
 
   // Time slow: ↓ arrows on slowed enemies (full duration)
-  if ((state as any).timeSlowTimer > 0) {
+  if (state.timeSlowTimer > 0) {
     for (const enemy of state.enemies) {
       if (!enemy.alive) continue;
       const arrowY = enemy.pos.y - TANK_RADIUS - 22;
@@ -206,8 +206,8 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
 
   // Lightning branches (star pattern from player)
-  const lBranches = (state as any).lightningBranches;
-  if (lBranches && (state as any).lightningTimer > 0) {
+  const lBranches = state.lightningBranches;
+  if (lBranches && state.lightningTimer > 0) {
     for (const branch of lBranches) {
       ctx.strokeStyle = '#ffcc00';
       ctx.lineWidth = 3;
@@ -1139,7 +1139,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
   }
 
   // Time slow: "SLOW DOWN" center text
-  if ((state as any).timeSlowTimer > 0) {
+  if (state.timeSlowTimer > 0) {
     ctx.fillStyle = 'rgba(68,136,255,0.6)';
     ctx.font = 'bold 32px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';

@@ -26,6 +26,11 @@ export interface TankEntity {
   skillCooldownUntil: number;
   /** Commander skill: active effect until timestamp (performance.now ms) */
   skillActiveUntil: number;
+  /** Last hit timestamp for repair armor */
+  lastHitAt: number;
+  iceDir: number | null;
+  iceSpeed: number;
+  sprintMul: number;
 }
 
 export function createTank(
@@ -51,6 +56,10 @@ export function createTank(
     invulnCooldownUntil: 0,
     skillCooldownUntil: 0,
     skillActiveUntil: 0,
+    lastHitAt: 0,
+    iceDir: null,
+    iceSpeed: 0,
+    sprintMul: 1.0,
   };
 }
 
@@ -58,7 +67,7 @@ export function takeDamage(tank: TankEntity, rawDamage: number, attacker?: TankE
   // DEBUG: player invincible for testing
   if (tank.isPlayer) return 0;
   const now = performance.now();
-  (tank as any).lastHitAt = now;
+  tank.lastHitAt = now;
 
   if (tank.config.turret.stats.invulnDurationMs && now < tank.invulnUntil) {
     return 0;

@@ -26,7 +26,8 @@ export function createAllyTank(
   return {
     id, pos, vel: Vec2.zero(), dir: 0, turretAngle: 0,
     config, hp: maxHp, maxHp, cooldownRemaining: 0, alive: true, isPlayer: true,
-    invulnUntil: 0, invulnCooldownUntil: 0, skillCooldownUntil: 0, skillActiveUntil: 0,
+    invulnUntil: 0, invulnCooldownUntil: 0, skillCooldownUntil: 0, skillActiveUntil: 0, lastHitAt: 0,
+    iceDir: null, iceSpeed: 0, sprintMul: 1.0,
     aiState: 'scout', aiMode, followTarget: pos, fireCooldown: 0,
     followRadius: 100, visionRadius: 200,
   };

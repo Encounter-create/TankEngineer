@@ -33,19 +33,19 @@ export function applyTerrainEffects(
 
   // Ice: lock direction + speed on entry, no steering possible
   if (tile.type === TileType.ICE) {
-    if (!(tank as any).iceDir) {
+    if (!tank.iceDir) {
       // First frame on ice: lock current speed and direction
-      (tank as any).iceDir = tank.vel.mag() > 10 ? tank.dir : null;
-      (tank as any).iceSpeed = tank.vel.mag() > 10 ? tank.vel.mag() : 0;
+      tank.iceDir = tank.vel.mag() > 10 ? tank.dir : null;
+      tank.iceSpeed = tank.vel.mag() > 10 ? tank.vel.mag() : 0;
     }
-    if ((tank as any).iceSpeed > 0 && (tank as any).iceDir != null) {
-      tank.vel = Vec2.fromAngle((tank as any).iceDir, (tank as any).iceSpeed);
-      tank.dir = (tank as any).iceDir;
+    if (tank.iceSpeed > 0 && tank.iceDir != null) {
+      tank.vel = Vec2.fromAngle(tank.iceDir, tank.iceSpeed);
+      tank.dir = tank.iceDir;
     }
   } else {
     // Exit ice: clear locked direction
-    (tank as any).iceDir = null;
-    (tank as any).iceSpeed = 0;
+    tank.iceDir = null;
+    tank.iceSpeed = 0;
   }
 }
 

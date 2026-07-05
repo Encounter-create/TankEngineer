@@ -34,6 +34,8 @@ export interface BulletEntity {
   bounceCount: number;
   /** Bullet mass for knockback physics (damage × 0.1) */
   mass: number;
+  /** Magnetic rail slide counter */
+  railSlides: number;
 }
 
 let bulletIdCounter = 0;
@@ -81,6 +83,7 @@ export function createBullet(
     targetPos: pos,
     bounceCount: 0,
     mass: damage * 0.01,
+    railSlides: 0,
   };
 }
 

@@ -94,6 +94,14 @@ export interface SiegeState {
   slowMoTimer: number;
   /** Active wave modifiers */
   activeModifiers: WaveModifier[];
+  /** Gravity well position + timer */
+  gravityPos: Vec2; gravityTimer: number;
+  /** Time slow timer (enemy-only) */
+  timeSlowTimer: number;
+  /** Restore pulse timer */
+  restoreTimer: number;
+  /** Lightning chain branches + timer */
+  lightningBranches: Vec2[][]; lightningTimer: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -171,6 +179,10 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     maxMultiplier: 1,
     slowMoTimer: 0,
     activeModifiers: [],
+    gravityPos: new Vec2(0, 0), gravityTimer: 0,
+    timeSlowTimer: 0,
+    restoreTimer: 0,
+    lightningBranches: [], lightningTimer: 0,
   };
 }
 
@@ -299,9 +311,9 @@ export function updateSiege(
   handleBulletTankCollisions(state, dt);
 
   // Gravity well: pull entities toward gravity center
-  if ((state as any).gravityTimer > 0) {
-    (state as any).gravityTimer -= dt;
-    const gPos = (state as any).gravityPos as Vec2;
+  if (state.gravityTimer > 0) {
+    state.gravityTimer -= dt;
+    const gPos = state.gravityPos as Vec2;
     const pull = (e: TankEntity) => {
       if (!e.alive) return;
       const to = gPos.sub(e.pos);
@@ -329,11 +341,11 @@ export function updateSiege(
   state.waveAnnouncementTime -= dt;
   state.skillMessageTime -= 16;
   // Time slow + restore timers
-  if ((state as any).timeSlowTimer > 0) (state as any).timeSlowTimer -= dt;
-  if ((state as any).restoreTimer > 0) (state as any).restoreTimer -= dt;
+  if (state.timeSlowTimer > 0) state.timeSlowTimer -= dt;
+  if (state.restoreTimer > 0) state.restoreTimer -= dt;
 
   // Lightning chain timer
-  if ((state as any).lightningTimer > 0) (state as any).lightningTimer -= dt;
+  if (state.lightningTimer > 0) state.lightningTimer -= dt;
 
   // Combo timer + kill streak decay
   state.comboTimer -= dt;
@@ -370,7 +382,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
 
   // Time slow compensation: boost player velocity to counteract global slowdown
-  if ((state as any).timeSlowTimer > 0) {
+  if (state.timeSlowTimer > 0) {
     state.player.vel = state.player.vel.scale(3.3); // compensate for 0.3x timeScale
   }
 
@@ -422,8 +434,8 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   // Repair armor: out-of-combat regen
   if (state.player.config.turret.id === 'turret_repair') {
     const now = performance.now();
-    if (!(state.player as any).lastHitAt) (state.player as any).lastHitAt = 0;
-    if (now - (state.player as any).lastHitAt > 3000 && state.player.hp < state.player.maxHp) {
+    if (!state.player.lastHitAt) state.player.lastHitAt = 0;
+    if (now - state.player.lastHitAt > 3000 && state.player.hp < state.player.maxHp) {
       state.player.hp = Math.min(state.player.maxHp, state.player.hp + dt * 5);
     }
   }
@@ -485,12 +497,12 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
         state.skillMessageTime = 2000;
       } else if (id === 'commander_gravity') {
         // Gravity well at mouse position, active for 3s
-        (state as any).gravityPos = input.mousePos;
-        (state as any).gravityTimer = 3;
+        state.gravityPos = input.mousePos;
+        state.gravityTimer = 3;
       } else if (id === 'commander_time') {
         // Time slow: global slow-mo (vignette+slow blocks) + player speed boost to compensate
         state.slowMoTimer = 3;
-        (state as any).timeSlowTimer = 3;
+        state.timeSlowTimer = 3;
       } else if (id === 'commander_lightning') {
         // 5 simultaneous zigzag branches from player to nearest enemies
         const aliveEnemies = state.enemies.filter(e => e.alive);
@@ -518,8 +530,8 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
           const mid = new Vec2(start.x + dx*0.5 + dy*0.15, start.y + dy*0.5 - dx*0.15);
           branches.push([start, mid, end]);
         }
-        (state as any).lightningBranches = branches;
-        (state as any).lightningTimer = 1.5;
+        state.lightningBranches = branches;
+        state.lightningTimer = 1.5;
       } else if (id === 'commander_restore') {
         // Restore destroyed bricks within 150px
         let count = 0;
@@ -536,7 +548,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
             }
           }
         }
-        (state as any).restoreTimer = 3;
+        state.restoreTimer = 3;
         state.skillMessage = `恢复了${count}块砖墙`;
         state.skillMessageTime = 2000;
       }
@@ -734,7 +746,7 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
 
     // Enemy speed: 55% base, ×1.4 if overclocked, ×0.3 if time-slowed
     let speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
-    if ((state as any).timeSlowTimer > 0) speedMul *= 0.3;
+    if (state.timeSlowTimer > 0) speedMul *= 0.3;
     const moveDir = updateAI(ctx, target, state.map, dt);
     moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
     const maxEnemySpeed = effectiveSpeed(enemy.config) * speedMul;
