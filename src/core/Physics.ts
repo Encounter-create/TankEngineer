@@ -384,32 +384,28 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Brick: HP damage + elastic collision (bounce = knockback, same event)
+      // Brick: HP damage + elastic collision for bullet reflection
       if (col.tileType === TileType.BRICK) {
         map[gy][gx].hp -= bullet.damage;
-        const brickMass = BRICK_MASS;
+        // Elastic bounce: bullet reflects off brick (brick is massive, barely moves)
+        const brickMass = 50; // brick is much heavier than bullet
         const tileCenter = new Vec2((col.tileX + 0.5) * CELL_SIZE, (col.tileY + 0.5) * CELL_SIZE);
-        // Create temp BodyRef for the brick tile (starts at rest)
-        let brickVel = Vec2.zero();
-        let brickPos = tileCenter;
-        const bulletBody = bodyRef(bullet.pos, bullet.vel);
-        const brickBody = bodyRef(brickPos, brickVel);
-        elasticBounce(bulletBody, bullet.mass, BULLET_RADIUS, brickBody, brickMass, CELL_SIZE / 2);
-        // Write back bullet velocity from elastic collision (this IS the bounce/reflect)
-        bullet.pos = bulletBody.pos; bullet.vel = bulletBody.vel;
+        let brickVel = Vec2.zero(); let brickPos = tileCenter;
+        const bulBody = bodyRef(bullet.pos, bullet.vel);
+        const brkBody = bodyRef(brickPos, brickVel);
+        elasticBounce(bulBody, bullet.mass, BULLET_RADIUS, brkBody, brickMass, CELL_SIZE / 2);
+        bullet.pos = bulBody.pos; bullet.vel = bulBody.vel;
 
         if (map[gy][gx].hp <= 0) {
-          // Brick destroyed — bullet continues with post-collision velocity
+          // Brick destroyed → debris flies away with transferred momentum
           map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
-        } else {
-          // Brick survives — becomes a physics block with post-collision velocity
-          const blockVel = brickBody.vel;
-          const block = createPhysicsBlock(tileCenter, blockVel, TileType.BRICK);
-          block.chainLength = 0;
-          if (newBlocks) newBlocks.push(block);
-          map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+          const debris = createPhysicsBlock(tileCenter, brkBody.vel, TileType.BRICK);
+          if (newBlocks) newBlocks.push(debris);
+          // Bullet punches through
+          bullet.pos = nextPos;
+          return { hitWall: true, hitTileX: gx, hitTileY: gy };
         }
-        // Bullet continues if it can bounce, otherwise dies
+        // Brick survives — bullet reflects, brick stays in map
         if (bullet.bouncesLeft > 0) {
           bullet.bouncesLeft--;
           bullet.bounceCount++;
