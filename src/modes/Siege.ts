@@ -1020,10 +1020,17 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
     if (nextBg && inBounds(nextBg.x, nextBg.y) && state.map[nextBg.y]?.[nextBg.x]?.type === TileType.WATER) {
       block.vel = Vec2.zero();
     }
+    // Command center: blocks bounce off (like brick wall), tanks stop (handled in Physics)
     const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
     const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
-    const nextCc = Math.hypot(block.pos.x + block.vel.x * dt - ccX, block.pos.y + block.vel.y * dt - ccY);
-    if (nextCc < CELL_SIZE * 1.5 + BLOCK_RADIUS) { block.vel = Vec2.zero(); }
+    const toCc = block.pos.sub(new Vec2(ccX, ccY));
+    const ccDist = toCc.mag();
+    if (ccDist < CELL_SIZE * 1.5 + BLOCK_RADIUS) {
+      const n = ccDist > 0.01 ? toCc.norm() : new Vec2(1, 0);
+      const vn = block.vel.dot(n);
+      if (vn < 0) block.vel = block.vel.sub(n.scale(vn * 1.5)); // elastic reflection
+      block.pos = block.pos.add(n.scale(CELL_SIZE * 1.5 + BLOCK_RADIUS - ccDist + 1));
+    }
     const bg = pixelToGrid(block.pos.x, block.pos.y);
     const onIce = bg && inBounds(bg.x, bg.y) && state.map[bg.y]?.[bg.x]?.type === TileType.ICE;
     if (!onIce) updatePhysicsBlock(block, dt, state.frictionMul);

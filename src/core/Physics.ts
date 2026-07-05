@@ -92,14 +92,17 @@ export function moveTank(
     }
   }
 
-  // Command center collision (solid circle, blocks everything)
+  // Command center: solid, tanks stop like water (no bounce)
   const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
   const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
   const ccR = CELL_SIZE * 1.5;
   const toCc = tank.pos.sub(new Vec2(ccX, ccY));
-  if (toCc.mag() < TANK_RADIUS + ccR) {
-    tank.vel = Vec2.zero();
-    tank.pos = tank.pos.add(toCc.norm().scale(TANK_RADIUS + ccR - toCc.mag() + 1));
+  const ccDist = toCc.mag();
+  if (ccDist < TANK_RADIUS + ccR) {
+    const n = ccDist > 0.01 ? toCc.norm() : new Vec2(1, 0);
+    const vn = tank.vel.dot(n);
+    if (vn < 0) tank.vel = Vec2.zero(); // only stop approaching, same as water
+    tank.pos = tank.pos.add(n.scale(TANK_RADIUS + ccR - ccDist + 1));
   }
 
   // Apply velocity
