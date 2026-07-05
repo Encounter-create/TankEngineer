@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, gridToPixel } from '../utils/Grid';
+import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, gridToPixel, pixelToGrid, inBounds } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
@@ -1006,6 +1006,14 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
     if (!block.alive) continue;
     updatePhysicsBlock(block, dt, state.frictionMul);
     block.pos = block.pos.add(block.vel.scale(dt));
+    // Ice effect for blocks
+    const bg = pixelToGrid(block.pos.x, block.pos.y);
+    if (bg && inBounds(bg.x, bg.y) && state.map[bg.y]?.[bg.x]?.type === TileType.ICE) {
+      if (block.vel.mag() > 5) {
+        const a = Math.atan2(block.vel.y, block.vel.x);
+        block.vel = Vec2.fromAngle(a, block.vel.mag() * 1.005);
+      }
+    }
     // Clamp to map
     const r = block.radius;
     block.pos = new Vec2(
