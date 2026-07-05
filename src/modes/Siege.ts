@@ -1195,7 +1195,7 @@ function handleBullets(state: SiegeState, dt: number): void {
     // Command center collision: blocks all bullets, only enemy bullets deal damage
     const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
     const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
-    if (Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
+    if (bullet.ownerId !== 'cc' && Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
       state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
       if (!bullet.isPlayerBullet) {
         state.commandCenterHp -= bullet.damage;
