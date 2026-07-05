@@ -111,31 +111,26 @@ export function updateAI(ctx: AIContext, playerPos: Vec2, map: TileGrid, dt: num
 // ============================================================
 
 function doPatrol(ctx: AIContext, map: TileGrid): Vec2 {
-  // Pick new random direction periodically
-  if (ctx.stateTimer <= 0) {
-    ctx.patrolDir = rand.pick(DIR4);
-    ctx.stateTimer = 2000 + Math.random() * 3000;
-  }
-
-  // Try to move in patrol direction
+  // Move toward target (command center) — same pathfinding as CHASE, different target
   const myGrid = pixelToGrid(ctx.tank.pos.x, ctx.tank.pos.y);
-  const nx = myGrid.x + ctx.patrolDir.x;
-  const ny = myGrid.y + ctx.patrolDir.y;
+  const targetGrid = pixelToGrid(ctx.targetPos.x, ctx.targetPos.y);
 
-  if (inBounds(nx, ny)) {
+  const candidates = DIR4.map(dir => {
+    const nx = myGrid.x + dir.x, ny = myGrid.y + dir.y;
+    if (!inBounds(nx, ny)) return { dir, score: Infinity };
     const tile = map[ny][nx];
-    if (tile.type === TileType.EMPTY || (tile.type === TileType.BRICK && tile.hp <= 0)) {
-      return ctx.patrolDir;
+    if (tile.type === TileType.METAL) return { dir, score: Infinity };
+    if (tile.type === TileType.BRICK && tile.hp > 0) {
+      if (ctx.tank.config.chassis.stats.crushWalls) return { dir, score: Math.abs(nx - targetGrid.x) + Math.abs(ny - targetGrid.y) + 3 };
+      return { dir, score: Infinity };
     }
-    if (tile.type === TileType.BRICK && ctx.tank.config.chassis.stats.crushWalls) {
-      return ctx.patrolDir;
-    }
-  }
+    // Add randomness to patrol — wander slightly
+    return { dir, score: Math.abs(nx - targetGrid.x) + Math.abs(ny - targetGrid.y) + Math.random() * 3 };
+  });
 
-  // Blocked — pick new direction
-  ctx.patrolDir = rand.pick(DIR4);
-  ctx.stateTimer = 1000;
-  return Dir.NONE;
+  candidates.sort((a, b) => a.score - b.score);
+  if (candidates[0].score === Infinity) return Dir.NONE;
+  return candidates[0].dir;
 }
 
 // ============================================================
