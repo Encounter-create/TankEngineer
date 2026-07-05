@@ -81,7 +81,7 @@ export function createBullet(
   };
 }
 
-export const BULLET_RADIUS = 3;
+export const BULLET_RADIUS = 4; // slightly larger for corner collision detection
 export const ARC_GRAVITY = 600;
 /** Firework: interval between child spawns */
 export const FIREWORK_INTERVAL = 0.28;

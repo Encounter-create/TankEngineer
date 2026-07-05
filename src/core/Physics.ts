@@ -335,7 +335,7 @@ export function moveBullet(
   }
 
   const moveAmount = bullet.vel.mag() * dt;
-  const stepSize = CELL_SIZE / 8; // finer steps for corner detection
+  const stepSize = CELL_SIZE / 12; // ~2.7px, matches bullet radius closely
   const steps = Math.ceil(moveAmount / stepSize);
   if (steps === 0) return { hitWall: false, hitTileX: -1, hitTileY: -1 };
   const stepVec = bullet.vel.norm().scale(stepSize);
