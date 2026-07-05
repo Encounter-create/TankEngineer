@@ -80,7 +80,7 @@ export function createBullet(
     orbitalCenter: pos,
     targetPos: pos,
     bounceCount: 0,
-    mass: damage * 0.1,
+    mass: damage * 0.01,
   };
 }
 
