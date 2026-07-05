@@ -19,7 +19,7 @@ import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entitie
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
 import { hasSynergy } from '../systems/Synergy';
-import { applyTerrainEffects } from '../systems/MapFeatures';
+import { applyTerrainEffects, isTankInGrass } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 
 // ============================================================
@@ -223,10 +223,10 @@ export function updateSiege(
   // Player firing
   handlePlayerFire(state, input, dt);
 
-  // Terrain: water/ice/grass/barrel effects
-  applyTerrainEffects(state.player, state.map, state.fireZones, state.particles);
+  // Terrain: water/ice effects
+  applyTerrainEffects(state.player, state.map);
   for (const enemy of state.enemies) {
-    applyTerrainEffects(enemy, state.map, state.fireZones, state.particles);
+    applyTerrainEffects(enemy, state.map);
   }
 
   // Enemy AI
@@ -704,9 +704,9 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     if (!ctx) continue;
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    // Smoke: if player has smoke active, enemies can't see player → target CC instead
-    const playerVisible = !isSmokeActive(state.player);
-    const target = (state.player.alive && playerVisible) ? state.player.pos : centerPos;
+    // Smoke/Grass: enemies can't see player → target CC instead
+    const playerHidden = isSmokeActive(state.player) || isTankInGrass(state.player, state.map);
+    const target = (state.player.alive && !playerHidden) ? state.player.pos : centerPos;
 
     // Enemy speed: 55% base, ×1.4 if overclocked, ×0.3 if time-slowed
     let speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;

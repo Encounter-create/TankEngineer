@@ -1,4 +1,4 @@
-// Water/grass/ice/barrel terrain interactions
+// Terrain interactions: water, grass, ice, barrel
 import { TileType, pixelToGrid, inBounds } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
 import { TankEntity } from '../entities/Tank';
@@ -6,10 +6,9 @@ import { FireZone, createFireZone } from '../entities/FireZone';
 import { Particle, spawnParticles } from '../entities/Particle';
 import { Vec2 } from '../utils/Vector';
 
-/** Apply water blocking + ice inertia + barrel contact for a tank */
+/** Apply terrain effects for a tank (water stop, ice slide, grass ignored by AI elsewhere) */
 export function applyTerrainEffects(
   tank: TankEntity, map: TileGrid,
-  fireZones: FireZone[], particles: Particle[],
 ): void {
   const g = pixelToGrid(tank.pos.x, tank.pos.y);
   if (!g || !inBounds(g.x, g.y)) return;
@@ -17,41 +16,42 @@ export function applyTerrainEffects(
   if (!tile) return;
 
   if (tile.type === TileType.WATER) {
-    // Push tank away from water
-    tank.pos = tank.pos.add(tank.vel.scale(-0.5));
+    // Stop the tank — no bouncing
     tank.vel = Vec2.zero();
   }
 
   if (tile.type === TileType.ICE) {
-    // Reduced friction: slow decay
-    if (tank.vel.mag() > 2) {
-      tank.vel = tank.vel.scale(1.01); // slight acceleration
+    // Lock direction: keep moving straight in current heading
+    if (tank.vel.mag() > 5) {
+      tank.vel = Vec2.fromAngle(tank.dir, tank.vel.mag());
     }
-  }
-
-  // Barrel: explode on contact
-  if (tile.type === TileType.BARREL && tile.hp > 0) {
-    tile.hp = 0;
-    fireZones.push(createFireZone(tank.pos, 45, 2, 20));
-    particles.push(...spawnParticles(tank.pos, 'explosion', 12, 120));
-    tank.hp -= 20; // barrel hurts the tank
-    if (tank.hp <= 0) tank.alive = false;
+    // VERY low friction
+    if (tank.vel.mag() < 2) tank.vel = Vec2.zero();
   }
 }
 
-/** Bullet hits barrel → explode */
-export function checkMapFeatureBullet(
-  bulletPos: Vec2, map: TileGrid,
+/** Check if a tank is standing in grass → hidden from enemy AI */
+export function isTankInGrass(tank: TankEntity, map: TileGrid): boolean {
+  const g = pixelToGrid(tank.pos.x, tank.pos.y);
+  if (!g || !inBounds(g.x, g.y)) return false;
+  return map[g.y]?.[g.x]?.type === TileType.GRASS;
+}
+
+/** Check if barrel was hit by a bullet (blow it up) */
+export function checkBarrelBullet(
+  gx: number, gy: number, map: TileGrid,
   fireZones: FireZone[], particles: Particle[],
 ): void {
-  const g = pixelToGrid(bulletPos.x, bulletPos.y);
-  if (!g || !inBounds(g.x, g.y)) return;
-  const tile = map[g.y]?.[g.x];
-  if (!tile) return;
-
+  if (!inBounds(gx, gy)) return;
+  const tile = map[gy][gx];
   if (tile.type === TileType.BARREL && tile.hp > 0) {
-    tile.hp = 0;
-    fireZones.push(createFireZone(bulletPos, 45, 2, 20));
-    particles.push(...spawnParticles(bulletPos, 'explosion', 12, 120));
+    tile.hp = 0; // destroyed
+    tile.type = TileType.EMPTY; // disappear
+    fireZones.push(createFireZone(
+      new Vec2(gx * 32 + 16, gy * 32 + 16), 50, 3, 25,
+    ));
+    particles.push(...spawnParticles(
+      new Vec2(gx * 32 + 16, gy * 32 + 16), 'explosion', 15, 130,
+    ));
   }
 }

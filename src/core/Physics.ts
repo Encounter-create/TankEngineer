@@ -387,10 +387,9 @@ export function moveBullet(
         if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
         bullet.pos = nextPos; return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
-      // Barrel: explode (treated like brick with boom)
+      // Barrel: explode on bullet hit, disappears after one use
       if (col.tileType === TileType.BARREL) {
-        map[gy][gx].hp -= bullet.damage;
-        if (map[gy][gx].hp <= 0) map[gy][gx] = { type: TileType.EMPTY, hp: 0 };
+        map[gy][gx].hp = 0; map[gy][gx].type = TileType.EMPTY;
         bullet.alive = false; bullet.pos = nextPos;
         return { hitWall: true, hitTileX: gx, hitTileY: gy };
       }
