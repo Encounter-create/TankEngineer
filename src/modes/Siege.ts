@@ -2,7 +2,7 @@ import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, gridToPixel, pixelToGrid, inBounds } from '../utils/Grid';
 import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
-import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
+import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
@@ -1218,22 +1218,9 @@ function handleBullets(state: SiegeState, dt: number): void {
     // Firework: timer for child spawns, auto-destruct
     if (bullet.style === 'firework') {
       bullet.fireworkTimer -= dt;
-      bullet.fireworkLife += dt;
-      if (bullet.fireworkLife >= FIREWORK_MAX_LIFE) {
-        // Final burst — 12 uniform directions
-        for (let i = 0; i < 12; i++) {
-          const angle = (Math.PI * 2 / 12) * i;
-          const child = createBullet(
-            bullet.pos, angle, 'straight', 120, 8, 0, 0,
-            bullet.ownerId, bullet.isPlayerBullet,
-          );
-          child.fireworkLife = 999; // mark as short-lived child
-          newBullets.push(child);
-        }
-        bullet.alive = false;
-        state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 60));
-        continue;
-      }
+      bullet.fireworkLife -= dt;
+      if (bullet.fireworkLife <= 0) {
+        bullet.alive = false; state.particles.push(...spawnExplosion(bullet.pos)); continue; }
       if (bullet.fireworkTimer <= 0) {
         // 烟花祭 synergy: double child spawn rate during barrage
         const fwRate = (hasSynergy(state.player.config, 'firework_fest') && isBarrageActive(state.player))
@@ -1290,11 +1277,7 @@ function handleBullets(state: SiegeState, dt: number): void {
   state.bullets = state.bullets.filter(b => {
     if (!b.alive) return false;
     // Firework children die quickly
-    if (b.fireworkLife >= 999) {
-      b.fireworkLife += dt * 3; // use as decay timer
-      if (b.fireworkLife >= 1000) return false;
-    }
-    return true;
+return true;
   });
 }
 
