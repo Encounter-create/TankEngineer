@@ -131,8 +131,8 @@ export function moveTank(
       // Slide
       const slidePos = tank.pos.add(tank.vel.scale(dt));
       tank.pos = clampToMapBounds(slidePos);
-    } else if (col.tileType === TileType.BRICK || col.tileType === TileType.METAL) {
-      // ONLY bricks and metal: momentum transfer → create PhysicsBlock
+    } else if (col.tileType === TileType.BRICK || col.tileType === TileType.METAL || col.tileType === TileType.BARREL) {
+      // Bricks, metal and barrels: momentum transfer → create PhysicsBlock
       const normal = col.normal;
       const velDotNormal = tank.vel.dot(normal);
       if (velDotNormal < 0) {

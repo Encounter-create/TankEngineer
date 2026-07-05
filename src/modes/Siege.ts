@@ -1095,8 +1095,23 @@ function handleBullets(state: SiegeState, dt: number): void {
     for (const block of state.physicsBlocks) {
       if (!block.alive) continue;
       if (bullet.pos.dist(block.pos) < BLOCK_RADIUS + BULLET_RADIUS) {
-        if (bullet.style === 'rocket') {
-          explodeRocket(bullet, state);
+        if (bullet.style === 'rocket' || block.tileType === TileType.BARREL) {
+          // Rocket or barrel: explode
+          if (block.tileType === TileType.BARREL) {
+            block.alive = false;
+            state.fireZones.push(createFireZone(block.pos, 55, 3, 25));
+            state.particles.push(...spawnParticles(block.pos, 'explosion', 18, 150));
+            playExplosion(); state.screenShake = 8;
+            for (const enemy of state.enemies) {
+              if (!enemy.alive) continue;
+              if (enemy.pos.dist(block.pos) < 60) {
+                takeDamage(enemy, 40);
+                if (!enemy.alive) onEnemyKilled(state, enemy, 1);
+              }
+            }
+          }
+          if (bullet.style === 'rocket') explodeRocket(bullet, state);
+          else bullet.alive = false;
         } else {
           // Knockback: bullet momentum to block (bounce if can, die if can't)
           const bulletBody = bodyRef(bullet.pos, bullet.vel);
