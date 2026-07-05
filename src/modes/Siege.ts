@@ -105,7 +105,9 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
   const map = createMap(mapName);
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
 
-  const player = createTank('player', centerPos, playerConfig, true);
+  // Player spawns below command center
+  const playerSpawn = new Vec2(centerPos.x, centerPos.y + CELL_SIZE * 2.5);
+  const player = createTank('player', playerSpawn, playerConfig, true);
   player.hp = player.maxHp * 3; // player HP buff
   player.maxHp = player.hp;
 
@@ -1149,13 +1151,16 @@ function handleBullets(state: SiegeState, dt: number): void {
     }
     if (hitBlock) continue;
 
-    // Command center collision (solid, blocks bullets, takes damage)
+    // Command center collision: blocks all bullets, only enemy bullets deal damage
     const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
     const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
     if (Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
-      state.commandCenterHp -= bullet.damage;
-      state.particles.push(...spawnParticles(bullet.pos, 'impact', 8, 80));
-      playHitWall();
+      if (!bullet.isPlayerBullet) {
+        state.commandCenterHp -= bullet.damage;
+        state.particles.push(...spawnParticles(bullet.pos, 'explosion', 10, 100));
+        playExplosion();
+        state.screenShake = 4;
+      }
       bullet.alive = false;
       continue;
     }
