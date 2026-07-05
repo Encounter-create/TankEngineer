@@ -92,6 +92,12 @@ export function moveTank(
     }
   }
 
+  // Water check BEFORE moving: if about to enter water, stop
+  const nextGrid = pixelToGrid(tank.pos.x + tank.vel.x * dt, tank.pos.y + tank.vel.y * dt);
+  if (nextGrid && inBounds(nextGrid.x, nextGrid.y) && map[nextGrid.y][nextGrid.x].type === TileType.WATER) {
+    tank.vel = Vec2.zero();
+  }
+
   // Apply velocity
   if (tank.vel.mag() > 0) {
     const desired = tank.pos.add(tank.vel.scale(dt));
