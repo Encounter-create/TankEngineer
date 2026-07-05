@@ -391,7 +391,7 @@ function drawBrickHPBars(ctx: CanvasRenderingContext2D, map: TileGrid): void {
       const px = gx * CELL_SIZE, py = gy * CELL_SIZE;
       const barW = CELL_SIZE - 6, barH = 3;
       const barX = px + 3, barY = py - 5;
-      const ratio = tile.hp / 50;
+      const ratio = tile.hp / 500;
       ctx.fillStyle = '#333';
       ctx.fillRect(barX, barY, barW, barH);
       ctx.fillStyle = ratio > 0.3 ? '#4ae0a0' : '#ff4444';
