@@ -61,6 +61,18 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   if (input.wasJustPressed('KeyE')) {
     const r = activateSkill(ps.player);
     ps.skillMessage = r.message; ps.skillMessageTime = 2;
+    // Actually execute the skill effects (same logic as Siege)
+    if (r.success) {
+      const id = ps.player.config.commander.id;
+      if (id === 'commander_colonel') { /* planes not in practice */ ps.skillMessage = '演习中无空军支援'; }
+      else if (id === 'commander_engineer') { /* turret not in practice */ ps.skillMessage = '演习中无炮塔'; }
+      else if (id === 'commander_wizard') { /* allies not in practice */ ps.skillMessage = '演习中无亡灵'; }
+      else if (id === 'commander_ninja') { /* clone not in practice */ ps.skillMessage = '演习中无分身'; }
+      else if (id === 'commander_gravity') { ps.skillMessage = '演习中无重力'; }
+      else if (id === 'commander_time') { ps.fireZones.push(createFireZone(ps.player.pos, 30, 1, 0)); ps.skillMessage = '时间减速!'; }
+      else if (id === 'commander_lightning') { takeDamage(ps.enemy, 100); ps.particles.push(...spawnParticles(ps.enemy.pos, 'hit', 8, 80)); }
+      else if (id === 'commander_restore') { ps.skillMessage = '演习中无砖墙'; }
+    }
   }
 
   // Bullets — same handling as Siege.ts
