@@ -445,117 +445,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
 
   // Commander skill: E key
   if (input.wasJustPressed('KeyE')) {
-    const result = activateSkill(state.player);
-    state.skillMessage = result.message;
-    state.skillMessageTime = 2000;
-    // Skill VFX
-    if (result.success) {
-      const id = state.player.config.commander.id;
-      if (id === 'commander_repair') {
-        state.particles.push(...spawnParticles(state.player.pos, 'repair', 10, 50));
-        playRepair();
-      } else if (id === 'commander_sprint') {
-        state.particles.push(...spawnParticles(state.player.pos, 'sprint', 6, 40));
-        playSprint();
-      } else if (id === 'commander_barrage') {
-        state.particles.push(...spawnParticles(state.player.pos, 'barrage', 6, 40));
-        playBarrage();
-      } else if (id === 'commander_smoke') {
-        state.particles.push(...spawnParticles(state.player.pos, 'smoke', 12, 30));
-        playSmoke();
-      } else if (id === 'commander_colonel') {
-        state.planes.push(...createPlanes(state.player.pos, state.player.turretAngle, MAP_W, MAP_H));
-      } else if (id === 'commander_engineer') {
-        const turret = createTurret(state.player.pos);
-        // 移动堡垒 synergy: turret gets +50% HP, +30% range
-        if (hasSynergy(state.player.config, 'mobile_fortress')) {
-          turret.hp = Math.round(turret.hp * 1.5);
-          turret.maxHp = turret.hp;
-          turret.fireRange = Math.round(turret.fireRange * 1.3);
-        }
-        state.turrets.push(turret);
-        state.skillMessage = '炮塔已部署';
-        state.skillMessageTime = 2000;
-      } else if (id === 'commander_wizard') {
-        const deadEnemies = state.enemies.filter(e => !e.alive);
-        if (deadEnemies.length > 0) {
-          for (const dead of deadEnemies.slice(0, 3)) {
-            const ally = createAllyTank(`ally_${Date.now()}_${Math.random()}`, dead.pos, dead.config, 'patrol_chase');
-            state.allies.push(ally);
-          }
-          state.skillMessage = `复活了 ${Math.min(3, deadEnemies.length)} 辆敌军`;
-          state.skillMessageTime = 2000;
-        } else {
-          state.skillMessage = '没有可复活的敌军';
-          state.skillMessageTime = 2000;
-        }
-      } else if (id === 'commander_ninja') {
-        const cloneCfg = hasSynergy(state.player.config, 'mirror_clone')
-          ? { ...state.player.config, barrel: MVP_BARRELS.find(p => p.id === 'barrel_bounce')! }
-          : state.player.config;
-        const clone = createAllyTank(`clone_${Date.now()}`, state.player.pos, cloneCfg, 'follow_player');
-        clone.followTarget = state.player.pos;
-        state.allies.push(clone);
-        state.skillMessage = '分身已出击';
-        state.skillMessageTime = 2000;
-      } else if (id === 'commander_gravity') {
-        // Gravity well at mouse position, active for 3s
-        state.gravityPos = input.mousePos;
-        state.gravityTimer = 3;
-      } else if (id === 'commander_time') {
-        // Time slow: global slow-mo (vignette+slow blocks) + player speed boost to compensate
-        state.slowMoTimer = 3;
-        state.timeSlowTimer = 3;
-      } else if (id === 'commander_lightning') {
-        // 5 simultaneous zigzag branches from player to nearest enemies
-        const aliveEnemies = state.enemies.filter(e => e.alive);
-        const branches: Vec2[][] = [];
-        const hit: Set<string> = new Set();
-        for (let b = 0; b < 5; b++) {
-          let nearest: TankEntity | null = null;
-          let nearestDist = 600;
-          for (const e of aliveEnemies) {
-            if (hit.has(e.id)) continue;
-            const d = e.pos.dist(state.player.pos);
-            if (d < nearestDist) { nearestDist = d; nearest = e; }
-          }
-          if (!nearest) break;
-          hit.add(nearest.id);
-          const dmg = 100;
-          takeDamage(nearest, dmg, state.player);
-          state.damageNumbers.push(spawnDamageNumber(nearest.pos, dmg, true));
-          state.particles.push(...spawnParticles(nearest.pos, 'hit', 8, 80));
-          if (!nearest.alive) onEnemyKilled(state, nearest, 1);
-          // Zigzag branch: start→mid1→mid2→target
-          const start = state.player.pos;
-          const end = nearest.pos;
-          const dx = end.x - start.x, dy = end.y - start.y;
-          const mid = new Vec2(start.x + dx*0.5 + dy*0.15, start.y + dy*0.5 - dx*0.15);
-          branches.push([start, mid, end]);
-        }
-        state.lightningBranches = branches;
-        state.lightningTimer = 1.5;
-      } else if (id === 'commander_restore') {
-        // Restore destroyed bricks within 150px
-        let count = 0;
-        for (let gy = 0; gy < MAP_ROWS; gy++) {
-          for (let gx = 0; gx < MAP_COLS; gx++) {
-            const tile = state.map[gy][gx];
-            if (tile.type === TileType.BRICK && tile.hp <= 0) {
-              const tx = gx * CELL_SIZE + CELL_SIZE / 2;
-              const ty = gy * CELL_SIZE + CELL_SIZE / 2;
-              if (Math.hypot(tx - state.player.pos.x, ty - state.player.pos.y) < 150) {
-                state.map[gy][gx] = { type: TileType.BRICK, hp: 500 };
-                count++;
-              }
-            }
-          }
-        }
-        state.restoreTimer = 3;
-        state.skillMessage = `恢复了${count}块砖墙`;
-        state.skillMessageTime = 2000;
-      }
-    }
+    handleSkillActivation(state, input);
   }
 }
 
@@ -1377,6 +1267,63 @@ function handleCCAttack(state: SiegeState, dt: number): void {
     const bullet = createBullet(ccPos, angle, 'straight', 450, 20, 0, 0, 'cc', true);
     state.bullets.push(bullet);
     ccFireCooldown = 800; // fire every 0.8s
+  }
+}
+
+/** Shared skill handler — called from both Siege and Practice */
+export function handleSkillActivation(state: SiegeState, input: Input): void {
+  const result = activateSkill(state.player);
+  state.skillMessage = result.message;
+  state.skillMessageTime = 2000;
+  if (!result.success) return;
+  const id = state.player.config.commander.id;
+  if (id === 'commander_repair') {
+    state.particles.push(...spawnParticles(state.player.pos, 'repair', 10, 50)); playRepair();
+  } else if (id === 'commander_sprint') {
+    state.particles.push(...spawnParticles(state.player.pos, 'sprint', 6, 40)); playSprint();
+  } else if (id === 'commander_barrage') {
+    state.particles.push(...spawnParticles(state.player.pos, 'barrage', 6, 40)); playBarrage();
+  } else if (id === 'commander_smoke') {
+    state.particles.push(...spawnParticles(state.player.pos, 'smoke', 12, 30)); playSmoke();
+  } else if (id === 'commander_colonel') {
+    (state as any).planes.push(...createPlanes(state.player.pos, state.player.turretAngle, MAP_W, MAP_H));
+  } else if (id === 'commander_engineer') {
+    const turret = createTurret(state.player.pos);
+    if (hasSynergy(state.player.config, 'mobile_fortress')) { turret.hp = Math.round(turret.hp * 1.5); turret.maxHp = turret.hp; turret.fireRange = Math.round(turret.fireRange * 1.3); }
+    (state as any).turrets.push(turret);
+  } else if (id === 'commander_wizard') {
+    const deadEnemies = state.enemies.filter(e => !e.alive);
+    if (deadEnemies.length > 0) {
+      for (const dead of deadEnemies.slice(0, 3)) (state as any).allies.push(createAllyTank(`ally_${Date.now()}`, dead.pos, dead.config, 'patrol_chase'));
+      state.skillMessage = `复活了${Math.min(3, deadEnemies.length)}辆`;
+    } else state.skillMessage = '没有可复活的敌军';
+  } else if (id === 'commander_ninja') {
+    const cloneCfg = hasSynergy(state.player.config, 'mirror_clone') ? { ...state.player.config, barrel: MVP_BARRELS.find(p => p.id === 'barrel_bounce')! } : state.player.config;
+    const clone = createAllyTank(`clone_${Date.now()}`, state.player.pos, cloneCfg, 'follow_player'); clone.followTarget = state.player.pos;
+    (state as any).allies.push(clone);
+  } else if (id === 'commander_gravity') {
+    state.gravityPos = input.mousePos; state.gravityTimer = 3;
+  } else if (id === 'commander_time') {
+    state.slowMoTimer = 3; state.timeSlowTimer = 3;
+  } else if (id === 'commander_lightning') {
+    const aliveEnemies = state.enemies.filter(e => e.alive); const branches: Vec2[][] = []; const hit: Set<string> = new Set();
+    for (let b = 0; b < 5; b++) {
+      let nearest: TankEntity | null = null; let nearestDist = 600;
+      for (const e of aliveEnemies) { if (hit.has(e.id)) continue; const d = e.pos.dist(state.player.pos); if (d < nearestDist) { nearestDist = d; nearest = e; } }
+      if (!nearest) break; hit.add(nearest.id);
+      takeDamage(nearest, 100, state.player); state.damageNumbers.push(spawnDamageNumber(nearest.pos, 100, true)); state.particles.push(...spawnParticles(nearest.pos, 'hit', 8, 80));
+      if (!nearest.alive) onEnemyKilled(state, nearest, 1);
+      const dx = nearest.pos.x-state.player.pos.x, dy = nearest.pos.y-state.player.pos.y;
+      branches.push([state.player.pos, new Vec2(state.player.pos.x+dx*0.5+dy*0.15, state.player.pos.y+dy*0.5-dx*0.15), nearest.pos]);
+    }
+    state.lightningBranches = branches; state.lightningTimer = 1.5;
+  } else if (id === 'commander_restore') {
+    let count = 0;
+    for (let gy = 0; gy < MAP_ROWS; gy++) for (let gx = 0; gx < MAP_COLS; gx++) {
+      const tile = state.map[gy][gx];
+      if (tile.type === TileType.BRICK && tile.hp <= 0 && Math.hypot(gx*CELL_SIZE+CELL_SIZE/2-state.player.pos.x, gy*CELL_SIZE+CELL_SIZE/2-state.player.pos.y) < 150) { state.map[gy][gx] = { type: TileType.BRICK, hp: 500 }; count++; }
+    }
+    state.restoreTimer = 3; state.skillMessage = `恢复了${count}块砖墙`;
   }
 }
 

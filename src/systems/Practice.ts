@@ -8,7 +8,7 @@ import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS } from '../utils/Grid';
 import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
-import { activateSkill } from '../systems/Commander';
+import { handleSkillActivation } from '../modes/Siege';
 import { Input } from '../core/Input';
 import { Vec2 } from '../utils/Vector';
 import { drawTank, drawFireZone } from '../ui/Renderer';
@@ -20,7 +20,12 @@ export interface PracticeState {
   map: TileGrid;
   arenaX: number; arenaY: number; arenaW: number; arenaH: number;
   skillMessage: string; skillMessageTime: number;
-  practiceTurret: any; practiceClone: any;
+  // Entity arrays so Siege's skill handler works here too
+  planes: any[]; turrets: any[]; allies: any[];
+  gravityPos: Vec2; gravityTimer: number;
+  slowMoTimer: number; timeSlowTimer: number;
+  lightningBranches: Vec2[][]; lightningTimer: number;
+  enemies: TankEntity[];
 }
 
 export function createPractice(config: TankConfig, ax: number, ay: number, aw: number, ah: number): PracticeState {
@@ -33,7 +38,13 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
   }
   const player = createTank('practice_p', new Vec2(ax + aw * 0.2, ay + ah * 0.5), config, true);
   const enemy = createTank('practice_e', new Vec2(ax + aw * 0.75, ay + ah * 0.35), config, false);
-  return { player, enemy, bullets: [], blocks: [], fireZones: [], particles: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0, practiceTurret: null, practiceClone: null };
+  return { player, enemy, bullets: [], blocks: [], fireZones: [], particles: [], map,
+    arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0,
+    planes: [], turrets: [], allies: [], enemies: [enemy],
+    gravityPos: new Vec2(0,0), gravityTimer: 0,
+    slowMoTimer: 0, timeSlowTimer: 0,
+    lightningBranches: [], lightningTimer: 0,
+  };
 }
 
 export function updatePractice(ps: PracticeState, input: Input, dt: number): void {
@@ -60,11 +71,8 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   ps.player.cooldownRemaining -= dt * 1000;
 
   if (input.wasJustPressed('KeyE')) {
-    // activateSkill handles repair/sprint/barrage/smoke directly (modifies tank state).
-    // Complex skills (planes/turrets/allies) require SiegeState → not available in practice.
-    // No duplicated code — just calls the same activateSkill that Siege uses.
-    const r = activateSkill(ps.player);
-    ps.skillMessage = r.message; ps.skillMessageTime = 2;
+    // Same handler as Siege — no duplicated code
+    handleSkillActivation(ps as any, input);
   }
 
   // Bullets — same handling as Siege.ts
