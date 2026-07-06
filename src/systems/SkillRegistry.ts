@@ -98,3 +98,62 @@ export function activateSkill(tank: TankEntity): AbilityResult {
   if (!fn) return { success: false, message: '未知技能' };
   return fn(tank, now);
 }
+
+/** Shared skill effect handler — call this from both Siege and Practice */
+export function executeSkillEffect(
+  id: string, player: TankEntity,
+  ctx: {
+    particles: any[]; fireZones: any[]; planes: any[]; turrets: any[];
+    allies: any[]; enemies: any[]; // add as needed
+    addParticle: (p: any) => void;
+    addFireZone: (z: any) => void;
+    addPlane: (p: any) => void;
+    addTurret: (t: any) => void;
+    addAlly: (a: any) => void;
+    setGravity: (pos: any) => void;
+    setSlowMo: () => void;
+    lightningDamage: (enemy: any, dmg: number) => void;
+    restoreBricks: () => number;
+    ninjaClone: () => void;
+    wizardResurrect: () => number;
+    getMessage: () => string;
+  },
+): string | null {
+  if (id === 'commander_repair') {
+    ctx.addParticle({ type: 'repair', pos: player.pos, count: 10, speed: 50 });
+    return null;
+  }
+  if (id === 'commander_colonel') {
+    ctx.addPlane({ pos: player.pos, dir: player.turretAngle });
+    return null;
+  }
+  if (id === 'commander_engineer') {
+    ctx.addTurret({ pos: player.pos });
+    return '炮塔已部署';
+  }
+  if (id === 'commander_wizard') {
+    const n = ctx.wizardResurrect();
+    return n > 0 ? `复活了${n}辆敌军` : '没有可复活的敌军';
+  }
+  if (id === 'commander_ninja') {
+    ctx.ninjaClone();
+    return '分身已出击';
+  }
+  if (id === 'commander_gravity') {
+    ctx.setGravity(player); // uses player as marker
+    return null;
+  }
+  if (id === 'commander_time') {
+    ctx.setSlowMo();
+    return null;
+  }
+  if (id === 'commander_lightning') {
+    ctx.lightningDamage(null, 100);
+    return null;
+  }
+  if (id === 'commander_restore') {
+    const n = ctx.restoreBricks();
+    return `恢复了${n}块砖墙`;
+  }
+  return null;
+}

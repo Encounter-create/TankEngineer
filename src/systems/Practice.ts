@@ -60,20 +60,11 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   ps.player.cooldownRemaining -= dt * 1000;
 
   if (input.wasJustPressed('KeyE')) {
+    // activateSkill handles repair/sprint/barrage/smoke directly (modifies tank state).
+    // Complex skills (planes/turrets/allies) require SiegeState → not available in practice.
+    // No duplicated code — just calls the same activateSkill that Siege uses.
     const r = activateSkill(ps.player);
     ps.skillMessage = r.message; ps.skillMessageTime = 2;
-    if (r.success) {
-      const id = ps.player.config.commander.id;
-      // Repair/Sprint/Barrage/Smoke handled by activateSkill
-      if (id === 'commander_colonel') { for (let i=0;i<5;i++) ps.particles.push(...spawnParticles(ps.enemy.pos, 'explosion', 15, 120)); takeDamage(ps.enemy, 60); }
-      else if (id === 'commander_engineer') { ps.practiceTurret = { pos: new Vec2(ps.player.pos.x, ps.player.pos.y), alive: true, cooldown: 0 }; }
-      else if (id === 'commander_wizard') { ps.enemy.alive = true; ps.enemy.hp = ps.enemy.maxHp; ps.enemy.pos = new Vec2(ps.arenaX + ps.arenaW * 0.5 + Math.random() * ps.arenaW * 0.3, ps.arenaY + ps.arenaH * 0.3 + Math.random() * 0.3); }
-      else if (id === 'commander_ninja') { ps.practiceClone = { pos: new Vec2(ps.player.pos.x, ps.player.pos.y), turretAngle: 0, alive: true, cooldown: 0 }; }
-      else if (id === 'commander_gravity') { ps.particles.push(...spawnParticles(ps.player.pos, 'hit', 3, 30)); ps.skillMessage = '重力井(演习简化)'; }
-      else if (id === 'commander_time') { ps.particles.push(...spawnParticles(ps.player.pos, 'smoke', 5, 20)); ps.skillMessage = '时间减速!'; }
-      else if (id === 'commander_lightning') { takeDamage(ps.enemy, 100); ps.particles.push(...spawnParticles(ps.enemy.pos, 'hit', 8, 80)); }
-      else if (id === 'commander_restore') { ps.skillMessage = '演习中无砖墙可恢复'; }
-    }
   }
 
   // Bullets — same handling as Siege.ts
