@@ -20,6 +20,7 @@ export interface PracticeState {
   map: TileGrid;
   arenaX: number; arenaY: number; arenaW: number; arenaH: number;
   skillMessage: string; skillMessageTime: number;
+  practiceTurret: any; practiceClone: any;
 }
 
 export function createPractice(config: TankConfig, ax: number, ay: number, aw: number, ah: number): PracticeState {
@@ -32,7 +33,7 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
   }
   const player = createTank('practice_p', new Vec2(ax + aw * 0.2, ay + ah * 0.5), config, true);
   const enemy = createTank('practice_e', new Vec2(ax + aw * 0.75, ay + ah * 0.35), config, false);
-  return { player, enemy, bullets: [], blocks: [], fireZones: [], particles: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0 };
+  return { player, enemy, bullets: [], blocks: [], fireZones: [], particles: [], map, arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah, skillMessage: '', skillMessageTime: 0, practiceTurret: null, practiceClone: null };
 }
 
 export function updatePractice(ps: PracticeState, input: Input, dt: number): void {
@@ -61,17 +62,17 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   if (input.wasJustPressed('KeyE')) {
     const r = activateSkill(ps.player);
     ps.skillMessage = r.message; ps.skillMessageTime = 2;
-    // Actually execute the skill effects (same logic as Siege)
     if (r.success) {
       const id = ps.player.config.commander.id;
-      if (id === 'commander_colonel') { /* planes not in practice */ ps.skillMessage = '演习中无空军支援'; }
-      else if (id === 'commander_engineer') { /* turret not in practice */ ps.skillMessage = '演习中无炮塔'; }
-      else if (id === 'commander_wizard') { /* allies not in practice */ ps.skillMessage = '演习中无亡灵'; }
-      else if (id === 'commander_ninja') { /* clone not in practice */ ps.skillMessage = '演习中无分身'; }
-      else if (id === 'commander_gravity') { ps.skillMessage = '演习中无重力'; }
-      else if (id === 'commander_time') { ps.fireZones.push(createFireZone(ps.player.pos, 30, 1, 0)); ps.skillMessage = '时间减速!'; }
+      // Repair/Sprint/Barrage/Smoke handled by activateSkill
+      if (id === 'commander_colonel') { for (let i=0;i<5;i++) ps.particles.push(...spawnParticles(ps.enemy.pos, 'explosion', 15, 120)); takeDamage(ps.enemy, 60); }
+      else if (id === 'commander_engineer') { ps.practiceTurret = { pos: new Vec2(ps.player.pos.x, ps.player.pos.y), alive: true, cooldown: 0 }; }
+      else if (id === 'commander_wizard') { ps.enemy.alive = true; ps.enemy.hp = ps.enemy.maxHp; ps.enemy.pos = new Vec2(ps.arenaX + ps.arenaW * 0.5 + Math.random() * ps.arenaW * 0.3, ps.arenaY + ps.arenaH * 0.3 + Math.random() * 0.3); }
+      else if (id === 'commander_ninja') { ps.practiceClone = { pos: new Vec2(ps.player.pos.x, ps.player.pos.y), turretAngle: 0, alive: true, cooldown: 0 }; }
+      else if (id === 'commander_gravity') { ps.particles.push(...spawnParticles(ps.player.pos, 'hit', 3, 30)); ps.skillMessage = '重力井(演习简化)'; }
+      else if (id === 'commander_time') { ps.particles.push(...spawnParticles(ps.player.pos, 'smoke', 5, 20)); ps.skillMessage = '时间减速!'; }
       else if (id === 'commander_lightning') { takeDamage(ps.enemy, 100); ps.particles.push(...spawnParticles(ps.enemy.pos, 'hit', 8, 80)); }
-      else if (id === 'commander_restore') { ps.skillMessage = '演习中无砖墙'; }
+      else if (id === 'commander_restore') { ps.skillMessage = '演习中无砖墙可恢复'; }
     }
   }
 
