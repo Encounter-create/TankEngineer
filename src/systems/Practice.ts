@@ -3,13 +3,13 @@ import { TankEntity, createTank, takeDamage, TANK_RADIUS, getBerserkerMultiplier
 import { TankConfig, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS, DEFAULT_COMMANDER, effectiveCooldown } from '../entities/Parts';
 import { BulletEntity, createBullet, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { FireZone, updateFireZone } from '../entities/FireZone';
-import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
-import { updateDamageNumbers } from '../entities/DamageNumber';
+import { Particle, spawnParticles, spawnExplosion } from '../entities/Particle';
 import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
-import { moveTank, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, resolveTankCollisions } from '../core/Physics';
+import { moveTank, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { handleSkillActivation, handleAllies, handleTurrets, handlePlanes, handleBullets, handleBulletTankCollisions, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles } from '../modes/Siege';
+import { updateBattle } from '../core/BattleEngine';
 import { CloneEntity } from '../entities/Ally';
 import { Input } from '../core/Input';
 import { Vec2 } from '../utils/Vector';
@@ -222,39 +222,19 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   // Enemy AI (skips static targets)
   handleEnemyAI(ps as any, dt);
 
-  // Bullets + bullet-tank collisions — shared with Siege
-  handleBullets(ps as any, dt, true);
-  handleBulletTankCollisions(ps as any, dt);
+  // === Shared battle engine (bullets, turret collision, physics, gravity, particles, all skills) ===
+  updateBattle(ps as any, input, dt, {
+    playerInput: () => {}, playerFire: () => {}, // handled inline above
+    terrain: () => {},
+    enemyAI: () => {}, allies: handleAllies, turrets: handleTurrets, planes: handlePlanes,
+    clones: () => {},
+    physics: () => {},
+    bullets: handleBullets, bulletTank: handleBulletTankCollisions,
+    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles],
+    skipCC: true,
+  });
 
-  // Turret collision: push tanks out + block bounce
-  for (const turret of ps.turrets) {
-    if (!turret.alive) continue;
-    const turretR = 14;
-    for (const tank of [ps.player, ...ps.enemies, ...ps.allies]) {
-      if (!tank.alive) continue;
-      const diff = tank.pos.sub(turret.pos);
-      if (diff.mag() < turretR + TANK_RADIUS) {
-        tank.pos = tank.pos.add(diff.norm().scale(turretR + TANK_RADIUS - diff.mag() + 1));
-      }
-    }
-    for (const block of ps.blocks) {
-      if (!block.alive) continue;
-      const diff = block.pos.sub(turret.pos);
-      const dist = diff.mag();
-      if (dist < turretR + BLOCK_RADIUS) {
-        const n = dist > 0.01 ? diff.norm() : new Vec2(1, 0);
-        block.pos = turret.pos.add(n.scale(turretR + BLOCK_RADIUS + 1));
-        const vn = block.vel.dot(n);
-        if (vn < 0) block.vel = block.vel.sub(n.scale(2 * vn)).scale(0.4);
-      }
-    }
-  }
-
-  // Tank-tank collisions
-  const allCombatants = [ps.player, ...ps.enemies, ...ps.allies].filter(t => t.alive);
-  resolveTankCollisions(allCombatants);
-
-  // Fire zones
+  // Fire zones (Practice-specific: damage to non-static enemies)
   for (const z of ps.fireZones) {
     updateFireZone(z, dt);
     for (const e of ps.enemies) {
@@ -263,6 +243,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   }
   ps.fireZones = ps.fireZones.filter((z: FireZone) => z.alive);
 
+  // Block physics (Practice-specific: arena bounds)
   for (const b of ps.blocks) {
     if (!b.alive) continue;
     updatePhysicsBlock(b, dt, 1);
@@ -298,11 +279,6 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     }
     if (b.vel.mag() < 2) b.vel = Vec2.zero();
   }
-  // Particles
-  updateParticles(ps.particles, dt);
-  ps.particles = ps.particles.filter(p => p.alive);
-  updateDamageNumbers(ps.damageNumbers, dt);
-  ps.damageNumbers = ps.damageNumbers.filter((n: any) => n.alive);
   // Fire zone particles
   for (const z of ps.fireZones) {
     if (z.alive && Math.random() < 0.4) {
@@ -322,25 +298,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   updateQuantum(ps as any, dt);
   updateLens(ps as any, dt);
 
-  // Gravity well
-  if (ps.gravityTimer > 0) {
-    ps.gravityTimer -= dt;
-    const gPos = ps.gravityPos;
-    for (const e of ps.enemies) {
-      if (!e.alive || e.isStatic) continue;
-      const to = gPos.sub(e.pos);
-      const d = to.mag();
-      if (d > 20) e.vel = e.vel.add(to.norm().scale(200 * dt));
-      if (d < 30) takeDamage(e, 10 * dt, ps.player);
-    }
-    for (const block of ps.blocks) {
-      if (!block.alive) continue;
-      block.vel = block.vel.add(gPos.sub(block.pos).norm().scale(300 * dt));
-    }
-    ps.particles.push(...spawnParticles(gPos, 'hit', 1, 30));
-  }
-
-  // Time slow: player compensation
+  // Time slow: player compensation (Practice-specific)
   if (ps.timeSlowTimer > 0) {
     ps.player.vel = ps.player.vel.scale(3.3);
   }
@@ -353,18 +311,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     ps.particles.push(...spawnParticles(ps.player.pos, 'smoke', 3, 15));
   }
 
-  // Timer decrements
-  if (ps.timeSlowTimer > 0) ps.timeSlowTimer -= dt;
-  if (ps.restoreTimer > 0) ps.restoreTimer -= dt;
-  if (ps.lightningTimer > 0) ps.lightningTimer -= dt;
-  if (ps.slowMoTimer > 0) ps.slowMoTimer -= dt;
-  if (ps.comboTimer > 0) ps.comboTimer -= dt;
-  if (ps.killStreakTimer > 0) { ps.killStreakTimer -= dt; if (ps.killStreakTimer <= 0) ps.killStreak = 0; }
-
-  // Entity update (planes, turrets, allies) — shared with Siege
-  handleAllies(ps as any, dt);
-  handleTurrets(ps as any, dt);
-  handlePlanes(ps as any, dt);
+  // Entity updates (gravity well, allies, turrets, planes, timers) → handled by BattleEngine
 
   // Clones: mirror player + fire
   const now = performance.now();
@@ -391,7 +338,6 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   }
   ps.clones = ps.clones.filter(c => c.alive);
 
-  ps.skillMessageTime -= dt * 1000;
   ps.player.pos = new Vec2(Math.max(ps.arenaX + TANK_RADIUS, Math.min(ps.arenaX + ps.arenaW - TANK_RADIUS, ps.player.pos.x)), Math.max(ps.arenaY + TANK_RADIUS, Math.min(ps.arenaY + ps.arenaH - TANK_RADIUS, ps.player.pos.y)));
 }
 
