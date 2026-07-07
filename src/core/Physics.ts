@@ -58,7 +58,10 @@ export function moveTank(
   tank: TankEntity, moveDir: Vec2, dt: number, map: TileGrid,
   newBlocks: PhysicsBlock[],
   allBlocks: PhysicsBlock[],
+  skipCC: boolean = false,
 ): void {
+  // Static targets: never move
+  if (tank.isStatic) { tank.vel = Vec2.zero(); return; }
   const sprintMul = tank.sprintMul ?? 1.0;
   const maxSpeed = effectiveSpeed(tank.config) * getSkillSpeedMultiplier(tank) * sprintMul;
   const isMoving = moveDir.x !== 0 || moveDir.y !== 0;
@@ -93,16 +96,18 @@ export function moveTank(
   }
 
   // Command center: solid, tanks stop like water (no bounce)
-  const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
-  const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
-  const ccR = CELL_SIZE * 1.5;
-  const toCc = tank.pos.sub(new Vec2(ccX, ccY));
-  const ccDist = toCc.mag();
-  if (ccDist < TANK_RADIUS + ccR) {
-    const n = ccDist > 0.01 ? toCc.norm() : new Vec2(1, 0);
-    const vn = tank.vel.dot(n);
-    if (vn < 0) tank.vel = Vec2.zero(); // only stop approaching, same as water
-    tank.pos = tank.pos.add(n.scale(TANK_RADIUS + ccR - ccDist + 1));
+  if (!skipCC) {
+    const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+    const ccR = CELL_SIZE * 1.5;
+    const toCc = tank.pos.sub(new Vec2(ccX, ccY));
+    const ccDist = toCc.mag();
+    if (ccDist < TANK_RADIUS + ccR) {
+      const n = ccDist > 0.01 ? toCc.norm() : new Vec2(1, 0);
+      const vn = tank.vel.dot(n);
+      if (vn < 0) tank.vel = Vec2.zero(); // only stop approaching, same as water
+      tank.pos = tank.pos.add(n.scale(TANK_RADIUS + ccR - ccDist + 1));
+    }
   }
 
   // Apply velocity
@@ -285,6 +290,22 @@ export function resolveTankCollisions(tanks: TankEntity[]): void {
     for (let j = i + 1; j < tanks.length; j++) {
       const a = tanks[i], b = tanks[j];
       if (!a.alive || !b.alive) continue;
+      // Static tank: act as immovable wall
+      if (a.isStatic || b.isStatic) {
+        const mover = a.isStatic ? b : a;
+        const wall = a.isStatic ? a : b;
+        const diff = mover.pos.sub(wall.pos);
+        const dist = diff.mag();
+        const minDist = TANK_RADIUS * 2;
+        if (dist < minDist && dist > 0.01) {
+          mover.pos = wall.pos.add(diff.norm().scale(minDist + 1));
+          // Reflect velocity
+          const n = diff.norm();
+          const vn = mover.vel.dot(n);
+          if (vn < 0) mover.vel = mover.vel.sub(n.scale(2 * vn)).scale(0.5);
+        }
+        continue;
+      }
       const ra = bodyRef(a.pos, a.vel), rb = bodyRef(b.pos, b.vel);
       elasticBounce(ra, a.config.totalWeight, TANK_RADIUS, rb, b.config.totalWeight, TANK_RADIUS);
       a.pos = ra.pos; a.vel = ra.vel;

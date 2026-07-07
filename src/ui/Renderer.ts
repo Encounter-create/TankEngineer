@@ -10,7 +10,7 @@ import { FireZone } from '../entities/FireZone';
 import { TurretEntity, Plane } from '../entities/Ally';
 import { DamageNumber } from '../entities/DamageNumber';
 import { isSmokeActive } from '../systems/Commander';
-import { checkSynergies } from '../systems/Synergy';
+import { checkSynergies, hasSynergy } from '../systems/Synergy';
 
 // ============================================================
 // Color palette
@@ -137,34 +137,40 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
   }
   for (const ally of state.allies) {
     drawTank(ctx, ally);
-    // U-key debug: ally circles
+  }
+  // Shadow clones: semi-transparent, no physics
+  for (const clone of state.clones) {
+    if (!clone.alive) continue;
+    ctx.globalAlpha = 0.4;
+    drawTank(ctx, clone as any);
+    ctx.globalAlpha = 1;
+  }
+  // U-key debug: ally circles
+  for (const ally of state.allies) {
     if (state.showDebug && ally.alive) {
-      // Vision radius (outer, yellow for ninja / cyan for wizard)
-      const vColor = ally.aiMode === 'follow_player' ? 'rgba(255,200,50,0.5)' : 'rgba(100,200,255,0.5)';
-      ctx.strokeStyle = vColor;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(ally.pos.x, ally.pos.y, ally.visionRadius, 0, Math.PI * 2);
-      ctx.stroke();
-      // Follow radius for ninja clones
-      if (ally.aiMode === 'follow_player') {
-        ctx.strokeStyle = 'rgba(74,224,160,0.5)';
-        ctx.beginPath();
-        ctx.arc(ally.pos.x, ally.pos.y, ally.followRadius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      // Vision/attack radius (outer, orange-red)
+      ctx.strokeStyle = 'rgba(255,100,40,0.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(ally.pos.x, ally.pos.y, ally.visionRadius, 0, Math.PI * 2); ctx.stroke();
+      // Follow/tracking radius (inner, green)
+      ctx.strokeStyle = 'rgba(74,224,160,0.5)';
+      ctx.beginPath(); ctx.arc(ally.pos.x, ally.pos.y, ally.followRadius, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
-      const labels: Record<string, string> = { follow: '追随', scout: '侦察', fire: '开火' };
-      ctx.fillStyle = '#fff';
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'left';
-      const label = ally.aiMode === 'follow_player' ? labels[ally.aiState] ?? '' : ally.aiState;
+      const labels: Record<string, string> = { follow: '追踪', fire: '开火', scout: '侦察' };
+      ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      const label = labels[ally.aiState] ?? ally.aiState;
       ctx.fillText(label, ally.pos.x + ally.visionRadius + 4, ally.pos.y);
     }
   }
+  const hasFortress = hasSynergy(state.player.config, 'mobile_fortress');
   for (const turret of state.turrets) {
     drawTurret(ctx, turret);
+    if (!turret.alive) continue;
+    // Heal range (always visible when synergy active)
+    if (hasFortress) {
+      ctx.strokeStyle = 'rgba(74,224,160,0.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.arc(turret.pos.x, turret.pos.y, turret.fireRange, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
   for (const plane of state.planes) {
     drawPlane(ctx, plane);
@@ -202,6 +208,51 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
         ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI*2); ctx.fill();
       }
     }
+  }
+
+  // Bivector foil: shear+scale transform
+  // Meteor strike visuals
+  if (state.meteorPhase === 'targeting' || state.meteorPhase === 'incoming') {
+    const mt = state.meteorTarget;
+    // Red circle
+    const flash = state.meteorPhase === 'targeting' ? Math.abs(Math.sin(performance.now()/1000 * 8)) : 1;
+    ctx.strokeStyle = `rgba(255,40,0,${0.3 + 0.5 * flash})`; ctx.lineWidth = 3;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath(); ctx.arc(mt.x, mt.y, 360, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    // White crosshair (full radius)
+    const cs = 360;
+    ctx.strokeStyle = `rgba(255,255,255,${0.4 + 0.4 * flash})`; ctx.lineWidth = 1.5;
+    ctx.setLineDash([20, 10]);
+    ctx.beginPath(); ctx.moveTo(mt.x - cs, mt.y); ctx.lineTo(mt.x + cs, mt.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mt.x, mt.y - cs); ctx.lineTo(mt.x, mt.y + cs); ctx.stroke();
+    ctx.setLineDash([]);
+    // Center text
+    ctx.fillStyle = `rgba(255,30,30,${0.5 + 0.5 * flash})`;
+    ctx.font = `bold ${28 + flash * 8}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('世界属于三体！！！', MAP_W / 2, MAP_H / 2);
+  }
+  // Incoming fireball
+  if (state.meteorPhase === 'incoming') {
+    const mp = state.meteorPos;
+    // Glow
+    const glow = ctx.createRadialGradient(mp.x, mp.y, 15, mp.x, mp.y, 120);
+    glow.addColorStop(0, 'rgba(255,200,50,0.9)');
+    glow.addColorStop(0.5, 'rgba(255,80,0,0.6)');
+    glow.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 120, 0, Math.PI * 2); ctx.fill();
+    // Core
+    ctx.fillStyle = '#ffcc33';
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 36, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 15, 0, Math.PI * 2); ctx.fill();
+  }
+  // Screen flash
+  if (state.meteorFlashAlpha > 0.01) {
+    ctx.fillStyle = `rgba(255,255,255,${state.meteorFlashAlpha})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
   }
 
   // Time slow: ↓ arrows on slowed enemies (full duration)
@@ -806,8 +857,9 @@ export function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity, siegeS
   }
   ctx.globalAlpha = enemyAlpha;
 
-  const primary = tank.isPlayer ? C.PLAYER : (isBoss ? '#ffaa33' : C.ENEMY);
-  const dark = tank.isPlayer ? C.PLAYER_DARK : (isBoss ? '#cc7700' : C.ENEMY_DARK);
+  const isAlly = (tank as any).isAlly === true;
+  const primary = isAlly ? '#44aadd' : (tank.isPlayer ? C.PLAYER : (isBoss ? '#ffaa33' : C.ENEMY));
+  const dark = isAlly ? '#226688' : (tank.isPlayer ? C.PLAYER_DARK : (isBoss ? '#cc7700' : C.ENEMY_DARK));
 
   // Boss glow + label
   if (isBoss) {
@@ -859,7 +911,7 @@ export function drawTank(ctx: CanvasRenderingContext2D, tank: TankEntity, siegeS
   ctx.globalAlpha = 1;
 }
 
-function drawTurret(ctx: CanvasRenderingContext2D, t: TurretEntity): void {
+export function drawTurret(ctx: CanvasRenderingContext2D, t: TurretEntity): void {
   if (!t.alive) return;
   const gx = t.pos.x, gy = t.pos.y, r = 12;
   // Base
@@ -883,7 +935,7 @@ function drawTurret(ctx: CanvasRenderingContext2D, t: TurretEntity): void {
   }
 }
 
-function drawPlane(ctx: CanvasRenderingContext2D, p: Plane): void {
+export function drawPlane(ctx: CanvasRenderingContext2D, p: Plane): void {
   if (!p.alive) return;
   const angle = Math.atan2(p.velY, p.velX);
   ctx.save();
@@ -902,7 +954,7 @@ function drawPlane(ctx: CanvasRenderingContext2D, p: Plane): void {
   ctx.restore();
 }
 
-function drawDamageNumber(ctx: CanvasRenderingContext2D, n: DamageNumber): void {
+export function drawDamageNumber(ctx: CanvasRenderingContext2D, n: DamageNumber): void {
   if (!n.alive) return;
   const alpha = n.life / n.maxLife;
   ctx.globalAlpha = alpha;
@@ -930,17 +982,21 @@ function drawWaveAnnouncement(ctx: CanvasRenderingContext2D, state: SiegeState):
 export function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): void {
   if (!zone.alive) return;
   const alpha = zone.lifetime / zone.maxLifetime;
+  const isGreen = zone.color === 'green';
+  const r1 = isGreen ? 40 : 255, g1 = isGreen ? 220 : 80, b1 = isGreen ? 60 : 0;
+  const r2 = isGreen ? 20 : 255, g2 = isGreen ? 180 : 40, b2 = isGreen ? 30 : 0;
+  const r3 = isGreen ? 20 : 255, g3 = isGreen ? 140 : 60, b3 = isGreen ? 20 : 0;
   // Outer glow
   const grad = ctx.createRadialGradient(zone.pos.x, zone.pos.y, zone.radius * 0.3, zone.pos.x, zone.pos.y, zone.radius);
-  grad.addColorStop(0, `rgba(255,80,0,${0.15 * alpha})`);
-  grad.addColorStop(0.5, `rgba(255,40,0,${0.08 * alpha})`);
-  grad.addColorStop(1, `rgba(255,0,0,0)`);
+  grad.addColorStop(0, `rgba(${r1},${g1},${b1},${0.15 * alpha})`);
+  grad.addColorStop(0.5, `rgba(${r2},${g2},${b2},${0.08 * alpha})`);
+  grad.addColorStop(1, `rgba(${r3},${g3},${b3},0)`);
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(zone.pos.x, zone.pos.y, zone.radius, 0, Math.PI * 2);
   ctx.fill();
   // Border ring
-  ctx.strokeStyle = `rgba(255,60,0,${0.5 * alpha})`;
+  ctx.strokeStyle = isGreen ? `rgba(80,240,100,${0.5 * alpha})` : `rgba(255,60,0,${0.5 * alpha})`;
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 4]);
   ctx.beginPath();

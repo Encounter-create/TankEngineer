@@ -1,0 +1,61 @@
+// SiegeState type — extracted for skill module imports
+import { TankEntity } from '../entities/Tank';
+import { BulletEntity } from '../entities/Bullet';
+import { TileGrid, MapName } from '../entities/Map';
+import { PhysicsBlock } from '../entities/PhysicsBlock';
+import { FireZone } from '../entities/FireZone';
+import { Particle } from '../entities/Particle';
+import { DamageNumber } from '../entities/DamageNumber';
+import { AllyTank, CloneEntity, TurretEntity, Plane } from '../entities/Ally';
+import { AIContext } from '../ai/EnemyAI';
+import { Inventory } from '../systems/Inventory';
+import { BattleReward } from '../systems/Reward';
+import { WaveModifier } from '../systems/WaveModifiers';
+import { Vec2 } from '../utils/Vector';
+
+export type SiegePhase = 'intro' | 'playing' | 'paused' | 'victory' | 'defeat';
+
+export interface SiegeState {
+  phase: SiegePhase; map: TileGrid; mapName: MapName; player: TankEntity;
+  enemies: TankEntity[]; bullets: BulletEntity[];
+  aiContexts: Map<string, AIContext>; inventory: Inventory;
+  elapsedTime: number; wavesSpawned: number; enemiesKilled: number;
+  commandCenterHp: number; playerCooldownRemaining: number;
+  pendingReward: BattleReward | null;
+  skillMessage: string; skillMessageTime: number;
+  particles: Particle[]; screenShake: number;
+  physicsBlocks: PhysicsBlock[]; showDebug: boolean; frictionMul: number;
+  fireZones: FireZone[]; allies: AllyTank[]; clones: CloneEntity[];
+  turrets: TurretEntity[]; planes: Plane[]; damageNumbers: DamageNumber[];
+  waveAnnouncement: string; waveAnnouncementTime: number;
+  comboTimer: number; comboText: string; comboColor: string; comboMultiplier: number;
+  killStreak: number; killStreakTimer: number; maxMultiplier: number;
+  slowMoTimer: number; activeModifiers: WaveModifier[];
+  gravityPos: Vec2; gravityTimer: number;
+  timeSlowTimer: number; restoreTimer: number;
+  lightningBranches: Vec2[][]; lightningTimer: number;
+  meteorPhase: 'idle' | 'targeting' | 'incoming' | 'impact' | 'burning';
+  meteorTimer: number; meteorTarget: Vec2; meteorPos: Vec2; meteorVel: number;
+  meteorImpactTime: number; meteorFlashAlpha: number;
+  bivectorPhase: 'idle' | 'compressing' | 'whiteout' | 'recovering';
+  bivectorTimer: number; bivectorProgress: number;
+  bivectorShear: number; bivectorScale: number; bivectorWhiteAlpha: number;
+  bivectorDestroyed: boolean; bivectorText: string; bivectorTextColor: string;
+  quantumPhase: 'idle' | 'superposing' | 'collapsed' | 'aftermath';
+  quantumTimer: number; quantumRedAlpha: number; quantumBlueAlpha: number;
+  quantumDestroyed: boolean;
+  lensPhase: 'idle' | 'forming' | 'active' | 'collapsing';
+  lensTimer: number; lensTarget: Vec2; lensStrength: number; lensRadius: number;
+  rewindPhase: 'idle' | 'rewinding' | 'recovering';
+  rewindTimer: number; rewindBlueAlpha: number; rewindReversed: boolean;
+  bigbangPhase: 'idle' | 'imploding' | 'exploding' | 'aftermath';
+  bigbangTimer: number; bigbangScale: number; bigbangWhiteAlpha: number;
+  holoPhase: 'idle' | 'projecting' | 'rotating' | 'shattering' | 'aftermath';
+  holoTimer: number; holoRotation: number; holoRadius: number; holoCracks: number;
+  trojanPhase: 'idle' | 'entering' | 'opening' | 'deploying' | 'shattering';
+  trojanTimer: number; trojanX: number; trojanDoor: number; trojanSpawned: number;
+  arkPhase: 'idle' | 'raining' | 'peaking' | 'receding';
+  arkTimer: number; arkWaterH: number;
+  arkLightningBranches: Vec2[][]; arkLightningTimer: number;
+  damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
+}

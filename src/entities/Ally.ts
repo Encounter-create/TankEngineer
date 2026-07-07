@@ -1,6 +1,6 @@
 import { Vec2 } from '../utils/Vector';
 import { TankConfig, effectiveMaxHp } from './Parts';
-import { TankEntity } from './Tank';
+import { TankEntity, TANK_RADIUS } from './Tank';
 
 /** Ninja clone AI states */
 export type AllyAIState = 'follow' | 'scout' | 'fire';
@@ -10,7 +10,7 @@ export interface AllyTank extends TankEntity {
   /** AI state for ninja clones */
   aiState: AllyAIState;
   /** Original behavior mode */
-  aiMode: 'follow_player' | 'patrol_chase';
+  aiMode: 'follow_player' | 'guard_player';
   followTarget: Vec2;
   fireCooldown: number;
   /** Ninja: follow radius (inner circle) */
@@ -20,14 +20,15 @@ export interface AllyTank extends TankEntity {
 }
 
 export function createAllyTank(
-  id: string, pos: Vec2, config: TankConfig, aiMode: 'follow_player' | 'patrol_chase',
+  id: string, pos: Vec2, config: TankConfig, aiMode: 'follow_player' | 'guard_player',
 ): AllyTank {
   const maxHp = effectiveMaxHp(config);
   return {
     id, pos, vel: Vec2.zero(), dir: 0, turretAngle: 0,
-    config, hp: maxHp, maxHp, cooldownRemaining: 0, alive: true, isPlayer: true,
-    invulnUntil: 0, invulnCooldownUntil: 0, skillCooldownUntil: 0, skillActiveUntil: 0, lastHitAt: 0,
-    iceDir: null, iceSpeed: 0, sprintMul: 1.0,
+    config, hp: maxHp, maxHp, cooldownRemaining: 0, alive: true,
+    isPlayer: false, isAlly: true,
+    invulnUntil: 0, invulnCooldownUntil: 0, skillCooldownUntil: 0, skillActiveUntil: 0,
+    lastHitAt: 0, iceDir: null, iceSpeed: 0, sprintMul: 1.0,
     aiState: 'scout', aiMode, followTarget: pos, fireCooldown: 0,
     followRadius: 100, visionRadius: 200,
   };
@@ -53,6 +54,42 @@ export function createTurret(pos: Vec2): TurretEntity {
     hp: 120, maxHp: 120,
     fireRange: 180, fireCooldown: 0,
     alive: true, angle: 0,
+  };
+}
+
+/** Shadow clone — mirrors player movement, no collision, semi-transparent */
+export interface CloneEntity {
+  id: string;
+  pos: Vec2;
+  dir: number;
+  turretAngle: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  offsetAngle: number; // relative to player.dir: 0=front, π/2=right, π=back, -π/2=left
+  expireTime: number; // performance.now() ms
+  cooldownRemaining: number;
+  config: TankConfig;
+}
+
+const CLONE_OFFSET_DIST = TANK_RADIUS * 2 + 8; // one tank width apart
+
+let cloneId = 0;
+export function createClone(player: TankEntity, offsetAngle: number, durationMs: number): CloneEntity {
+  const angle = player.dir + offsetAngle;
+  const offset = Vec2.fromAngle(angle, CLONE_OFFSET_DIST);
+  return {
+    id: `clone_${++cloneId}`,
+    pos: player.pos.add(offset),
+    dir: player.dir,
+    turretAngle: player.turretAngle,
+    hp: Math.ceil(player.maxHp / 4),
+    maxHp: Math.ceil(player.maxHp / 4),
+    alive: true,
+    offsetAngle,
+    expireTime: performance.now() + durationMs,
+    cooldownRemaining: 0,
+    config: player.config,
   };
 }
 

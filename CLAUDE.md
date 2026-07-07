@@ -2,30 +2,63 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 行为准则（Karpathy 方法）
+## Behavioral Guidelines (Karpathy Method)
 
-### 1. 先思考再编码
-- 明确陈述假设。不确定就询问。
-- 多个方案时呈现出来，不要默默选一个。
-- 有更简单的方法就说出来。该拒绝就拒绝。
-- 把任务变成可验证的目标："修复bug"→"先写复现测试，再修"
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-### 2. 简洁优先
-- 只写必要的代码。不做猜测性功能。
-- 不为单次使用建抽象层。
-- 如果200行能写成50行，重写。
-- 问自己："高级工程师会觉得这过度复杂吗？"
+### 1. Think Before Coding
 
-### 3. 手术式修改
-- 只碰必须碰的。不"顺便优化"相邻代码。
-- 不重构没坏的东西。
-- 不改注释、格式，除非是你改的行。
-- 每行变更都要能追溯到用户的需求。
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-### 4. 不造轮子
-- 已有成熟代码就直接复用，不要重写简化版。
-- 坦克水面逻辑已验证 → 方块水面直接用同一段。
-- 演习技能 Siege 已实现 → Practice 直接调用，不重写。
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+### 5. Don't Reinvent the Wheel
+- Reuse existing, battle-tested code directly — don't write simplified duplicates.
+- Tank water logic verified → block water logic uses same code path.
+- Practice skills exist in Siege → Practice calls Siege handlers directly, no rewrite.
 
 ## 项目概述
 

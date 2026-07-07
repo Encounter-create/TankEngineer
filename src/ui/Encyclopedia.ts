@@ -9,10 +9,11 @@ import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '..
 export interface EncyclopediaState {
   visible: boolean;
   selectedType: PartType;
+  scrollOffset: number;
 }
 
 export function createEncyclopediaState(): EncyclopediaState {
-  return { visible: false, selectedType: 'barrel' };
+  return { visible: false, selectedType: 'barrel', scrollOffset: 0 };
 }
 
 const TYPES: { type: PartType; label: string }[] = [
@@ -63,21 +64,28 @@ export function renderEncyclopedia(
   // Get ALL parts of selected type (not just owned)
   const allParts = Inventory.getAllParts().filter(p => p.type === state.selectedType);
 
-  // Part cards
+  // Part cards (scrollable)
   const cardW = 300;
-  const cardH = 80;
+  const cardH = 120;
   const startY = 100;
   const gap = 8;
-  const cardsPerCol = Math.min(allParts.length, 7);
-  const totalH = cardsPerCol * (cardH + gap);
+  const listH = h - startY - 60; // visible area
+  const totalH = allParts.length * (cardH + gap);
+  const maxScroll = Math.max(0, totalH - listH);
+  const so = Math.max(0, Math.min(maxScroll, state.scrollOffset));
   const startX = (w - cardW) / 2;
 
   // Scroll area background
   ctx.fillStyle = '#22252c';
-  ctx.fillRect(startX - 8, startY - 8, cardW + 16, totalH + 16);
+  roundRect(ctx, startX - 8, startY - 8, cardW + 16, listH + 16, 6);
+  ctx.fill();
+
+  // Clip card area
+  ctx.save();
+  ctx.beginPath(); ctx.rect(startX - 8, startY, cardW + 16, listH); ctx.clip();
 
   allParts.forEach((part, i) => {
-    const cy = startY + i * (cardH + gap);
+    const cy = startY + i * (cardH + gap) - so;
     const owned = inventory.owns(part.id);
 
     // Card
@@ -102,10 +110,21 @@ export function renderEncyclopedia(
     ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillText(part.rarity.toUpperCase(), startX + cardW - 12, cy + 22);
 
-    // Description
+    // Description (wrapped)
     ctx.fillStyle = '#999';
-    ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(part.description, startX + 16, cy + 42);
+    ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+    const words = part.description;
+    const maxDescW = cardW - 24;
+    let descLine = '', descY = cy + 36;
+    for (const char of words) {
+      const test = descLine + char;
+      if (ctx.measureText(test).width > maxDescW) {
+        ctx.fillText(descLine, startX + 16, descY);
+        descLine = char; descY += 15;
+        if (descY > cy + 70) break;
+      } else descLine = test;
+    }
+    if (descLine && descY <= cy + 70) ctx.fillText(descLine, startX + 16, descY);
 
     // Weight + owned status
     ctx.fillStyle = '#777';
@@ -113,7 +132,7 @@ export function renderEncyclopedia(
     ctx.fillText(
       `重量: ${part.weight}  |  ${owned ? '✅ 已拥有' : '🔒 未获取'}`,
       startX + 16,
-      cy + 60,
+      cy + 88,
     );
 
     // Stats
@@ -122,23 +141,31 @@ export function renderEncyclopedia(
     if (part.type === 'barrel') {
       statText = `伤害:${stats.bulletDamage ?? '?'}  射速:${stats.bulletSpeed ?? '?'}  CD:${(stats.cooldownMs ?? 0) / 1000}s`;
       if (stats.bounces) statText += `  反弹×${stats.bounces}`;
-      if (stats.pierces) statText += `  穿透×${stats.pierces}`;
     } else if (part.type === 'turret') {
       statText = `HP:${stats.maxHp ?? '?'}  防御:${Math.round((1 - (stats.defenseRatio ?? 1)) * 100)}%`;
-      if (stats.invulnDurationMs) statText += `  无敌${stats.invulnDurationMs / 1000}s/CD${(stats.invulnCooldownMs ?? 0) / 1000}s`;
+      if (stats.invulnDurationMs) statText += `  无敌${stats.invulnDurationMs / 1000}s`;
     } else if (part.type === 'chassis') {
       statText = `速度:${(stats.speedRatio ?? 1) * 100}%`;
       if (stats.crushWalls) statText += '  碾墙';
-      if (stats.instantTurn) statText += '  瞬间转向';
-      if ((stats.inertia ?? 0) > 0) statText += '  惯性滑行';
+      if (stats.instantTurn) statText += '  瞬转';
     } else if (part.type === 'commander') {
       const cd = (stats.skillCdMs ?? 0) / 1000;
       statText = `技能CD: ${cd}s`;
     }
     ctx.fillStyle = '#888';
     ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(statText, startX + 16, cy + 74);
+    ctx.fillText(statText, startX + 16, cy + 106);
   });
+
+  // Scrollbar
+  if (maxScroll > 0) {
+    const sbW = 4, sbX = startX + cardW + 4;
+    const sbH = Math.max(24, listH * listH / totalH);
+    const sbY = startY + (so / maxScroll) * (listH - sbH);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(ctx, sbX, sbY, sbW, sbH, 2); ctx.fill();
+  }
+  ctx.restore();
 
   // Back button
   const backBtn: ButtonDef = {

@@ -84,6 +84,66 @@ export const SKILLS: Record<string, (tank: TankEntity, now: number) => AbilityRe
     tank.skillCooldownUntil = now + cd;
     return { success: true, message: '砖墙复苏！' };
   },
+
+  commander_trisolaran: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 30000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '☄️ 陨石天降！' };
+  },
+
+  commander_bivector: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 60000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '📐 二向箔展开！' };
+  },
+
+  commander_quantum: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 60000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '🐱 叠加态展开！' };
+  },
+
+  commander_lens: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 80000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '🌀 引力透镜展开！' };
+  },
+
+  commander_poincare: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 90000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '⏪ 时间倒流！' };
+  },
+
+  commander_bigbang: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 100000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '💥 大爆炸！' };
+  },
+
+  commander_holo: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 120000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '🌐 全息投影！' };
+  },
+
+  commander_trojan: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 80000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '🏛️ 木马计！' };
+  },
+
+  commander_noah: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 90000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '🌊 大洪水！' };
+  },
+
+  commander_damocles: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 75000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '⚔️ 达摩克利斯之剑！' };
+  },
 };
 
 /** Activate skill via registry */

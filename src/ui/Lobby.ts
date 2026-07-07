@@ -61,9 +61,20 @@ export function renderLobby(
   lobby: LobbyState,
   config: TankConfig | null,
   configValid: boolean,
+  devMode: boolean = false,
 ): void {
   ctx.fillStyle = '#1a1d23';
   ctx.fillRect(0, 0, w, h);
+
+  // Developer mode toggle (top-right)
+  const devX = w - 130, devY = 4, devW = 120, devH = 22;
+  ctx.fillStyle = devMode ? '#2a6a2a' : '#4a3a3a';
+  ctx.strokeStyle = devMode ? '#4ae0a0' : '#ff6b4a';
+  ctx.lineWidth = 2;
+  roundRect(ctx, devX, devY, devW, devH, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = devMode ? '#4ae0a0' : '#fff'; ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(devMode ? '🛡️ DEV ON' : '🔧 DEV OFF', devX + devW/2, devY + devH/2);
 
   // Title
   ctx.fillStyle = '#e8e8e8';
