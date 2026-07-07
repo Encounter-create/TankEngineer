@@ -14,7 +14,7 @@ import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
 import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
 import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
-import { AllyTank, TurretEntity, Plane, createAllyTank, createTurret, createPlanes } from '../entities/Ally';
+import { AllyTank, CloneEntity, TurretEntity, Plane, createAllyTank, createTurret, createPlanes, createClone } from '../entities/Ally';
 import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
@@ -22,9 +22,6 @@ import { hasSynergy } from '../systems/Synergy';
 import { applyTerrainEffects, isTankInGrass } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 import { playQuote } from '../systems/QuotePlayer';
-import { DEV_MODE } from '../main';
-import { updateBattle } from '../core/BattleEngine';
-
 // Skill module imports + re-exports
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -36,7 +33,6 @@ import { updateHolo } from '../skills/Holo';
 import { updateTrojan, drawTrojanHorse } from '../skills/Trojan';
 import { updateArk, drawArk, drawArkWater } from '../skills/Noah';
 import { updateDamocles, drawDamoclesSwords } from '../skills/Damocles';
-import { handleCCBulletDeath } from '../skills/CCAttack';
 export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords };
 
 // ============================================================
@@ -92,6 +88,7 @@ export interface SiegeState {
   frictionMul: number;
   fireZones: FireZone[];
   allies: AllyTank[];
+  clones: CloneEntity[];
   turrets: TurretEntity[];
   planes: Plane[];
   damageNumbers: DamageNumber[];
@@ -119,6 +116,29 @@ export interface SiegeState {
   restoreTimer: number;
   /** Lightning chain branches + timer */
   lightningBranches: Vec2[][]; lightningTimer: number;
+  meteorPhase: 'idle' | 'targeting' | 'incoming' | 'impact' | 'burning';
+  meteorTimer: number; meteorTarget: Vec2; meteorPos: Vec2; meteorVel: number;
+  meteorImpactTime: number; meteorFlashAlpha: number;
+  bivectorPhase: 'idle' | 'compressing' | 'whiteout' | 'recovering';
+  bivectorTimer: number; bivectorProgress: number;
+  bivectorShear: number; bivectorScale: number; bivectorWhiteAlpha: number;
+  bivectorDestroyed: boolean; bivectorText: string; bivectorTextColor: string;
+  quantumPhase: 'idle' | 'superposing' | 'collapsed' | 'aftermath';
+  quantumTimer: number; quantumRedAlpha: number; quantumBlueAlpha: number; quantumDestroyed: boolean;
+  lensPhase: 'idle' | 'forming' | 'active' | 'collapsing';
+  lensTimer: number; lensTarget: Vec2; lensStrength: number; lensRadius: number;
+  rewindPhase: 'idle' | 'rewinding' | 'recovering';
+  rewindTimer: number; rewindBlueAlpha: number; rewindReversed: boolean;
+  bigbangPhase: 'idle' | 'imploding' | 'exploding' | 'aftermath';
+  bigbangTimer: number; bigbangScale: number; bigbangWhiteAlpha: number;
+  holoPhase: 'idle' | 'projecting' | 'rotating' | 'shattering' | 'aftermath';
+  holoTimer: number; holoRotation: number; holoRadius: number; holoCracks: number;
+  trojanPhase: 'idle' | 'entering' | 'opening' | 'deploying' | 'shattering';
+  trojanTimer: number; trojanX: number; trojanDoor: number; trojanSpawned: number;
+  arkPhase: 'idle' | 'raining' | 'peaking' | 'receding';
+  arkTimer: number; arkWaterH: number;
+  arkLightningBranches: Vec2[][]; arkLightningTimer: number;
+  damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -181,7 +201,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     showDebug: false,
     frictionMul: getMapFriction(mapName),
     fireZones: [],
-    allies: [],
+    allies: [], clones: [],
     turrets: [],
     planes: [],
     damageNumbers: [],
@@ -200,6 +220,16 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     timeSlowTimer: 0,
     restoreTimer: 0,
     lightningBranches: [], lightningTimer: 0,
+    meteorPhase: 'idle', meteorTimer: 0, meteorTarget: new Vec2(0,0), meteorPos: new Vec2(0,0), meteorVel: 0, meteorImpactTime: 0, meteorFlashAlpha: 0,
+    bivectorPhase: 'idle', bivectorTimer: 0, bivectorProgress: 0, bivectorShear: 0, bivectorScale: 1, bivectorWhiteAlpha: 0, bivectorDestroyed: false, bivectorText: '', bivectorTextColor: '#000',
+    quantumPhase: 'idle', quantumTimer: 0, quantumRedAlpha: 0, quantumBlueAlpha: 0, quantumDestroyed: false,
+    lensPhase: 'idle', lensTimer: 0, lensTarget: new Vec2(0,0), lensStrength: 0, lensRadius: 0,
+    rewindPhase: 'idle', rewindTimer: 0, rewindBlueAlpha: 0, rewindReversed: false,
+    bigbangPhase: 'idle', bigbangTimer: 0, bigbangScale: 1, bigbangWhiteAlpha: 0,
+    holoPhase: 'idle', holoTimer: 0, holoRotation: 0, holoRadius: 0, holoCracks: 0,
+    trojanPhase: 'idle', trojanTimer: 0, trojanX: 0, trojanDoor: 0, trojanSpawned: 0,
+    arkPhase: 'idle', arkTimer: 0, arkWaterH: 0, arkLightningBranches: [], arkLightningTimer: 0,
+    damoclesPhase: 'idle', damoclesTimer: 0,
   };
 }
 
@@ -291,6 +321,7 @@ export function updateSiege(
   handleAllies(state, dt);
   handleTurrets(state, dt);
   handlePlanes(state, dt);
+  handleClones(state, dt);
 
   // Turret collision: push tanks out
   for (const turret of state.turrets) {
@@ -326,6 +357,18 @@ export function updateSiege(
 
   // Check bullet-tank collisions
   handleBulletTankCollisions(state, dt);
+
+  // All skill updates (shared between Siege + Practice)
+  updateMeteor(state, dt);
+  updateBivector(state, dt);
+  updateQuantum(state, dt);
+  updateLens(state, dt);
+  updateRewind(state, dt);
+  updateBigBang(state, dt);
+  updateHolo(state, dt);
+  updateTrojan(state, dt);
+  updateArk(state, dt);
+  updateDamocles(state, dt);
 
   // Gravity well: pull entities toward gravity center
   if (state.gravityTimer > 0) {
@@ -641,7 +684,7 @@ function spawnWave(state: SiegeState, wave: WaveDef, isFinal: boolean = false): 
   }
 }
 
-function handleEnemyAI(state: SiegeState, dt: number): void {
+export function handleEnemyAI(state: SiegeState, dt: number): void {
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
 
@@ -649,10 +692,19 @@ function handleEnemyAI(state: SiegeState, dt: number): void {
     if (!ctx) continue;
 
     const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
-    // Target priority: visible player > command center (attack base when player out of sight!)
+    // Target priority: ally/turret > clone > player > command center
     const playerHidden = isSmokeActive(state.player) || isTankInGrass(state.player, state.map);
-    const playerInVision = state.player.alive && !playerHidden && enemy.pos.dist(state.player.pos) <= (ctx.visionRadius || 220);
-    const target = playerInVision ? state.player.pos : centerPos;
+    const vRadius = ctx.visionRadius || 220;
+    const nearestAlly = state.allies.find(a => a.alive && enemy.pos.dist(a.pos) <= vRadius);
+    const nearestTurret = state.turrets.find(t => t.alive && enemy.pos.dist(t.pos) <= vRadius);
+    const nearestClone = state.clones.find(c => c.alive && enemy.pos.dist(c.pos) <= vRadius);
+    const playerInVision = state.player.alive && !playerHidden && enemy.pos.dist(state.player.pos) <= vRadius;
+    let target: Vec2;
+    if (nearestAlly) target = nearestAlly.pos;
+    else if (nearestTurret) target = nearestTurret.pos;
+    else if (nearestClone) target = nearestClone.pos;
+    else if (playerInVision) target = state.player.pos;
+    else target = centerPos;
 
     // Enemy speed: 55% base, ×1.4 if overclocked, ×0.3 if time-slowed
     let speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
@@ -719,7 +771,7 @@ function explodeRocket(bullet: BulletEntity, state: SiegeState): void {
       takeDamage(tank, bullet.isPlayerBullet ? 60 : 40);
       // 亡灵火箭: killed enemies become allies
       if (undead && !tank.alive && !tank.isPlayer) {
-        const ally = createAllyTank(`undead_${Date.now()}_${Math.random()}`, tank.pos, tank.config, 'patrol_chase');
+        const ally = createAllyTank(`undead_${Date.now()}_${Math.random()}`, tank.pos, tank.config, 'guard_player');
         state.allies.push(ally);
       }
     }
@@ -762,7 +814,7 @@ function handleFireZones(state: SiegeState, dt: number): void {
 // Allies
 // ============================================================
 
-function handleAllies(state: SiegeState, dt: number): void {
+export function handleAllies(state: SiegeState, dt: number): void {
   for (const ally of state.allies) {
     if (!ally.alive) continue;
     ally.fireCooldown -= dt * 1000;
@@ -770,50 +822,63 @@ function handleAllies(state: SiegeState, dt: number): void {
     const distToPlayer = ally.pos.dist(state.player.pos);
     const nearestEnemy = state.enemies.find(e => e.alive && e.pos.dist(ally.pos) < ally.visionRadius);
 
-    if (ally.aiMode === 'follow_player') {
-      // ---- Ninja 3-state AI ----
-      if (nearestEnemy) {
-        // Enemy in vision → FIRE
-        ally.aiState = 'fire';
-        ally.turretAngle = nearestEnemy.pos.sub(ally.pos).angle();
-        // Fire if cooldown ready
-        if (ally.fireCooldown <= 0) {
-          const bullet = createBullet(ally.pos, ally.turretAngle, 'straight', 400, 20, 0, 0, ally.id, true);
-          state.bullets.push(bullet);
-          ally.fireCooldown = 1000;
+    // Aim turret at nearest enemy if visible (gradual rotation)
+    if (nearestEnemy) {
+      const targetAngle = nearestEnemy.pos.sub(ally.pos).angle();
+      const diff = normalizeAngle(targetAngle - ally.turretAngle);
+      const maxStep = TURRET_ANGULAR_VEL * dt;
+      if (Math.abs(diff) < maxStep) ally.turretAngle = targetAngle;
+      else ally.turretAngle += Math.sign(diff) * maxStep;
+      ally.turretAngle = normalizeAngle(ally.turretAngle);
+    }
+
+    // Fire using ally's OWN config
+    const fireAllyBullet = () => {
+      if (ally.fireCooldown > 0 || !nearestEnemy) return;
+      const cfg = ally.config;
+      const style = cfg.barrel.stats.bulletStyle ?? 'straight';
+      const speed = cfg.barrel.stats.bulletSpeed ?? 400;
+      const dmg = cfg.barrel.stats.bulletDamage ?? 35;
+      const bounces = cfg.barrel.stats.bounces ?? 0;
+      const pierces = cfg.barrel.stats.pierces ?? 0;
+      const cd = cfg.barrel.stats.cooldownMs ?? 800;
+      if (style === 'orbital') {
+        for (let idx = 0; idx < 2; idx++) {
+          state.bullets.push(createBullet(ally.pos, ally.turretAngle, 'orbital', speed, dmg, 0, 0, ally.id, true, idx, 5));
         }
-        // Keep distance from enemy
-        if (nearestEnemy.pos.dist(ally.pos) < 100) {
-          const away = ally.pos.sub(nearestEnemy.pos).norm();
-          moveTank(ally, away, dt, state.map, state.physicsBlocks, state.physicsBlocks);
-        }
-      } else if (distToPlayer > ally.followRadius) {
-        // Player outside follow radius → FOLLOW
+      } else {
+        state.bullets.push(createBullet(ally.pos, ally.turretAngle, style, speed, dmg, bounces, pierces, ally.id, true));
+      }
+      ally.fireCooldown = cd;
+    };
+
+    if (ally.aiMode === 'guard_player') {
+      // Wizard resurrect: follow player, attack enemies in vision
+      if (distToPlayer > ally.followRadius) {
         ally.aiState = 'follow';
         const toPlayer = state.player.pos.sub(ally.pos).norm();
         moveTank(ally, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks);
-        ally.turretAngle = ally.dir;
       } else {
-        // Near player, no enemies → SCOUT (patrol around)
-        ally.aiState = 'scout';
-        ally.turretAngle = ally.dir;
+        ally.aiState = 'fire';
+        ally.vel = Vec2.zero();
+        if (nearestEnemy && nearestEnemy.pos.dist(ally.pos) < 100) {
+          const away = ally.pos.sub(nearestEnemy.pos).norm();
+          moveTank(ally, away, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+        }
       }
+      fireAllyBullet();
     } else {
-      // Wizard resurrect: chase nearest enemy
-      ally.aiState = 'fire';
-      const target = state.enemies.find(e => e.alive);
-      if (target) {
-        const toEnemy = target.pos.sub(ally.pos);
-        if (toEnemy.mag() > 150) {
-          moveTank(ally, toEnemy.norm(), dt, state.map, state.physicsBlocks, state.physicsBlocks);
-        }
-        ally.turretAngle = toEnemy.angle();
-        if (ally.fireCooldown <= 0 && toEnemy.mag() < ally.visionRadius) {
-          const bullet = createBullet(ally.pos, ally.turretAngle, 'straight', 400, 20, 0, 0, ally.id, true);
-          state.bullets.push(bullet);
-          ally.fireCooldown = 1000;
-        }
+      // Ninja clone: follow player, attack enemies in vision
+      if (nearestEnemy && nearestEnemy.pos.dist(ally.pos) < 100) {
+        const away = ally.pos.sub(nearestEnemy.pos).norm();
+        moveTank(ally, away, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+      } else if (distToPlayer > ally.followRadius) {
+        const toPlayer = state.player.pos.sub(ally.pos).norm();
+        moveTank(ally, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+      } else {
+        ally.vel = Vec2.zero();
       }
+      fireAllyBullet();
     }
   }
   state.allies = state.allies.filter(a => a.alive);
@@ -823,7 +888,7 @@ function handleAllies(state: SiegeState, dt: number): void {
 // Turrets
 // ============================================================
 
-function handleTurrets(state: SiegeState, dt: number): void {
+export function handleTurrets(state: SiegeState, dt: number): void {
   for (const turret of state.turrets) {
     if (!turret.alive) continue;
     turret.fireCooldown -= dt * 1000;
@@ -845,7 +910,31 @@ function handleTurrets(state: SiegeState, dt: number): void {
 // Planes
 // ============================================================
 
-function handlePlanes(state: SiegeState, dt: number): void {
+export function handleClones(state: SiegeState, dt: number): void {
+  const now = performance.now();
+  const playerJustFired = state.playerCooldownRemaining > 0 && state.playerCooldownRemaining >= 400;
+  for (const clone of state.clones) {
+    if (!clone.alive) continue;
+    if (now > clone.expireTime) { clone.alive = false; continue; }
+    const angle = state.player.dir + clone.offsetAngle;
+    const offset = Vec2.fromAngle(angle, TANK_RADIUS * 2 + 8);
+    clone.pos = state.player.pos.add(offset);
+    clone.dir = state.player.dir;
+    clone.turretAngle = state.player.turretAngle;
+    clone.cooldownRemaining -= dt * 1000;
+    if (Math.random() < 0.6) {
+      state.particles.push({ pos: new Vec2(clone.pos.x+(Math.random()-0.5)*10, clone.pos.y+(Math.random()-0.5)*10), vel: new Vec2(0, -5-Math.random()*10), life: 0.2+Math.random()*0.3, maxLife:0.5, color: ['#ffdd44','#ffcc00','#ffffff'][Math.floor(Math.random()*3)], radius: 1.5+Math.random()*2.5, alive:true, smokeExpand:false, isCross:false });
+    }
+    if (playerJustFired && clone.cooldownRemaining <= 0) {
+      const cfg = clone.config;
+      state.bullets.push(createBullet(clone.pos, clone.turretAngle, cfg.barrel.stats.bulletStyle ?? 'straight', cfg.barrel.stats.bulletSpeed ?? 400, (cfg.barrel.stats.bulletDamage ?? 35) * 2, cfg.barrel.stats.bounces ?? 0, cfg.barrel.stats.pierces ?? 0, state.player.id, true));
+      clone.cooldownRemaining = cfg.barrel.stats.cooldownMs ?? 800;
+    }
+  }
+  state.clones = state.clones.filter(c => c.alive);
+}
+
+export function handlePlanes(state: SiegeState, dt: number): void {
   for (const plane of state.planes) {
     if (!plane.alive) continue;
     plane.x += plane.velX * dt;
@@ -1033,7 +1122,7 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
 // Bullets
 // ============================================================
 
-function handleBullets(state: SiegeState, dt: number): void {
+export function handleBullets(state: SiegeState, dt: number, skipCC: boolean = false): void {
   const newBullets: BulletEntity[] = [];
 
   for (const bullet of state.bullets) {
@@ -1100,17 +1189,19 @@ function handleBullets(state: SiegeState, dt: number): void {
     if (hitBlock) continue;
 
     // Command center collision: blocks all bullets, only enemy bullets deal damage
-    const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
-    const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
-    if (bullet.ownerId !== 'cc' && Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
-      state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
-      if (!bullet.isPlayerBullet) {
-        state.commandCenterHp -= bullet.damage;
-        playExplosion();
-        state.screenShake = 3;
+    if (!skipCC) {
+      const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+      if (bullet.ownerId !== 'cc' && Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
+        state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
+        if (!bullet.isPlayerBullet) {
+          state.commandCenterHp -= bullet.damage;
+          playExplosion();
+          state.screenShake = 3;
+        }
+        bullet.alive = false;
+        continue;
       }
-      bullet.alive = false;
-      continue;
     }
 
     // Magnetic modifier: enemy bullets home toward player
@@ -1189,7 +1280,7 @@ return true;
   });
 }
 
-function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
+export function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
   for (const bullet of state.bullets) {
     if (!bullet.alive) continue;
 
@@ -1230,6 +1321,31 @@ function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
         }
       }
     } else {
+      // Enemy bullets: check allies + clones first (priority decoys)
+      let hitFriendly = false;
+      for (const ally of state.allies) {
+        if (!ally.alive) continue;
+        if (bullet.pos.dist(ally.pos) < TANK_RADIUS + BULLET_RADIUS) {
+          takeDamage(ally, bullet.damage);
+          state.particles.push(...spawnParticles(ally.pos, 'hit', 8, 80));
+          state.damageNumbers.push(spawnDamageNumber(ally.pos, bullet.damage, false));
+          playHitTank();
+          bullet.alive = false; hitFriendly = true; break;
+        }
+      }
+      if (!hitFriendly) {
+        for (const clone of state.clones) {
+          if (!clone.alive) continue;
+          if (bullet.pos.dist(clone.pos) < TANK_RADIUS + BULLET_RADIUS) {
+            clone.hp -= bullet.damage;
+            if (clone.hp <= 0) clone.alive = false;
+            state.particles.push(...spawnParticles(clone.pos, 'hit', 8, 80));
+            state.damageNumbers.push(spawnDamageNumber(clone.pos, bullet.damage, false));
+            bullet.alive = false; hitFriendly = true; break;
+          }
+        }
+      }
+      if (hitFriendly) continue;
       if (state.player.alive && checkBulletTankHit(bullet, state.player)) {
         if (bullet.style === 'rocket') {
           explodeRocket(bullet, state);
@@ -1304,20 +1420,32 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
     state.particles.push(...spawnParticles(state.player.pos, 'smoke', 12, 30)); playSmoke();
   } else if (id === 'commander_colonel') {
     (state as any).planes.push(...createPlanes(state.player.pos, state.player.turretAngle, MAP_W, MAP_H));
+    if (hasSynergy(state.player.config, 'precision_strike')) {
+      (state as any).planes.push(...createPlanes(state.player.pos, state.player.turretAngle + Math.PI / 2, MAP_W, MAP_H));
+      state.skillMessage = '精确打击! 双航线轰炸';
+    }
   } else if (id === 'commander_engineer') {
     const turret = createTurret(state.player.pos);
-    if (hasSynergy(state.player.config, 'mobile_fortress')) { turret.hp = Math.round(turret.hp * 1.5); turret.maxHp = turret.hp; turret.fireRange = Math.round(turret.fireRange * 1.3); }
     (state as any).turrets.push(turret);
   } else if (id === 'commander_wizard') {
     const deadEnemies = state.enemies.filter(e => !e.alive);
     if (deadEnemies.length > 0) {
-      for (const dead of deadEnemies.slice(0, 3)) (state as any).allies.push(createAllyTank(`ally_${Date.now()}`, dead.pos, dead.config, 'patrol_chase'));
-      state.skillMessage = `复活了${Math.min(3, deadEnemies.length)}辆`;
+      let count = 0;
+      for (const dead of deadEnemies.slice(0, 3)) {
+        const ally = createAllyTank(`ally_${Date.now()}_${count}`, dead.pos, dead.config, 'guard_player');
+        const ctx = state.aiContexts.get(dead.id);
+        if (ctx) { ally.followRadius = ctx.fireRadius; ally.visionRadius = ctx.visionRadius; }
+        (state as any).allies.push(ally);
+        count++;
+      }
+      state.skillMessage = `复活了${count}辆`;
     } else state.skillMessage = '没有可复活的敌军';
   } else if (id === 'commander_ninja') {
-    const cloneCfg = hasSynergy(state.player.config, 'mirror_clone') ? { ...state.player.config, barrel: MVP_BARRELS.find(p => p.id === 'barrel_bounce')! } : state.player.config;
-    const clone = createAllyTank(`clone_${Date.now()}`, state.player.pos, cloneCfg, 'follow_player'); clone.followTarget = state.player.pos;
-    (state as any).allies.push(clone);
+    const hasSyn = hasSynergy(state.player.config, 'shadow_clones');
+    state.clones.push(createClone(state.player, Math.PI / 2, 10000));
+    state.clones.push(createClone(state.player, -Math.PI / 2, 10000));
+    if (hasSyn) { state.clones.push(createClone(state.player, 0, 10000)); state.clones.push(createClone(state.player, Math.PI, 10000)); }
+    state.skillMessage = hasSyn ? '影分身之术·四重!' : '影分身之术!';
   } else if (id === 'commander_gravity') {
     state.gravityPos = input.mousePos; state.gravityTimer = 3;
   } else if (id === 'commander_time') {
@@ -1334,6 +1462,7 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
       branches.push([state.player.pos, new Vec2(state.player.pos.x+dx*0.5+dy*0.15, state.player.pos.y+dy*0.5-dx*0.15), nearest.pos]);
     }
     state.lightningBranches = branches; state.lightningTimer = 1.5;
+    if (hasSynergy(state.player.config, 'shadow_clones')) { state.clones.push(createClone(state.player, 0, 10000)); state.clones.push(createClone(state.player, Math.PI, 10000)); state.skillMessage = '⚡影分身!'; }
   } else if (id === 'commander_restore') {
     let count = 0;
     for (let gy = 0; gy < MAP_ROWS; gy++) for (let gx = 0; gx < MAP_COLS; gx++) {
@@ -1341,6 +1470,50 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
       if (tile.type === TileType.BRICK && tile.hp <= 0 && Math.hypot(gx*CELL_SIZE+CELL_SIZE/2-state.player.pos.x, gy*CELL_SIZE+CELL_SIZE/2-state.player.pos.y) < 150) { state.map[gy][gx] = { type: TileType.BRICK, hp: 500 }; count++; }
     }
     state.restoreTimer = 3; state.skillMessage = `恢复了${count}块砖墙`;
+  } else if (id === 'commander_trisolaran') {
+    state.meteorPhase = 'targeting'; state.meteorTimer = 2.0; state.meteorTarget = input.mousePos;
+    state.meteorPos = new Vec2(-200, -200); state.meteorVel = 200; state.meteorFlashAlpha = 0;
+    state.skillMessage = '☄️ 陨石锁定中…';
+  } else if (id === 'commander_bivector') {
+    state.bivectorPhase = 'compressing'; state.bivectorTimer = 12; state.bivectorProgress = 0;
+    state.bivectorShear = 0; state.bivectorScale = 1; state.bivectorWhiteAlpha = 0;
+    state.bivectorDestroyed = false; state.bivectorText = ''; state.bivectorTextColor = '#000';
+    state.skillMessage = '📐 二向箔展开！';
+  } else if (id === 'commander_quantum') {
+    state.quantumPhase = 'superposing'; state.quantumTimer = 5;
+    state.quantumRedAlpha = 0; state.quantumBlueAlpha = 0; state.quantumDestroyed = false;
+    state.skillMessage = '🐱 叠加态展开！';
+  } else if (id === 'commander_lens') {
+    state.lensPhase = 'forming'; state.lensTimer = 2; state.lensTarget = input.mousePos;
+    state.lensStrength = 0; state.lensRadius = 0;
+    state.skillMessage = '🌀 引力透镜展开！';
+  } else if (id === 'commander_poincare') {
+    state.rewindPhase = 'rewinding'; state.rewindTimer = 5;
+    state.rewindBlueAlpha = 0; state.rewindReversed = false;
+    state.skillMessage = '⏪ 时间倒流！';
+  } else if (id === 'commander_bigbang') {
+    state.bigbangPhase = 'imploding'; state.bigbangTimer = 3;
+    state.bigbangScale = 1; state.bigbangWhiteAlpha = 0;
+    state.skillMessage = '💥 宇宙坍缩！';
+  } else if (id === 'commander_holo') {
+    state.holoPhase = 'projecting'; state.holoTimer = 3;
+    state.holoRotation = 0; state.holoRadius = 0; state.holoCracks = 0;
+    state.skillMessage = '🌐 全息投影！';
+  } else if (id === 'commander_trojan') {
+    state.trojanPhase = 'entering'; state.trojanTimer = 2;
+    state.trojanX = -120; state.trojanDoor = 0; state.trojanSpawned = 0;
+    state.skillMessage = '🏛️ 木马计！';
+  } else if (id === 'commander_noah') {
+    state.arkPhase = 'raining'; state.arkTimer = 9.5; state.arkWaterH = 0;
+    state.arkLightningBranches = []; state.arkLightningTimer = 1;
+    const nq = [['你和你的全家都要进入方舟，','因为在这世代中，我见你在我面前是义人。'],['再过七天，我要降雨在地上四十昼夜，','把我所造的各种活物，都从地上除灭。'],['水势比山高过十五肘，山岭都淹没了。','凡在地上有血肉的动物，就是飞鸟牲畜走兽','和爬在地上的昆虫，以及所有的人，都死了。'],['Noah was a righteous man,','blameless in his generation,','Noah walked with God.'],['我把虹放在云彩中，','这就可作我与地立约的记号了。'],['凡流人血的，他的血也必被人所流，','因为神造人，是照自己的形像造的。']];
+    playQuote(nq[Math.floor(Math.random() * nq.length)]);
+    state.skillMessage = '🌊 大洪水！';
+  } else if (id === 'commander_damocles') {
+    state.damoclesPhase = 'hovering'; state.damoclesTimer = 4.7;
+    const dq = [['你看见我的幸运了吗？','这把利剑时时刻刻悬在我的头顶，','世人所见的王权荣华，不过是浮于表面的幻象。','身居高位者，永远活在随时坠落的恐惧之中。'],['终日活在死亡威胁下的人，','不可能拥有真正的幸福；','权力越大，头顶悬剑越锋利。'],['Damocles neither dared to look at the servants','nor touch the feast, and begged instantly to depart,','for he had no wish for such good fortune.','What clearer proof that constant fear destroys all happiness?']];
+    playQuote(dq[Math.floor(Math.random() * dq.length)]);
+    state.skillMessage = '⚔️ 达摩克利斯之剑！';
   }
 }
 
