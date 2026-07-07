@@ -14,17 +14,13 @@ import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
 import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
 import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
-import { AllyTank, TurretEntity, Plane, createAllyTank, createTurret, createPlanes } from '../entities/Ally';
+import { AllyTank, CloneEntity, TurretEntity, Plane, createAllyTank, createTurret, createPlanes } from '../entities/Ally';
 import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
 import { hasSynergy } from '../systems/Synergy';
 import { applyTerrainEffects, isTankInGrass } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
-import { playQuote } from '../systems/QuotePlayer';
-import { DEV_MODE } from '../main';
-import { updateBattle } from '../core/BattleEngine';
-
 // Skill module imports + re-exports
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -36,7 +32,6 @@ import { updateHolo } from '../skills/Holo';
 import { updateTrojan, drawTrojanHorse } from '../skills/Trojan';
 import { updateArk, drawArk, drawArkWater } from '../skills/Noah';
 import { updateDamocles, drawDamoclesSwords } from '../skills/Damocles';
-import { handleCCBulletDeath } from '../skills/CCAttack';
 export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords };
 
 // ============================================================
@@ -92,6 +87,7 @@ export interface SiegeState {
   frictionMul: number;
   fireZones: FireZone[];
   allies: AllyTank[];
+  clones: CloneEntity[];
   turrets: TurretEntity[];
   planes: Plane[];
   damageNumbers: DamageNumber[];
@@ -119,6 +115,29 @@ export interface SiegeState {
   restoreTimer: number;
   /** Lightning chain branches + timer */
   lightningBranches: Vec2[][]; lightningTimer: number;
+  meteorPhase: 'idle' | 'targeting' | 'incoming' | 'impact' | 'burning';
+  meteorTimer: number; meteorTarget: Vec2; meteorPos: Vec2; meteorVel: number;
+  meteorImpactTime: number; meteorFlashAlpha: number;
+  bivectorPhase: 'idle' | 'compressing' | 'whiteout' | 'recovering';
+  bivectorTimer: number; bivectorProgress: number;
+  bivectorShear: number; bivectorScale: number; bivectorWhiteAlpha: number;
+  bivectorDestroyed: boolean; bivectorText: string; bivectorTextColor: string;
+  quantumPhase: 'idle' | 'superposing' | 'collapsed' | 'aftermath';
+  quantumTimer: number; quantumRedAlpha: number; quantumBlueAlpha: number; quantumDestroyed: boolean;
+  lensPhase: 'idle' | 'forming' | 'active' | 'collapsing';
+  lensTimer: number; lensTarget: Vec2; lensStrength: number; lensRadius: number;
+  rewindPhase: 'idle' | 'rewinding' | 'recovering';
+  rewindTimer: number; rewindBlueAlpha: number; rewindReversed: boolean;
+  bigbangPhase: 'idle' | 'imploding' | 'exploding' | 'aftermath';
+  bigbangTimer: number; bigbangScale: number; bigbangWhiteAlpha: number;
+  holoPhase: 'idle' | 'projecting' | 'rotating' | 'shattering' | 'aftermath';
+  holoTimer: number; holoRotation: number; holoRadius: number; holoCracks: number;
+  trojanPhase: 'idle' | 'entering' | 'opening' | 'deploying' | 'shattering';
+  trojanTimer: number; trojanX: number; trojanDoor: number; trojanSpawned: number;
+  arkPhase: 'idle' | 'raining' | 'peaking' | 'receding';
+  arkTimer: number; arkWaterH: number;
+  arkLightningBranches: Vec2[][]; arkLightningTimer: number;
+  damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -181,7 +200,7 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     showDebug: false,
     frictionMul: getMapFriction(mapName),
     fireZones: [],
-    allies: [],
+    allies: [], clones: [],
     turrets: [],
     planes: [],
     damageNumbers: [],
@@ -200,6 +219,16 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     timeSlowTimer: 0,
     restoreTimer: 0,
     lightningBranches: [], lightningTimer: 0,
+    meteorPhase: 'idle', meteorTimer: 0, meteorTarget: new Vec2(0,0), meteorPos: new Vec2(0,0), meteorVel: 0, meteorImpactTime: 0, meteorFlashAlpha: 0,
+    bivectorPhase: 'idle', bivectorTimer: 0, bivectorProgress: 0, bivectorShear: 0, bivectorScale: 1, bivectorWhiteAlpha: 0, bivectorDestroyed: false, bivectorText: '', bivectorTextColor: '#000',
+    quantumPhase: 'idle', quantumTimer: 0, quantumRedAlpha: 0, quantumBlueAlpha: 0, quantumDestroyed: false,
+    lensPhase: 'idle', lensTimer: 0, lensTarget: new Vec2(0,0), lensStrength: 0, lensRadius: 0,
+    rewindPhase: 'idle', rewindTimer: 0, rewindBlueAlpha: 0, rewindReversed: false,
+    bigbangPhase: 'idle', bigbangTimer: 0, bigbangScale: 1, bigbangWhiteAlpha: 0,
+    holoPhase: 'idle', holoTimer: 0, holoRotation: 0, holoRadius: 0, holoCracks: 0,
+    trojanPhase: 'idle', trojanTimer: 0, trojanX: 0, trojanDoor: 0, trojanSpawned: 0,
+    arkPhase: 'idle', arkTimer: 0, arkWaterH: 0, arkLightningBranches: [], arkLightningTimer: 0,
+    damoclesPhase: 'idle', damoclesTimer: 0,
   };
 }
 
@@ -641,7 +670,7 @@ function spawnWave(state: SiegeState, wave: WaveDef, isFinal: boolean = false): 
   }
 }
 
-function handleEnemyAI(state: SiegeState, dt: number): void {
+export function handleEnemyAI(state: SiegeState, dt: number): void {
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
 
@@ -719,7 +748,7 @@ function explodeRocket(bullet: BulletEntity, state: SiegeState): void {
       takeDamage(tank, bullet.isPlayerBullet ? 60 : 40);
       // 亡灵火箭: killed enemies become allies
       if (undead && !tank.alive && !tank.isPlayer) {
-        const ally = createAllyTank(`undead_${Date.now()}_${Math.random()}`, tank.pos, tank.config, 'patrol_chase');
+        const ally = createAllyTank(`undead_${Date.now()}_${Math.random()}`, tank.pos, tank.config, 'guard_player');
         state.allies.push(ally);
       }
     }
@@ -762,7 +791,7 @@ function handleFireZones(state: SiegeState, dt: number): void {
 // Allies
 // ============================================================
 
-function handleAllies(state: SiegeState, dt: number): void {
+export function handleAllies(state: SiegeState, dt: number): void {
   for (const ally of state.allies) {
     if (!ally.alive) continue;
     ally.fireCooldown -= dt * 1000;
@@ -823,7 +852,7 @@ function handleAllies(state: SiegeState, dt: number): void {
 // Turrets
 // ============================================================
 
-function handleTurrets(state: SiegeState, dt: number): void {
+export function handleTurrets(state: SiegeState, dt: number): void {
   for (const turret of state.turrets) {
     if (!turret.alive) continue;
     turret.fireCooldown -= dt * 1000;
@@ -845,7 +874,7 @@ function handleTurrets(state: SiegeState, dt: number): void {
 // Planes
 // ============================================================
 
-function handlePlanes(state: SiegeState, dt: number): void {
+export function handlePlanes(state: SiegeState, dt: number): void {
   for (const plane of state.planes) {
     if (!plane.alive) continue;
     plane.x += plane.velX * dt;
@@ -1033,7 +1062,7 @@ function handlePhysicsBlocks(state: SiegeState, dt: number): void {
 // Bullets
 // ============================================================
 
-function handleBullets(state: SiegeState, dt: number): void {
+export function handleBullets(state: SiegeState, dt: number, skipCC: boolean = false): void {
   const newBullets: BulletEntity[] = [];
 
   for (const bullet of state.bullets) {
@@ -1100,17 +1129,19 @@ function handleBullets(state: SiegeState, dt: number): void {
     if (hitBlock) continue;
 
     // Command center collision: blocks all bullets, only enemy bullets deal damage
-    const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
-    const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
-    if (bullet.ownerId !== 'cc' && Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
-      state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
-      if (!bullet.isPlayerBullet) {
-        state.commandCenterHp -= bullet.damage;
-        playExplosion();
-        state.screenShake = 3;
+    if (!skipCC) {
+      const ccX = Math.floor(MAP_COLS / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const ccY = Math.floor(MAP_ROWS / 2) * CELL_SIZE + CELL_SIZE / 2;
+      if (bullet.ownerId !== 'cc' && Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
+        state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
+        if (!bullet.isPlayerBullet) {
+          state.commandCenterHp -= bullet.damage;
+          playExplosion();
+          state.screenShake = 3;
+        }
+        bullet.alive = false;
+        continue;
       }
-      bullet.alive = false;
-      continue;
     }
 
     // Magnetic modifier: enemy bullets home toward player
@@ -1189,7 +1220,7 @@ return true;
   });
 }
 
-function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
+export function handleBulletTankCollisions(state: SiegeState, _dt: number): void {
   for (const bullet of state.bullets) {
     if (!bullet.alive) continue;
 
@@ -1311,7 +1342,7 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
   } else if (id === 'commander_wizard') {
     const deadEnemies = state.enemies.filter(e => !e.alive);
     if (deadEnemies.length > 0) {
-      for (const dead of deadEnemies.slice(0, 3)) (state as any).allies.push(createAllyTank(`ally_${Date.now()}`, dead.pos, dead.config, 'patrol_chase'));
+      for (const dead of deadEnemies.slice(0, 3)) (state as any).allies.push(createAllyTank(`ally_${Date.now()}`, dead.pos, dead.config, 'guard_player'));
       state.skillMessage = `复活了${Math.min(3, deadEnemies.length)}辆`;
     } else state.skillMessage = '没有可复活的敌军';
   } else if (id === 'commander_ninja') {

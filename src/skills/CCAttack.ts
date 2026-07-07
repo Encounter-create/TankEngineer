@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @ts-nocheck
 import { SiegeState } from "../types/SiegeState";
 import { Vec2 } from "../utils/Vector";
 import { createFireZone } from "../entities/FireZone";
