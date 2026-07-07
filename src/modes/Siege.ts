@@ -4,7 +4,7 @@ import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../
 import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
-import { moveTank, moveBullet, checkBulletTankHit, resolveTankCollisions, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
+import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
@@ -12,16 +12,17 @@ import { Random } from '../utils/Random';
 import { BattleReward, generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
-import { Particle, spawnParticles, spawnExplosion, updateParticles } from '../entities/Particle';
+import { Particle, spawnParticles, spawnExplosion } from '../entities/Particle';
 import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
 import { AllyTank, CloneEntity, TurretEntity, Plane, createAllyTank, createTurret, createPlanes, createClone } from '../entities/Ally';
-import { DamageNumber, spawnDamageNumber, updateDamageNumbers } from '../entities/DamageNumber';
+import { DamageNumber, spawnDamageNumber } from '../entities/DamageNumber';
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
 import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
 import { hasSynergy } from '../systems/Synergy';
 import { applyTerrainEffects, isTankInGrass } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 import { playQuote } from '../systems/QuotePlayer';
+import { updateBattle } from '../core/BattleEngine';
 // Skill module imports + re-exports
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -279,144 +280,29 @@ export function updateSiege(
     state.waveAnnouncement = '⚠ WARNING! WARNING! ⚠';
     state.waveAnnouncementTime = 2.5;
   }
-  // Decay screen shake
-  state.screenShake = Math.max(0, state.screenShake - dt * 50);
-  if (state.screenShake < 0.5) state.screenShake = 0;
-
   // Check time limit
-  if (state.elapsedTime >= MATCH_DURATION) {
-    endSiege(state, true);
-    return;
-  }
-
+  if (state.elapsedTime >= MATCH_DURATION) { endSiege(state, true); return; }
   // Spawn waves
   spawnWaves(state);
-
-  // Auto-advance if all enemies in current wave are dead
   const noAliveEnemies = state.enemies.every(e => !e.alive);
   if (noAliveEnemies && state.wavesSpawned < TOTAL_WAVES && state.wavesSpawned > 0) {
-    // Advance to next wave immediately
     const nextWave = WAVES[state.wavesSpawned];
-    if (nextWave && state.elapsedTime < nextWave.timeStart) {
-      state.elapsedTime = nextWave.timeStart;
-    }
+    if (nextWave && state.elapsedTime < nextWave.timeStart) state.elapsedTime = nextWave.timeStart;
   }
 
-  // Player movement
-  handlePlayerInput(state, input, dt);
+  // === Shared battle engine ===
+  updateBattle(state as any, input, dt, {
+    playerInput: handlePlayerInput, playerFire: handlePlayerFire,
+    terrain: applyTerrainEffects, enemyAI: handleEnemyAI,
+    allies: handleAllies, turrets: handleTurrets, planes: handlePlanes, clones: handleClones,
+    physics: handlePhysicsBlocks, bullets: handleBullets, bulletTank: handleBulletTankCollisions,
+    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles],
+  });
 
-  // Player firing
-  handlePlayerFire(state, input, dt);
-
-  // Terrain: water/ice effects
-  applyTerrainEffects(state.player, state.map);
-  for (const enemy of state.enemies) {
-    applyTerrainEffects(enemy, state.map);
-  }
-
-  // Enemy AI
-  handleEnemyAI(state, dt);
-
-  // Ally AI + Turret AI + Planes
-  handleAllies(state, dt);
-  handleTurrets(state, dt);
-  handlePlanes(state, dt);
-  handleClones(state, dt);
-
-  // Turret collision: push tanks out
-  for (const turret of state.turrets) {
-    if (!turret.alive) continue;
-    const turretR = 14;
-    for (const tank of [state.player, ...state.enemies, ...state.allies]) {
-      if (!tank.alive) continue;
-      const diff = tank.pos.sub(turret.pos);
-      const dist = diff.mag();
-      if (dist < turretR + TANK_RADIUS) {
-        tank.pos = tank.pos.add(diff.norm().scale(turretR + TANK_RADIUS - dist + 1));
-      }
-    }
-    // Bullet collision with turret
-    for (const bullet of state.bullets) {
-      if (!bullet.alive) continue;
-      if (bullet.pos.dist(turret.pos) < turretR + BULLET_RADIUS) {
-        turret.hp -= bullet.isPlayerBullet ? 0 : bullet.damage; // only enemy bullets damage turret
-        bullet.alive = false;
-        if (turret.hp <= 0) turret.alive = false;
-      }
-    }
-  }
-
-  // Tank-tank collisions
-  const allCombatants = [state.player, ...state.enemies, ...state.allies];
-  resolveTankCollisions(allCombatants);
-  // Process physics blocks
-  handlePhysicsBlocks(state, dt);
-
-  // Move bullets
-  handleBullets(state, dt);
-
-  // Check bullet-tank collisions
-  handleBulletTankCollisions(state, dt);
-
-  // All skill updates (shared between Siege + Practice)
-  updateMeteor(state, dt);
-  updateBivector(state, dt);
-  updateQuantum(state, dt);
-  updateLens(state, dt);
-  updateRewind(state, dt);
-  updateBigBang(state, dt);
-  updateHolo(state, dt);
-  updateTrojan(state, dt);
-  updateArk(state, dt);
-  updateDamocles(state, dt);
-
-  // Gravity well: pull entities toward gravity center
-  if (state.gravityTimer > 0) {
-    state.gravityTimer -= dt;
-    const gPos = state.gravityPos as Vec2;
-    const pull = (e: TankEntity) => {
-      if (!e.alive) return;
-      const to = gPos.sub(e.pos);
-      const d = to.mag();
-      if (d > 20) e.vel = e.vel.add(to.norm().scale(200 * dt));
-      if (d < 30) takeDamage(e, 10 * dt, state.player);
-    };
-    for (const enemy of state.enemies) pull(enemy);
-    for (const block of state.physicsBlocks) {
-      if (!block.alive) continue;
-      const to = gPos.sub(block.pos);
-      block.vel = block.vel.add(to.norm().scale(300 * dt));
-    }
-    state.particles.push(...spawnParticles(gPos, 'hit', 1, 30));
-  }
-
-  // Update particles
-  updateParticles(state.particles, dt);
-  state.particles = state.particles.filter(p => p.alive);
-
-  // Update damage numbers
-  updateDamageNumbers(state.damageNumbers, dt);
-  state.damageNumbers = state.damageNumbers.filter(n => n.alive);
-  // Wave announcement timer
+  // === Siege-specific ===
   state.waveAnnouncementTime -= dt;
-  state.skillMessageTime -= 16;
-  // Time slow + restore timers
-  if (state.timeSlowTimer > 0) state.timeSlowTimer -= dt;
-  if (state.restoreTimer > 0) state.restoreTimer -= dt;
-
-  // Lightning chain timer
-  if (state.lightningTimer > 0) state.lightningTimer -= dt;
-
-  // Combo timer + kill streak decay
-  state.comboTimer -= dt;
-  state.killStreakTimer -= dt;
-  if (state.killStreakTimer <= 0) {
-    state.killStreak = 0;
-  }
-  // Slow-motion timer
-  if (state.slowMoTimer > 0) {
-    state.slowMoTimer -= dt;
-  }
+  state.comboTimer -= dt; state.killStreakTimer -= dt;
+  if (state.killStreakTimer <= 0) state.killStreak = 0;
 
   // Command Center auto-attack
   handleCCAttack(state, dt);
