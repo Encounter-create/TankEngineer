@@ -21,6 +21,23 @@ import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
 import { hasSynergy } from '../systems/Synergy';
 import { applyTerrainEffects, isTankInGrass } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
+import { playQuote } from '../systems/QuotePlayer';
+import { DEV_MODE } from '../main';
+import { updateBattle } from '../core/BattleEngine';
+
+// Skill module imports + re-exports
+import { updateMeteor } from '../skills/Trisolaran';
+import { updateBivector } from '../skills/Bivector';
+import { updateQuantum } from '../skills/Quantum';
+import { updateLens } from '../skills/Lens';
+import { updateRewind } from '../skills/Poincare';
+import { updateBigBang } from '../skills/BigBang';
+import { updateHolo } from '../skills/Holo';
+import { updateTrojan, drawTrojanHorse } from '../skills/Trojan';
+import { updateArk, drawArk, drawArkWater } from '../skills/Noah';
+import { updateDamocles, drawDamoclesSwords } from '../skills/Damocles';
+import { handleCCBulletDeath } from '../skills/CCAttack';
+export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords };
 
 // ============================================================
 // Siege mode — 3 minute defense

@@ -8,10 +8,11 @@ export interface FireZone {
   maxLifetime: number;
   dps: number;         // damage per second to entities inside
   alive: boolean;
+  color?: 'red' | 'green';
 }
 
-export function createFireZone(pos: Vec2, radius: number = 50, lifetime: number = 5, dps: number = 25): FireZone {
-  return { pos, radius, lifetime, maxLifetime: lifetime, dps, alive: true };
+export function createFireZone(pos: Vec2, radius: number = 50, lifetime: number = 5, dps: number = 25, color: 'red' | 'green' = 'red'): FireZone {
+  return { pos, radius, lifetime, maxLifetime: lifetime, dps, alive: true, color };
 }
 
 export function updateFireZone(zone: FireZone, dt: number): void {

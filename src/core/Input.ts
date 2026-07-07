@@ -12,6 +12,7 @@ export class Input {
   private mouseJustPressed_ = false;
   private mouseJustReleased_ = false;
   private canvas: HTMLCanvasElement | null = null;
+  private wheelDelta_ = 0;
 
   constructor() {
     window.addEventListener('keydown', (e) => {
@@ -54,6 +55,8 @@ export class Input {
     });
     // Prevent context menu on right-click
     window.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Mouse wheel
+    window.addEventListener('wheel', (e) => { this.wheelDelta_ += e.deltaY; e.preventDefault(); }, { passive: false });
   }
 
   /** Attach canvas for coordinate transform */
@@ -82,6 +85,12 @@ export class Input {
 
   isMouseJustReleased(): boolean {
     return this.mouseJustReleased_;
+  }
+
+  consumeWheel(): number {
+    const d = this.wheelDelta_;
+    this.wheelDelta_ = 0;
+    return d;
   }
 
   // ---- Frame lifecycle ----

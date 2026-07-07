@@ -23,6 +23,8 @@ export interface GarageState {
   detailPartId: string | null;
   /** Practice mode — uses real game systems */
   practiceMode: boolean;
+  /** Scroll offset for left panel part list */
+  scrollOffset: number;
 }
 
 export function createGarageState(inventory: Inventory): GarageState {
@@ -41,6 +43,7 @@ export function createGarageState(inventory: Inventory): GarageState {
     activeType: 'barrel',
     detailPartId: null,
     practiceMode: false,
+    scrollOffset: 0,
   };
 
   state.assemblyResult = tryAssemble(
@@ -147,17 +150,24 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
     ctx.fillText(t.label, tx + (tabW - 2) / 2, 65);
   });
 
-  // Part list
+  // Part list (scrollable)
   const allParts = Inventory.getAllParts().filter(p => p.type === garage.activeType);
   const listY = 86;
   const rowH = 28;
+  const listH = h - listY - 16; // visible list height
+  const maxScroll = Math.max(0, allParts.length * rowH - listH);
+  const so = Math.max(0, Math.min(maxScroll, garage.scrollOffset ?? 0));
   const selectedId = garage.activeType === 'barrel' ? garage.selectedBarrelId
     : garage.activeType === 'turret' ? garage.selectedTurretId
     : garage.activeType === 'chassis' ? garage.selectedChassisId
     : garage.selectedCommanderId;
 
+  // Clip list area
+  ctx.save();
+  ctx.beginPath(); ctx.rect(LEFT_X, listY, LEFT_W, listH); ctx.clip();
+
   allParts.forEach((part, i) => {
-    const ry = listY + i * rowH;
+    const ry = listY + i * rowH - so;
     const selected = part.id === selectedId;
     const owned = inventory.owns(part.id);
 
@@ -195,6 +205,16 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
       ctx.stroke();
     }
   });
+
+  // Scrollbar
+  if (maxScroll > 0) {
+    const sbW = 4, sbX = LEFT_X + LEFT_W - 8;
+    const sbH = Math.max(20, listH * listH / (allParts.length * rowH));
+    const sbY = listY + (so / maxScroll) * (listH - sbH);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(ctx, sbX, sbY, sbW, sbH, 2); ctx.fill();
+  }
+  ctx.restore();
 }
 
 // ============================================================

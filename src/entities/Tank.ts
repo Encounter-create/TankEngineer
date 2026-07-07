@@ -1,6 +1,7 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE } from '../utils/Grid';
 import { TankConfig, effectiveMaxHp } from './Parts';
+import { DEV_MODE } from '../main';
 
 /** Runtime tank entity on the battlefield */
 export interface TankEntity {
@@ -31,6 +32,10 @@ export interface TankEntity {
   iceDir: number | null;
   iceSpeed: number;
   sprintMul: number;
+  /** Static target: no movement, no knockback, invincible (practice dummy) */
+  isStatic?: boolean;
+  /** Ally tank (resurrected, clone) — takes damage from enemies */
+  isAlly?: boolean;
 }
 
 export function createTank(
@@ -64,10 +69,15 @@ export function createTank(
 }
 
 export function takeDamage(tank: TankEntity, rawDamage: number, attacker?: TankEntity): number {
-  // DEBUG: player invincible for testing
-  if (tank.isPlayer) return 0;
+  // Developer mode: player invincible (allies are NOT invincible)
+  if (DEV_MODE && tank.isPlayer && !tank.isAlly) return 0;
   const now = performance.now();
   tank.lastHitAt = now;
+
+  // Static target: show damage number but don't apply damage
+  if (tank.isStatic) {
+    return Math.round(rawDamage * (tank.config.turret.stats.defenseRatio ?? 1.0));
+  }
 
   if (tank.config.turret.stats.invulnDurationMs && now < tank.invulnUntil) {
     return 0;
