@@ -53,6 +53,8 @@ import {
   drawArk,
   drawArkWater,
   drawDamoclesSwords,
+  drawDragon,
+  drawGenesis,
 } from './modes/Siege';
 import {
   renderSiege, drawHUD,
@@ -401,6 +403,16 @@ function render(_alpha: number): void {
   const dm = (app.siege && app.siege.damoclesPhase !== 'idle') ? app.siege :
     (app.practice && app.practice.damoclesPhase !== 'idle') ? app.practice : null;
   if (dm) drawDamoclesSwords(ctx, dm as any);
+
+  // Ye Gong's dragon
+  const dr = (app.siege && app.siege.dragonPhase !== 'idle') ? app.siege :
+    (app.practice && app.practice.dragonPhase !== 'idle') ? app.practice : null;
+  if (dr) drawDragon(ctx, dr as any);
+
+  // Genesis: "Let there be light" — must run AFTER game rendering (overlays black + light)
+  const gn = (app.siege && app.siege.genesisPhase !== 'idle') ? app.siege :
+    (app.practice && app.practice.genesisPhase !== 'idle') ? app.practice : null;
+  if (gn) drawGenesis(ctx, gn as any);
 
   // Noah's ark: water + ark
   const ark = (app.siege && app.siege.arkPhase !== 'idle') ? app.siege :

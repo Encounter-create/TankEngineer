@@ -608,6 +608,24 @@ export const MVP_COMMANDERS: Part[] = [
     description: '达摩克利斯之剑！每个敌人头顶悬下一柄巨剑。3秒内敌人越动越慢。倒计时结束所有线断裂，剑落秒杀全敌。冷却75秒。⚔️特效：悬剑缓降+细线脉动→落剑爆发+金色粒子+震屏。',
     stats: { skillCdMs: 75000 },
   },
+  {
+    id: 'commander_dragon',
+    name: '叶公',
+    type: 'commander',
+    rarity: 'legendary',
+    weight: 2,
+    description: '叶公好龙！萌龙从屏幕右侧探出，敌人惊恐逃窜。龙追猎敌人并用"拥抱"压死范围内敌军，爱心粒子漫天飞舞。🐉 反差萌+搞笑特效。冷却80秒。',
+    stats: { skillCdMs: 80000 },
+  },
+  {
+    id: 'commander_genesis',
+    name: '创世者',
+    type: 'commander',
+    rarity: 'legendary',
+    weight: 2,
+    description: '要有光！画面渐暗至全黑→天使降临宣告"There shall be light"→火苗燃起→光芒扩散驱散黑暗。光所到之处，一切敌人与物块尽数消散。冷却100秒。',
+    stats: { skillCdMs: 100000 },
+  },
 ];
 
 /** Default commander (no skill) */

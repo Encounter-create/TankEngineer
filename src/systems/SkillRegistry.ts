@@ -144,6 +144,18 @@ export const SKILLS: Record<string, (tank: TankEntity, now: number) => AbilityRe
     tank.skillCooldownUntil = now + cd;
     return { success: true, message: '⚔️ 达摩克利斯之剑！' };
   },
+
+  commander_dragon: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 80000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '🐉 叶公好龙！' };
+  },
+
+  commander_genesis: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 100000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '✨ 要有光！' };
+  },
 };
 
 /** Activate skill via registry */

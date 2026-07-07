@@ -8,7 +8,7 @@ import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
 import { moveTank, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
-import { handleSkillActivation, handleAllies, handleTurrets, handlePlanes, handleBullets, handleBulletTankCollisions, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles } from '../modes/Siege';
+import { handleSkillActivation, handleAllies, handleTurrets, handlePlanes, handleBullets, handleBulletTankCollisions, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis } from '../modes/Siege';
 import { updateBattle } from '../core/BattleEngine';
 import { CloneEntity } from '../entities/Ally';
 import { Input } from '../core/Input';
@@ -57,6 +57,8 @@ export interface PracticeState {
   arkPhase: string; arkTimer: number; arkWaterH: number;
   arkLightningBranches: any; arkLightningTimer: number;
   damoclesPhase: string; damoclesTimer: number;
+  dragonPhase: string; dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
+  genesisPhase: string; genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
   // Reset
   config: TankConfig; doReset: boolean;
 }
@@ -131,6 +133,8 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
     arkPhase: 'idle', arkTimer: 0, arkWaterH: 0,
     arkLightningBranches: [], arkLightningTimer: 0,
     damoclesPhase: 'idle', damoclesTimer: 0,
+    dragonPhase: 'idle', dragonTimer: 0, dragonX: 0, dragonY: 0, dragonReveal: 0,
+    genesisPhase: 'idle', genesisTimer: 0, genesisFireRadius: 0, genesisCleared: false,
     damageNumbers: [], restoreTimer: 0,
     enemiesKilled: 0, activeModifiers: [],
     physicsBlocks: blocks,
@@ -152,6 +156,8 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   updateTrojan(ps as any, dt);
   updateArk(ps as any, dt);
   updateDamocles(ps as any, dt);
+  updateDragon(ps as any, dt);
+  updateGenesis(ps as any, dt);
 
   const md = input.getMoveDir();
   moveTank(ps.player, md, dt, ps.map, ps.blocks, ps.blocks, true);
@@ -230,7 +236,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     clones: () => {},
     physics: () => {},
     bullets: handleBullets, bulletTank: handleBulletTankCollisions,
-    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles],
+    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis],
     skipCC: true,
   });
 

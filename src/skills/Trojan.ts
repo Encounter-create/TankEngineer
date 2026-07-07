@@ -108,6 +108,29 @@ export function updateTrojan(state: SiegeState, dt: number): void {
     if (Math.random() < 0.6) {
       state.particles.push({ pos: new Vec2(state.trojanX - 40, horseCY + 40 + Math.random()*15), vel: new Vec2(20+Math.random()*30, -10-Math.random()*15), life: 0.3+Math.random()*0.3, maxLife:0.6, color: ['#c8a050','#b09040','#a08030'][Math.floor(Math.random()*3)], radius: 1.5+Math.random()*2, alive:true, smokeExpand:false, isCross:false });
     }
+    // Ramming: push enemies and blocks in horse's path (same as entering)
+    const hx = state.trojanX, hy = horseCY;
+    for (const enemy of state.enemies) {
+      if (!enemy.alive || enemy.isStatic) continue;
+      if (enemy.pos.x > hx - 55 && enemy.pos.x < hx + 90 && enemy.pos.y > hy - 35 && enemy.pos.y < hy + 55) {
+        enemy.vel = new Vec2(500 + Math.random() * 300, (Math.random() - 0.5) * 200);
+        enemy.pos = new Vec2(enemy.pos.x + 100, enemy.pos.y);
+        takeDamage(enemy, 20);
+        for (let s = 0; s < 8; s++) {
+          state.particles.push({ pos: new Vec2(enemy.pos.x, enemy.pos.y), vel: new Vec2((Math.random()-0.5)*200, (Math.random()-0.5)*200), life: 0.2+Math.random()*0.3, maxLife:0.5, color: ['#ff8800','#ffaa00','#ffcc44'][Math.floor(Math.random()*3)], radius: 2+Math.random()*3, alive:true, smokeExpand:false, isCross:false });
+        }
+      }
+    }
+    for (const block of state.physicsBlocks) {
+      if (!block.alive) continue;
+      if (block.pos.x > hx - 55 && block.pos.x < hx + 90 && block.pos.y > hy - 35 && block.pos.y < hy + 55) {
+        block.vel = new Vec2(400 + Math.random() * 400, (Math.random() - 0.5) * 300);
+        block.pos = new Vec2(block.pos.x + 80, block.pos.y);
+        for (let s = 0; s < 6; s++) {
+          state.particles.push({ pos: new Vec2(block.pos.x, block.pos.y), vel: new Vec2((Math.random()-0.5)*150, (Math.random()-0.5)*150), life: 0.2+Math.random()*0.3, maxLife:0.5, color: ['#ff8800','#ffaa00'][Math.floor(Math.random()*2)], radius: 2+Math.random()*3, alive:true, smokeExpand:false, isCross:false });
+        }
+      }
+    }
     if (state.trojanTimer <= 0) { state.trojanPhase = 'idle'; state.trojanDoor = 0; state.trojanSpawned = 0; }
   }
 }

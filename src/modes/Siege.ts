@@ -34,7 +34,9 @@ import { updateHolo } from '../skills/Holo';
 import { updateTrojan, drawTrojanHorse } from '../skills/Trojan';
 import { updateArk, drawArk, drawArkWater } from '../skills/Noah';
 import { updateDamocles, drawDamoclesSwords } from '../skills/Damocles';
-export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords };
+import { updateDragon, drawDragon } from '../skills/Dragon';
+import { updateGenesis, drawGenesis } from '../skills/Genesis';
+export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords, updateDragon, drawDragon, updateGenesis, drawGenesis };
 
 // ============================================================
 // Siege mode — 3 minute defense
@@ -140,6 +142,10 @@ export interface SiegeState {
   arkTimer: number; arkWaterH: number;
   arkLightningBranches: Vec2[][]; arkLightningTimer: number;
   damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
+  dragonPhase: 'idle' | 'entering' | 'revealing' | 'hugging' | 'exiting';
+  dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
+  genesisPhase: 'idle' | 'darkening' | 'ignition';
+  genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -231,6 +237,8 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     trojanPhase: 'idle', trojanTimer: 0, trojanX: 0, trojanDoor: 0, trojanSpawned: 0,
     arkPhase: 'idle', arkTimer: 0, arkWaterH: 0, arkLightningBranches: [], arkLightningTimer: 0,
     damoclesPhase: 'idle', damoclesTimer: 0,
+    dragonPhase: 'idle', dragonTimer: 0, dragonX: 0, dragonY: 0, dragonReveal: 0,
+    genesisPhase: 'idle', genesisTimer: 0, genesisFireRadius: 0, genesisCleared: false,
   };
 }
 
@@ -296,7 +304,7 @@ export function updateSiege(
     terrain: applyTerrainEffects, enemyAI: handleEnemyAI,
     allies: handleAllies, turrets: handleTurrets, planes: handlePlanes, clones: handleClones,
     physics: handlePhysicsBlocks, bullets: handleBullets, bulletTank: handleBulletTankCollisions,
-    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles],
+    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis],
   });
 
   // === Siege-specific ===
@@ -1400,6 +1408,14 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
     const dq = [['你看见我的幸运了吗？','这把利剑时时刻刻悬在我的头顶，','世人所见的王权荣华，不过是浮于表面的幻象。','身居高位者，永远活在随时坠落的恐惧之中。'],['终日活在死亡威胁下的人，','不可能拥有真正的幸福；','权力越大，头顶悬剑越锋利。'],['Damocles neither dared to look at the servants','nor touch the feast, and begged instantly to depart,','for he had no wish for such good fortune.','What clearer proof that constant fear destroys all happiness?']];
     playQuote(dq[Math.floor(Math.random() * dq.length)]);
     state.skillMessage = '⚔️ 达摩克利斯之剑！';
+  } else if (id === 'commander_dragon') {
+    state.dragonPhase = 'entering'; state.dragonTimer = 2;
+    state.dragonX = MAP_W + 200; state.dragonY = MAP_H * 0.4; state.dragonReveal = 0;
+    state.skillMessage = '🐉 叶公好龙！';
+  } else if (id === 'commander_genesis') {
+    state.genesisPhase = 'darkening'; state.genesisTimer = 0;
+    state.genesisFireRadius = 0; state.genesisCleared = false;
+    state.skillMessage = '✨ 要有光！';
   }
 }
 

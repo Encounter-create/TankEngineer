@@ -58,4 +58,8 @@ export interface SiegeState {
   arkTimer: number; arkWaterH: number;
   arkLightningBranches: Vec2[][]; arkLightningTimer: number;
   damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
+  dragonPhase: 'idle' | 'entering' | 'revealing' | 'hugging' | 'exiting';
+  dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
+  genesisPhase: 'idle' | 'darkening' | 'ignition';
+  genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
 }
