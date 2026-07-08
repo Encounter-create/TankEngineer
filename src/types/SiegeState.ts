@@ -62,4 +62,9 @@ export interface SiegeState {
   dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
   genesisPhase: 'idle' | 'darkening' | 'ignition';
   genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
+  mjolnirPhase: 'idle' | 'entering' | 'active' | 'exiting';
+  mjolnirPos: Vec2; mjolnirVel: Vec2; mjolnirAngle: number;
+  mjolnirTimer: number; mjolnirHoverBounce: number;
+  mjolnirLightningTimer: number; mjolnirLightningBranches: Vec2[][];
+  mjolnirThorQuote: string[]; mjolnirThorStartTime: number;
 }

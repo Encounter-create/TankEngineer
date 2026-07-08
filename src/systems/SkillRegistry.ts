@@ -156,6 +156,12 @@ export const SKILLS: Record<string, (tank: TankEntity, now: number) => AbilityRe
     tank.skillCooldownUntil = now + cd;
     return { success: true, message: '✨ 要有光！' };
   },
+
+  commander_thor: (tank, now) => {
+    const cd = tank.config.commander.stats.skillCdMs ?? 100000;
+    tank.skillCooldownUntil = now + cd;
+    return { success: true, message: '⚡ Mjolnir!' };
+  },
 };
 
 /** Activate skill via registry */

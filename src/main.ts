@@ -55,6 +55,7 @@ import {
   drawDamoclesSwords,
   drawDragon,
   drawGenesis,
+  drawMjolnir,
 } from './modes/Siege';
 import {
   renderSiege, drawHUD,
@@ -414,6 +415,11 @@ function render(_alpha: number): void {
     (app.practice && app.practice.genesisPhase !== 'idle') ? app.practice : null;
   if (gn) drawGenesis(ctx, gn as any);
 
+  // Mjolnir
+  const mj = (app.siege && app.siege.mjolnirPhase !== 'idle') ? app.siege :
+    (app.practice && app.practice.mjolnirPhase !== 'idle') ? app.practice : null;
+  if (mj) drawMjolnir(ctx, mj as any);
+
   // Noah's ark: water + ark
   const ark = (app.siege && app.siege.arkPhase !== 'idle') ? app.siege :
     (app.practice && app.practice.arkPhase !== 'idle') ? app.practice : null;
@@ -634,7 +640,7 @@ function updateGarage(): void {
   if (wheel !== 0) {
     const allParts = Inventory.getAllParts().filter(p => p.type === app.garage.activeType);
     const maxScroll = Math.max(0, allParts.length * 28 - (MAP_H - 86 - 16));
-    const so = (app.garage.scrollOffset ?? 0) + wheel * 0.5;
+    const so = (app.garage.scrollOffset ?? 0) + wheel;
     app.garage.scrollOffset = Math.max(0, Math.min(maxScroll, so));
   }
   if (input.isMouseJustPressed()) {

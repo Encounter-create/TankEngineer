@@ -5,6 +5,7 @@ import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '..
 import { loadBuildSlots, saveBuildSlot } from '../systems/BuildSlots';
 import { checkSynergies } from '../systems/Synergy';
 import { drawTank } from './Renderer';
+import { MAP_H } from '../utils/Grid';
 
 // ============================================================
 // Garage state
@@ -419,9 +420,11 @@ export function hitTestGarage(px: number, py: number, _w: number, inventory: Inv
 
   // Part list (86+)
   const allParts = Inventory.getAllParts().filter(p => p.type === garage.activeType);
-  const listY = 86, rowH = 28;
+  const listY = 86, rowH = 28, listH = MAP_H - listY - 16;
+  const maxScroll = Math.max(0, allParts.length * rowH - listH);
+  const so = Math.max(0, Math.min(maxScroll, garage.scrollOffset ?? 0));
   for (let i = 0; i < allParts.length; i++) {
-    const ry = listY + i * rowH;
+    const ry = listY + i * rowH - so;
     if (px >= LEFT_X && px <= LEFT_X + LEFT_W && py >= ry && py <= ry + rowH) {
       const part = allParts[i];
       // Toggle detail

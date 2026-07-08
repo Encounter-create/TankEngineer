@@ -9,7 +9,7 @@ export interface InventoryData {
 }
 
 const STORAGE_KEY = 'tank_engineer_inventory';
-const DATA_VERSION = 7; // bump when adding new parts to force refresh
+const DATA_VERSION = 8; // bump when adding new parts to force refresh
 
 function defaultInventory(): InventoryData {
   return {
@@ -63,6 +63,7 @@ function defaultInventory(): InventoryData {
       'commander_damocles',
       'commander_dragon',
       'commander_genesis',
+      'commander_thor',
     ],
     lastShopRefresh: 0,
     shopPartIds: [],

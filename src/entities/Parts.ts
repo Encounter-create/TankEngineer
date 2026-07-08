@@ -626,6 +626,15 @@ export const MVP_COMMANDERS: Part[] = [
     description: '要有光！画面渐暗至全黑→天使降临宣告"There shall be light"→火苗燃起→光芒扩散驱散黑暗。光所到之处，一切敌人与物块尽数消散。冷却100秒。',
     stats: { skillCdMs: 100000 },
   },
+  {
+    id: 'commander_thor',
+    name: '雷神',
+    type: 'commander',
+    rarity: 'legendary',
+    weight: 2,
+    description: '索尔的锤子！神圣短柄锤从左上角飞入，追击鼠标，鼠标静止时悬浮嗡鸣。击退力巨大，越飞越快。⚡ 神圣金光+雷击特效。持续20秒，冷却100秒。',
+    stats: { skillCdMs: 100000 },
+  },
 ];
 
 /** Default commander (no skill) */

@@ -36,7 +36,8 @@ import { updateArk, drawArk, drawArkWater } from '../skills/Noah';
 import { updateDamocles, drawDamoclesSwords } from '../skills/Damocles';
 import { updateDragon, drawDragon } from '../skills/Dragon';
 import { updateGenesis, drawGenesis } from '../skills/Genesis';
-export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords, updateDragon, drawDragon, updateGenesis, drawGenesis };
+import { updateMjolnir, drawMjolnir } from '../skills/Mjolnir';
+export { updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, drawTrojanHorse, updateArk, drawArk, drawArkWater, updateDamocles, drawDamoclesSwords, updateDragon, drawDragon, updateGenesis, drawGenesis, updateMjolnir, drawMjolnir };
 
 // ============================================================
 // Siege mode — 3 minute defense
@@ -146,6 +147,11 @@ export interface SiegeState {
   dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
   genesisPhase: 'idle' | 'darkening' | 'ignition';
   genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
+  mjolnirPhase: 'idle' | 'entering' | 'active' | 'exiting';
+  mjolnirPos: Vec2; mjolnirVel: Vec2; mjolnirAngle: number;
+  mjolnirTimer: number; mjolnirHoverBounce: number;
+  mjolnirLightningTimer: number; mjolnirLightningBranches: Vec2[][];
+  mjolnirThorQuote: string[]; mjolnirThorStartTime: number;
 }
 
 const COMMAND_CENTER_MAX_HP = 500;
@@ -239,6 +245,10 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
     damoclesPhase: 'idle', damoclesTimer: 0,
     dragonPhase: 'idle', dragonTimer: 0, dragonX: 0, dragonY: 0, dragonReveal: 0,
     genesisPhase: 'idle', genesisTimer: 0, genesisFireRadius: 0, genesisCleared: false,
+    mjolnirPhase: 'idle', mjolnirPos: new Vec2(0,0), mjolnirVel: new Vec2(0,0),
+    mjolnirAngle: 0, mjolnirTimer: 0, mjolnirHoverBounce: 0,
+    mjolnirLightningTimer: 1, mjolnirLightningBranches: [],
+    mjolnirThorQuote: [], mjolnirThorStartTime: -1,
   };
 }
 
@@ -304,7 +314,7 @@ export function updateSiege(
     terrain: applyTerrainEffects, enemyAI: handleEnemyAI,
     allies: handleAllies, turrets: handleTurrets, planes: handlePlanes, clones: handleClones,
     physics: handlePhysicsBlocks, bullets: handleBullets, bulletTank: handleBulletTankCollisions,
-    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis],
+    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir],
   });
 
   // === Siege-specific ===
@@ -1416,6 +1426,13 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
     state.genesisPhase = 'darkening'; state.genesisTimer = 0;
     state.genesisFireRadius = 0; state.genesisCleared = false;
     state.skillMessage = '✨ 要有光！';
+  } else if (id === 'commander_thor') {
+    state.mjolnirPhase = 'entering'; state.mjolnirTimer = 0;
+    state.mjolnirPos = new Vec2(-100, -100); state.mjolnirVel = new Vec2(0, 0);
+    state.mjolnirAngle = 0; state.mjolnirHoverBounce = 0;
+    state.mjolnirLightningTimer = 0.2; state.mjolnirLightningBranches = [];
+    state.mjolnirThorStartTime = -1;
+    state.skillMessage = '⚡ Mjolnir!';
   }
 }
 

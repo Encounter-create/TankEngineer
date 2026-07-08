@@ -8,7 +8,7 @@ import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
 import { moveTank, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
-import { handleSkillActivation, handleAllies, handleTurrets, handlePlanes, handleBullets, handleBulletTankCollisions, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis } from '../modes/Siege';
+import { handleSkillActivation, handleAllies, handleTurrets, handlePlanes, handleBullets, handleBulletTankCollisions, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir } from '../modes/Siege';
 import { updateBattle } from '../core/BattleEngine';
 import { CloneEntity } from '../entities/Ally';
 import { Input } from '../core/Input';
@@ -59,6 +59,10 @@ export interface PracticeState {
   damoclesPhase: string; damoclesTimer: number;
   dragonPhase: string; dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
   genesisPhase: string; genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
+  mjolnirPhase: string; mjolnirPos: Vec2; mjolnirVel: Vec2; mjolnirAngle: number;
+  mjolnirTimer: number; mjolnirHoverBounce: number;
+  mjolnirLightningTimer: number; mjolnirLightningBranches: any;
+  mjolnirThorQuote: string[]; mjolnirThorStartTime: number;
   // Reset
   config: TankConfig; doReset: boolean;
 }
@@ -135,6 +139,10 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
     damoclesPhase: 'idle', damoclesTimer: 0,
     dragonPhase: 'idle', dragonTimer: 0, dragonX: 0, dragonY: 0, dragonReveal: 0,
     genesisPhase: 'idle', genesisTimer: 0, genesisFireRadius: 0, genesisCleared: false,
+    mjolnirPhase: 'idle', mjolnirPos: new Vec2(0,0), mjolnirVel: new Vec2(0,0),
+    mjolnirAngle: 0, mjolnirTimer: 0, mjolnirHoverBounce: 0,
+    mjolnirLightningTimer: 1, mjolnirLightningBranches: [],
+    mjolnirThorQuote: [], mjolnirThorStartTime: -1,
     damageNumbers: [], restoreTimer: 0,
     enemiesKilled: 0, activeModifiers: [],
     physicsBlocks: blocks,
@@ -158,6 +166,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   updateDamocles(ps as any, dt);
   updateDragon(ps as any, dt);
   updateGenesis(ps as any, dt);
+  updateMjolnir(ps as any, dt);
 
   const md = input.getMoveDir();
   moveTank(ps.player, md, dt, ps.map, ps.blocks, ps.blocks, true);
@@ -236,7 +245,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     clones: () => {},
     physics: () => {},
     bullets: handleBullets, bulletTank: handleBulletTankCollisions,
-    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis],
+    skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir],
     skipCC: true,
   });
 
