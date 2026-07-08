@@ -24,6 +24,7 @@ import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSpr
 import { playQuote } from '../systems/QuotePlayer';
 import { updateBattle } from '../core/BattleEngine';
 import { SiegeState } from '../types/SiegeState';
+import { DEV_MODE } from '../main';
 // Skill module imports + re-exports
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -708,6 +709,7 @@ export function handleAllies(state: SiegeState, dt: number): void {
 // ============================================================
 
 export function handleTurrets(state: SiegeState, dt: number): void {
+  const hasFortress = hasSynergy(state.player.config, 'mobile_fortress');
   for (const turret of state.turrets) {
     if (!turret.alive) continue;
     turret.fireCooldown -= dt * 1000;
@@ -716,9 +718,30 @@ export function handleTurrets(state: SiegeState, dt: number): void {
     if (target) {
       turret.angle = target.pos.sub(turret.pos).angle();
       if (turret.fireCooldown <= 0) {
-        const bullet = createBullet(turret.pos, turret.angle, 'straight', 450, 25, 0, 0, turret.id, true);
+        // Spawn bullet ahead of turret center to avoid self-collision
+        const spawnPos = turret.pos.add(Vec2.fromAngle(turret.angle, BULLET_RADIUS + 14));
+        const bullet = createBullet(spawnPos, turret.angle, 'straight', 450, 25, 0, 0, turret.id, true);
         state.bullets.push(bullet);
         turret.fireCooldown = 600;
+      }
+    }
+
+    // Mobile fortress synergy: player heals + green particles when within turret range
+    if (hasFortress && state.player.alive) {
+      const d = state.player.pos.dist(turret.pos);
+      if (d < turret.fireRange) {
+        const heal = 8 * dt;
+        state.player.hp = Math.min(state.player.maxHp, state.player.hp + heal);
+        // Green healing particles
+        if (Math.random() < 0.4) {
+          state.particles.push({
+            pos: new Vec2(state.player.pos.x + (Math.random() - 0.5) * 20, state.player.pos.y + (Math.random() - 0.5) * 20),
+            vel: new Vec2((Math.random() - 0.5) * 10, -15 - Math.random() * 20),
+            life: 0.5 + Math.random() * 0.5, maxLife: 1,
+            color: ['#44ff88', '#66ffaa', '#88ffcc', '#22dd66'][Math.floor(Math.random() * 4)],
+            radius: 2 + Math.random() * 3, alive: true, smokeExpand: false, isCross: false,
+          });
+        }
       }
     }
   }
@@ -1014,7 +1037,7 @@ export function handleBullets(state: SiegeState, dt: number, skipCC: boolean = f
       if (bullet.ownerId !== 'cc' && Math.hypot(bullet.pos.x - ccX, bullet.pos.y - ccY) < CELL_SIZE * 1.5 + BULLET_RADIUS) {
         state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
         if (!bullet.isPlayerBullet) {
-          state.commandCenterHp -= bullet.damage;
+          if (!DEV_MODE) state.commandCenterHp -= bullet.damage;
           playExplosion();
           state.screenShake = 3;
         }
@@ -1245,6 +1268,10 @@ export function handleSkillActivation(state: SiegeState, input: Input): void {
     }
   } else if (id === 'commander_engineer') {
     const turret = createTurret(state.player.pos);
+    if (hasSynergy(state.player.config, 'mobile_fortress')) {
+      turret.hp = Math.round(turret.hp * 1.5); turret.maxHp = turret.hp;
+      turret.fireRange = Math.round(turret.fireRange * 1.3);
+    }
     (state as any).turrets.push(turret);
   } else if (id === 'commander_wizard') {
     const deadEnemies = state.enemies.filter(e => !e.alive);

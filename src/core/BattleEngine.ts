@@ -58,6 +58,7 @@ export function updateBattle(
     }
     for (const b of s.bullets) {
       if (!b.alive) continue;
+      if (b.ownerId === t.id) continue; // skip own bullets
       if (b.pos.dist(t.pos) < tr + BULLET_RADIUS) { t.hp -= b.isPlayerBullet ? 0 : b.damage; b.alive = false; if (t.hp <= 0) t.alive = false; }
     }
     for (const bk of s.physicsBlocks) {
