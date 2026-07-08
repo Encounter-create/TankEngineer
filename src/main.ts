@@ -147,32 +147,8 @@ function update(dt: number): void {
     updateLobby();
   } else if (app.screen === 'garage') {
     if (app.practice) {
-      const ps = app.practice;
-      updatePractice(ps, input, dt);
-      if (input.isMouseJustPressed()) {
-        const ax = 284, ay = 46, aw = 470, ah = 640 - 160;
-        // Exit button
-        const bx = ax + aw / 2 - 40, by = ay + ah - 32;
-        if (input.mousePos.x >= bx && input.mousePos.x <= bx + 80 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
-          app.practice = null; app.garage.practiceMode = false; return;
-        }
-        // Reset button
-        const rstX = ax + aw - 64, rstY = ay + 4;
-        if (input.mousePos.x >= rstX && input.mousePos.x <= rstX + 58 && input.mousePos.y >= rstY && input.mousePos.y <= rstY + 22) {
-          ps.doReset = true;
-        }
-        // Respawn moving target
-        const rx = ax + aw / 2 - 50, ry = ay + ah / 2 + 20;
-        if (!ps.movingEnemy.alive && input.mousePos.x >= rx && input.mousePos.x <= rx + 100 && input.mousePos.y >= ry && input.mousePos.y <= ry + 28) {
-          ps.movingEnemy.alive = true; ps.movingEnemy.hp = ps.movingEnemy.maxHp;
-          ps.movingEnemy.pos = new Vec2(ax + aw * (0.5 + Math.random() * 0.4), ay + ah * (0.2 + Math.random() * 0.5));
-        }
-      }
-      // Handle reset
-      if (ps.doReset) {
-        const newPs = createPractice(ps.config, ps.arenaX, ps.arenaY, ps.arenaW, ps.arenaH);
-        app.practice = newPs;
-      }
+      updatePractice(app.practice, input, dt);
+      handlePracticeUI();
     } else {
       updateGarage();
     }
@@ -258,6 +234,39 @@ function render(_alpha: number): void {
   // Quote player (independent of skills)
   renderQuote(ctx);
 }
+
+// ============================================================
+// Practice mode (garage embedded)
+// ============================================================
+
+function handlePracticeUI(): void {
+  const ps = app.practice!;
+  if (input.isMouseJustPressed()) {
+    const ax = 284, ay = 46, aw = 470, ah = 640 - 160;
+    // Exit button
+    const bx = ax + aw / 2 - 40, by = ay + ah - 32;
+    if (input.mousePos.x >= bx && input.mousePos.x <= bx + 80 && input.mousePos.y >= by && input.mousePos.y <= by + 24) {
+      app.practice = null; app.garage.practiceMode = false; return;
+    }
+    // Reset button
+    const rstX = ax + aw - 64, rstY = ay + 4;
+    if (input.mousePos.x >= rstX && input.mousePos.x <= rstX + 58 && input.mousePos.y >= rstY && input.mousePos.y <= rstY + 22) {
+      ps.doReset = true;
+    }
+    // Respawn moving target
+    const rx = ax + aw / 2 - 50, ry = ay + ah / 2 + 20;
+    if (!ps.movingEnemy.alive && input.mousePos.x >= rx && input.mousePos.x <= rx + 100 && input.mousePos.y >= ry && input.mousePos.y <= ry + 28) {
+      ps.movingEnemy.alive = true; ps.movingEnemy.hp = ps.movingEnemy.maxHp;
+      ps.movingEnemy.pos = new Vec2(ax + aw * (0.5 + Math.random() * 0.4), ay + ah * (0.2 + Math.random() * 0.5));
+    }
+  }
+  // Handle reset
+  if (ps.doReset) {
+    const newPs = createPractice(ps.config, ps.arenaX, ps.arenaY, ps.arenaW, ps.arenaH);
+    app.practice = newPs;
+  }
+}
+
 function updateLobby(): void {
   // Developer mode toggle (top-right button)
   if (input.isMouseJustPressed()) {
