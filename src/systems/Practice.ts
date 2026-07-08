@@ -17,8 +17,9 @@ import { drawTank, drawFireZone, drawDamageNumber, drawTurret, drawPlane } from 
 import { isSkillActive, isBarrageActive, isSmokeActive } from '../systems/Commander';
 import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
+import { SkillStates } from '../types/SkillStates';
 
-export interface PracticeState {
+export interface PracticeState extends SkillStates {
   player: TankEntity; enemy: TankEntity; movingEnemy: TankEntity;
   bullets: BulletEntity[]; blocks: PhysicsBlock[];
   fireZones: FireZone[]; particles: Particle[];
@@ -27,13 +28,9 @@ export interface PracticeState {
   skillMessage: string; skillMessageTime: number;
   // Entity arrays so Siege's skill handler works here too
   planes: any[]; turrets: any[]; allies: any[]; clones: CloneEntity[];
-  gravityPos: Vec2; gravityTimer: number;
-  slowMoTimer: number; timeSlowTimer: number;
-  lightningBranches: Vec2[][]; lightningTimer: number;
   enemies: TankEntity[];
   // Skill effect state (mirrors SiegeState for shared handleSkillActivation)
-  damageNumbers: any[]; restoreTimer: number;
-  enemiesKilled: number; activeModifiers: any[];
+  damageNumbers: any[]; enemiesKilled: number; activeModifiers: any[];
   // SiegeState compatibility for shared handlers
   physicsBlocks: PhysicsBlock[];
   screenShake: number; killStreak: number; killStreakTimer: number;
@@ -41,28 +38,6 @@ export interface PracticeState {
   commandCenterHp: number; comboMultiplier: number;
   showDebug: boolean;
   aiContexts: Map<string, AIContext>;
-  // Meteor strike
-  meteorPhase: string; meteorTimer: number; meteorTarget: Vec2; meteorPos: Vec2;
-  meteorVel: number; meteorImpactTime: number; meteorFlashAlpha: number;
-  bivectorPhase: string; bivectorTimer: number; bivectorProgress: number;
-  bivectorShear: number; bivectorScale: number; bivectorWhiteAlpha: number; bivectorDestroyed: boolean;
-  bivectorText: string; bivectorTextColor: string;
-  quantumPhase: string; quantumTimer: number; quantumRedAlpha: number; quantumBlueAlpha: number;
-  quantumDestroyed: boolean;
-  lensPhase: string; lensTimer: number; lensTarget: Vec2; lensStrength: number; lensRadius: number;
-  rewindPhase: string; rewindTimer: number; rewindBlueAlpha: number;
-  bigbangPhase: string; bigbangTimer: number; bigbangScale: number; bigbangWhiteAlpha: number;
-  holoPhase: string; holoTimer: number; holoRotation: number; holoRadius: number; holoCracks: number;
-  trojanPhase: string; trojanTimer: number; trojanX: number; trojanDoor: number; trojanSpawned: number;
-  arkPhase: string; arkTimer: number; arkWaterH: number;
-  arkLightningBranches: any; arkLightningTimer: number;
-  damoclesPhase: string; damoclesTimer: number;
-  dragonPhase: string; dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
-  genesisPhase: string; genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
-  mjolnirPhase: string; mjolnirPos: Vec2; mjolnirVel: Vec2; mjolnirAngle: number;
-  mjolnirTimer: number; mjolnirHoverBounce: number;
-  mjolnirLightningTimer: number; mjolnirLightningBranches: any;
-  mjolnirThorQuote: string[]; mjolnirThorStartTime: number;
   // Reset
   config: TankConfig; doReset: boolean;
 }
@@ -130,7 +105,7 @@ export function createPractice(config: TankConfig, ax: number, ay: number, aw: n
     quantumPhase: 'idle', quantumTimer: 0, quantumRedAlpha: 0, quantumBlueAlpha: 0,
     quantumDestroyed: false,
     lensPhase: 'idle', lensTimer: 0, lensTarget: new Vec2(0,0), lensStrength: 0, lensRadius: 0,
-    rewindPhase: 'idle', rewindTimer: 0, rewindBlueAlpha: 0,
+    rewindPhase: 'idle', rewindTimer: 0, rewindBlueAlpha: 0, rewindReversed: false,
     bigbangPhase: 'idle', bigbangTimer: 0, bigbangScale: 1, bigbangWhiteAlpha: 0,
     holoPhase: 'idle', holoTimer: 0, holoRotation: 0, holoRadius: 0, holoCracks: 0,
     trojanPhase: 'idle', trojanTimer: 0, trojanX: 0, trojanDoor: 0, trojanSpawned: 0,

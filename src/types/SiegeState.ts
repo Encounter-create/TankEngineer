@@ -11,11 +11,11 @@ import { AIContext } from '../ai/EnemyAI';
 import { Inventory } from '../systems/Inventory';
 import { BattleReward } from '../systems/Reward';
 import { WaveModifier } from '../systems/WaveModifiers';
-import { Vec2 } from '../utils/Vector';
+import { SkillStates } from './SkillStates';
 
 export type SiegePhase = 'intro' | 'playing' | 'paused' | 'victory' | 'defeat';
 
-export interface SiegeState {
+export interface SiegeState extends SkillStates {
   phase: SiegePhase; map: TileGrid; mapName: MapName; player: TankEntity;
   enemies: TankEntity[]; bullets: BulletEntity[];
   aiContexts: Map<string, AIContext>; inventory: Inventory;
@@ -30,41 +30,5 @@ export interface SiegeState {
   waveAnnouncement: string; waveAnnouncementTime: number;
   comboTimer: number; comboText: string; comboColor: string; comboMultiplier: number;
   killStreak: number; killStreakTimer: number; maxMultiplier: number;
-  slowMoTimer: number; activeModifiers: WaveModifier[];
-  gravityPos: Vec2; gravityTimer: number;
-  timeSlowTimer: number; restoreTimer: number;
-  lightningBranches: Vec2[][]; lightningTimer: number;
-  meteorPhase: 'idle' | 'targeting' | 'incoming' | 'impact' | 'burning';
-  meteorTimer: number; meteorTarget: Vec2; meteorPos: Vec2; meteorVel: number;
-  meteorImpactTime: number; meteorFlashAlpha: number;
-  bivectorPhase: 'idle' | 'compressing' | 'whiteout' | 'recovering';
-  bivectorTimer: number; bivectorProgress: number;
-  bivectorShear: number; bivectorScale: number; bivectorWhiteAlpha: number;
-  bivectorDestroyed: boolean; bivectorText: string; bivectorTextColor: string;
-  quantumPhase: 'idle' | 'superposing' | 'collapsed' | 'aftermath';
-  quantumTimer: number; quantumRedAlpha: number; quantumBlueAlpha: number;
-  quantumDestroyed: boolean;
-  lensPhase: 'idle' | 'forming' | 'active' | 'collapsing';
-  lensTimer: number; lensTarget: Vec2; lensStrength: number; lensRadius: number;
-  rewindPhase: 'idle' | 'rewinding' | 'recovering';
-  rewindTimer: number; rewindBlueAlpha: number; rewindReversed: boolean;
-  bigbangPhase: 'idle' | 'imploding' | 'exploding' | 'aftermath';
-  bigbangTimer: number; bigbangScale: number; bigbangWhiteAlpha: number;
-  holoPhase: 'idle' | 'projecting' | 'rotating' | 'shattering' | 'aftermath';
-  holoTimer: number; holoRotation: number; holoRadius: number; holoCracks: number;
-  trojanPhase: 'idle' | 'entering' | 'opening' | 'deploying' | 'shattering';
-  trojanTimer: number; trojanX: number; trojanDoor: number; trojanSpawned: number;
-  arkPhase: 'idle' | 'raining' | 'peaking' | 'receding';
-  arkTimer: number; arkWaterH: number;
-  arkLightningBranches: Vec2[][]; arkLightningTimer: number;
-  damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
-  dragonPhase: 'idle' | 'entering' | 'revealing' | 'hugging' | 'exiting';
-  dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
-  genesisPhase: 'idle' | 'darkening' | 'ignition';
-  genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
-  mjolnirPhase: 'idle' | 'entering' | 'active' | 'exiting';
-  mjolnirPos: Vec2; mjolnirVel: Vec2; mjolnirAngle: number;
-  mjolnirTimer: number; mjolnirHoverBounce: number;
-  mjolnirLightningTimer: number; mjolnirLightningBranches: Vec2[][];
-  mjolnirThorQuote: string[]; mjolnirThorStartTime: number;
+  activeModifiers: WaveModifier[];
 }

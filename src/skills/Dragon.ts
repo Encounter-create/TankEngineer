@@ -6,6 +6,7 @@ import { Vec2 } from '../utils/Vector';
 import { MAP_W, MAP_H } from '../utils/Grid';
 import { spawnExplosion } from '../entities/Particle';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 export function updateDragon(state: SiegeState, dt: number): void {
   if (state.dragonPhase === 'idle') return;
@@ -503,3 +504,5 @@ export function drawDragon(ctx: CanvasRenderingContext2D, state: SiegeState): vo
 
   ctx.restore();
 }
+
+registerEffect('dragon', drawDragon);

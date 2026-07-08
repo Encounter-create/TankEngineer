@@ -14,6 +14,7 @@ import { Vec2 } from '../utils/Vector';
 import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
+import { registerEffect } from '../ui/EffectRenderer';
 import { playExplosion } from '../systems/Sound';
 
 const BIVECTOR_POEMS = [
@@ -87,4 +88,21 @@ export function updateBivector(state: SiegeState, dt: number): void {
     }
   }
 }
+
+export function drawBivector(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.bivectorPhase === 'idle') return;
+  const wa = state.bivectorWhiteAlpha;
+  if (wa > 0.01) {
+    ctx.fillStyle = `rgba(255,255,255,${wa})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+  if (state.bivectorText) {
+    ctx.fillStyle = state.bivectorTextColor;
+    ctx.font = 'bold 28px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(state.bivectorText, MAP_W / 2, MAP_H / 2);
+  }
+}
+
+registerEffect('bivector', drawBivector);
 

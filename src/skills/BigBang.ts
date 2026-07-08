@@ -14,6 +14,7 @@ import { Vec2 } from '../utils/Vector';
 import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
+import { registerEffect } from '../ui/EffectRenderer';
 import { playExplosion } from '../systems/Sound';
 
 export function updateBigBang(state: SiegeState, dt: number): void {
@@ -88,4 +89,24 @@ export function updateBigBang(state: SiegeState, dt: number): void {
     }
   }
 }
+
+export function drawBigBang(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.bigbangPhase === 'idle') return;
+  const wa = state.bigbangWhiteAlpha;
+  if (wa > 0.01) {
+    ctx.fillStyle = `rgba(255,255,255,${wa})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+  if (state.bigbangPhase === 'aftermath') {
+    const px = (state as any).player?.pos?.x ?? MAP_W/2;
+    const py = (state as any).player?.pos?.y ?? MAP_H/2;
+    const et = 3 - state.bigbangTimer;
+    const waveR = et * 350;
+    const alpha = Math.max(0, 1 - et / 3) * 0.7;
+    ctx.strokeStyle = `rgba(255,220,180,${alpha})`; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(px, py, waveR, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+registerEffect('bigbang', drawBigBang);
 

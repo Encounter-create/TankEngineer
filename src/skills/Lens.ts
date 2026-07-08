@@ -14,6 +14,8 @@ import { Vec2 } from '../utils/Vector';
 import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
+import { registerEffect } from '../ui/EffectRenderer';
+import { lensCanvas, lensCtx, LENS_W, LENS_H } from '../ui/RenderContext';
 import { playExplosion } from '../systems/Sound';
 
 export function updateLens(state: SiegeState, dt: number): void {
@@ -116,4 +118,53 @@ export function updateLens(state: SiegeState, dt: number): void {
     if (state.lensTimer <= 0) { state.lensPhase = 'idle'; state.lensStrength = 0; state.lensRadius = 0; }
   }
 }
+
+export function drawLens(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.lensPhase === 'idle') return;
+  const cx = state.lensTarget.x, cy = state.lensTarget.y, r = state.lensRadius;
+  if (r <= 5) return;
+  const llx = Math.round(cx * LENS_W / MAP_W), lly = Math.round(cy * LENS_H / MAP_H);
+  const lr = Math.round(r * LENS_W / MAP_W);
+  lensCtx.drawImage(ctx.canvas, 0, 0, MAP_W, MAP_H, 0, 0, LENS_W, LENS_H);
+  const src = lensCtx.getImageData(0, 0, LENS_W, LENS_H);
+  const dst = new ImageData(LENS_W, LENS_H);
+  const strength = state.lensStrength;
+  for (let py = 0; py < LENS_H; py++) {
+    for (let px = 0; px < LENS_W; px++) {
+      const dx = px - llx, dy = py - lly;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const idx = (py * LENS_W + px) * 4;
+      if (d < lr && d > 0 && lr > 1) {
+        const disp = strength * (lr * lr / d) * (1 - d / lr) * 0.7;
+        const ndx = dx / d, ndy = dy / d;
+        const tangX = -ndy * disp * 0.3, tangY = ndx * disp * 0.3;
+        let sx = Math.round(px + ndx * disp + tangX);
+        let sy = Math.round(py + ndy * disp + tangY);
+        sx = Math.max(0, Math.min(LENS_W - 1, sx));
+        sy = Math.max(0, Math.min(LENS_H - 1, sy));
+        const si = (sy * LENS_W + sx) * 4;
+        const ratio = d / Math.max(1, lr);
+        const rMul = 1 - ratio * 0.5;
+        const gMul = 1 - Math.abs(ratio - 0.5) * 0.4;
+        const bMul = 0.6 + ratio * 0.6;
+        const bright = d < lr * 0.15 ? 1.5 : 1;
+        dst.data[idx] = Math.min(255, src.data[si] * rMul * bright);
+        dst.data[idx + 1] = Math.min(255, src.data[si + 1] * gMul * bright);
+        dst.data[idx + 2] = Math.min(255, src.data[si + 2] * bMul * bright);
+        dst.data[idx + 3] = 255;
+      } else {
+        dst.data[idx] = src.data[idx];
+        dst.data[idx + 1] = src.data[idx + 1];
+        dst.data[idx + 2] = src.data[idx + 2];
+        dst.data[idx + 3] = 255;
+      }
+    }
+  }
+  lensCtx.putImageData(dst, 0, 0);
+  ctx.drawImage(lensCanvas, 0, 0, LENS_W, LENS_H, 0, 0, MAP_W, MAP_H);
+  ctx.strokeStyle = `rgba(180,120,255,${0.4 * strength})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+}
+
+registerEffect('lens', drawLens);
 

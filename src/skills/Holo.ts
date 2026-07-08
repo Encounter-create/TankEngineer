@@ -14,6 +14,8 @@ import { Vec2 } from '../utils/Vector';
 import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
+import { registerEffect } from '../ui/EffectRenderer';
+import { lensCanvas, lensCtx, LENS_W, LENS_H } from '../ui/RenderContext';
 import { playExplosion } from '../systems/Sound';
 
 export function updateHolo(state: SiegeState, dt: number): void {
@@ -83,4 +85,63 @@ export function updateHolo(state: SiegeState, dt: number): void {
     }
   }
 }
+
+export function drawHolo(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.holoPhase === 'idle') return;
+  const cx = MAP_W / 2, cy = MAP_H / 2, r = state.holoRadius;
+  if (r > 5 && state.holoPhase !== 'aftermath') {
+    lensCtx.drawImage(ctx.canvas, 0, 0, MAP_W, MAP_H, 0, 0, LENS_W, LENS_H);
+    ctx.clearRect(0, 0, MAP_W, MAP_H);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(lensCanvas, 0, 0, LENS_W, LENS_H, 0, 0, MAP_W, MAP_H);
+    const lightX = cx + Math.cos(state.holoRotation) * r * 0.3;
+    const lightY = cy + Math.sin(state.holoRotation * 0.7) * r * 0.3;
+    const shade = ctx.createRadialGradient(lightX, lightY, r * 0.1, cx, cy, r);
+    shade.addColorStop(0, 'rgba(255,255,255,0)');
+    shade.addColorStop(0.35, 'rgba(255,255,255,0.05)');
+    shade.addColorStop(0.7, 'rgba(0,0,20,0.3)');
+    shade.addColorStop(1, 'rgba(0,0,40,0.7)');
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+    ctx.strokeStyle = 'rgba(100,200,255,0.25)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const angle = state.holoRotation + i * Math.PI / 3;
+      const ex = cx + Math.cos(angle) * r;
+      ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.quadraticCurveTo(ex, cy, cx, cy + r); ctx.stroke();
+    }
+    for (let i = 1; i < 4; i++) {
+      const ly = cy - r + i * r * 0.5;
+      const lr = Math.sqrt(r * r - (ly - cy) * (ly - cy));
+      ctx.beginPath(); ctx.ellipse(cx, ly, lr, lr * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(100,200,255,0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    if (state.holoPhase === 'shattering') {
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
+      for (let i = 0; i < state.holoCracks; i++) {
+        const a1 = (i / state.holoCracks) * Math.PI * 2 + state.holoRotation * 0.1;
+        const a2 = a1 + 0.3 + Math.random() * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a1) * r * 0.3, cy + Math.sin(a1) * r * 0.3);
+        ctx.lineTo(cx + Math.cos(a2) * r, cy + Math.sin(a2) * r);
+        ctx.stroke();
+      }
+    }
+  } else if (state.holoPhase === 'aftermath') {
+    const alpha = state.holoTimer / 2;
+    ctx.strokeStyle = `rgba(100,200,255,${alpha})`; ctx.lineWidth = 1;
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8;
+      const fr = state.holoRadius * (0.3 + Math.random() * 0.7);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * fr, cy + Math.sin(a) * fr);
+      ctx.stroke();
+    }
+  }
+}
+
+registerEffect('holo', drawHolo);
 

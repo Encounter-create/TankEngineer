@@ -1,28 +1,29 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, MAP_H, TileType, gridToPixel, pixelToGrid, inBounds } from '../utils/Grid';
-import { TileGrid, createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
+import { createMap, pickRandomMap, getMapFriction, MapName } from '../entities/Map';
 import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
-import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
+import { createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Random } from '../utils/Random';
-import { BattleReward, generateReward } from '../systems/Reward';
+import { generateReward } from '../systems/Reward';
 import { Inventory } from '../systems/Inventory';
 import { activateSkill, isBarrageActive, isSmokeActive, isSkillActive } from '../systems/Commander';
-import { Particle, spawnParticles, spawnExplosion } from '../entities/Particle';
-import { FireZone, createFireZone, updateFireZone } from '../entities/FireZone';
-import { AllyTank, CloneEntity, TurretEntity, Plane, createAllyTank, createTurret, createPlanes, createClone } from '../entities/Ally';
-import { DamageNumber, spawnDamageNumber } from '../entities/DamageNumber';
+import { spawnParticles, spawnExplosion } from '../entities/Particle';
+import { createFireZone, updateFireZone } from '../entities/FireZone';
+import { createAllyTank, createTurret, createPlanes, createClone } from '../entities/Ally';
+import { spawnDamageNumber } from '../entities/DamageNumber';
 import { calcKillMultiplier } from '../systems/DamageMultiplier';
-import { WaveModifier, pickWaveModifiers } from '../systems/WaveModifiers';
+import { pickWaveModifiers } from '../systems/WaveModifiers';
 import { hasSynergy } from '../systems/Synergy';
 import { applyTerrainEffects, isTankInGrass } from '../systems/MapFeatures';
 import { playShoot, playHitTank, playHitWall, playExplosion, playRepair, playSprint, playBarrage, playSmoke } from '../systems/Sound';
 import { playQuote } from '../systems/QuotePlayer';
 import { updateBattle } from '../core/BattleEngine';
+import { SiegeState } from '../types/SiegeState';
 // Skill module imports + re-exports
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -65,94 +66,8 @@ export const WAVES: WaveDef[] = [
   { timeStart: 150, enemyCount: 8, hasBounceBarrel: true,  hasHeavyTank: true  },
 ];
 
-export interface SiegeState {
-  phase: SiegePhase;
-  map: TileGrid;
-  mapName: MapName;
-  player: TankEntity;
-  enemies: TankEntity[];
-  bullets: BulletEntity[];
-  aiContexts: Map<string, AIContext>;
-  inventory: Inventory;
-  elapsedTime: number;          // seconds
-  wavesSpawned: number;         // 0-6
-  enemiesKilled: number;
-  commandCenterHp: number;
-  playerCooldownRemaining: number; // ms
-  pendingReward: BattleReward | null;
-  skillMessage: string;
-  skillMessageTime: number; // ms remaining
-  particles: Particle[];
-  /** Screen shake intensity (pixels, decays over time) */
-  screenShake: number;
-  /** Pushed-out physics blocks (brick/metal sliding freely) */
-  physicsBlocks: PhysicsBlock[];
-  /** U-key debug: show enemy vision/fire radii */
-  showDebug: boolean;
-  frictionMul: number;
-  fireZones: FireZone[];
-  allies: AllyTank[];
-  clones: CloneEntity[];
-  turrets: TurretEntity[];
-  planes: Plane[];
-  damageNumbers: DamageNumber[];
-  waveAnnouncement: string;
-  waveAnnouncementTime: number;
-  /** Combo kill display */
-  comboTimer: number;
-  comboText: string;
-  comboColor: string;
-  comboMultiplier: number;
-  /** Kill streak counter */
-  killStreak: number;
-  killStreakTimer: number;
-  /** Max multiplier achieved this match (for gold bonus) */
-  maxMultiplier: number;
-  /** Slow-motion timer (seconds remaining) */
-  slowMoTimer: number;
-  /** Active wave modifiers */
-  activeModifiers: WaveModifier[];
-  /** Gravity well position + timer */
-  gravityPos: Vec2; gravityTimer: number;
-  /** Time slow timer (enemy-only) */
-  timeSlowTimer: number;
-  /** Restore pulse timer */
-  restoreTimer: number;
-  /** Lightning chain branches + timer */
-  lightningBranches: Vec2[][]; lightningTimer: number;
-  meteorPhase: 'idle' | 'targeting' | 'incoming' | 'impact' | 'burning';
-  meteorTimer: number; meteorTarget: Vec2; meteorPos: Vec2; meteorVel: number;
-  meteorImpactTime: number; meteorFlashAlpha: number;
-  bivectorPhase: 'idle' | 'compressing' | 'whiteout' | 'recovering';
-  bivectorTimer: number; bivectorProgress: number;
-  bivectorShear: number; bivectorScale: number; bivectorWhiteAlpha: number;
-  bivectorDestroyed: boolean; bivectorText: string; bivectorTextColor: string;
-  quantumPhase: 'idle' | 'superposing' | 'collapsed' | 'aftermath';
-  quantumTimer: number; quantumRedAlpha: number; quantumBlueAlpha: number; quantumDestroyed: boolean;
-  lensPhase: 'idle' | 'forming' | 'active' | 'collapsing';
-  lensTimer: number; lensTarget: Vec2; lensStrength: number; lensRadius: number;
-  rewindPhase: 'idle' | 'rewinding' | 'recovering';
-  rewindTimer: number; rewindBlueAlpha: number; rewindReversed: boolean;
-  bigbangPhase: 'idle' | 'imploding' | 'exploding' | 'aftermath';
-  bigbangTimer: number; bigbangScale: number; bigbangWhiteAlpha: number;
-  holoPhase: 'idle' | 'projecting' | 'rotating' | 'shattering' | 'aftermath';
-  holoTimer: number; holoRotation: number; holoRadius: number; holoCracks: number;
-  trojanPhase: 'idle' | 'entering' | 'opening' | 'deploying' | 'shattering';
-  trojanTimer: number; trojanX: number; trojanDoor: number; trojanSpawned: number;
-  arkPhase: 'idle' | 'raining' | 'peaking' | 'receding';
-  arkTimer: number; arkWaterH: number;
-  arkLightningBranches: Vec2[][]; arkLightningTimer: number;
-  damoclesPhase: 'idle' | 'hovering' | 'dropping' | 'aftermath'; damoclesTimer: number;
-  dragonPhase: 'idle' | 'entering' | 'revealing' | 'hugging' | 'exiting';
-  dragonTimer: number; dragonX: number; dragonY: number; dragonReveal: number;
-  genesisPhase: 'idle' | 'darkening' | 'ignition';
-  genesisTimer: number; genesisFireRadius: number; genesisCleared: boolean;
-  mjolnirPhase: 'idle' | 'entering' | 'active' | 'exiting';
-  mjolnirPos: Vec2; mjolnirVel: Vec2; mjolnirAngle: number;
-  mjolnirTimer: number; mjolnirHoverBounce: number;
-  mjolnirLightningTimer: number; mjolnirLightningBranches: Vec2[][];
-  mjolnirThorQuote: string[]; mjolnirThorStartTime: number;
-}
+// SiegeState imported from shared type — single source of truth
+export type { SiegeState } from '../types/SiegeState';
 
 const COMMAND_CENTER_MAX_HP = 500;
 const COMMAND_CENTER_GRID = { x: Math.floor(MAP_COLS / 2), y: Math.floor(MAP_ROWS / 2) };

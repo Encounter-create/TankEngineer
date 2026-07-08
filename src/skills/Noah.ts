@@ -15,6 +15,7 @@ import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 export function updateArk(state: SiegeState, dt: number): void {
   if (state.arkPhase === 'idle') return;
@@ -254,4 +255,7 @@ export function drawArkWater(ctx: CanvasRenderingContext2D, state: SiegeState): 
     ctx.globalAlpha = 1;
   }
 }
+
+registerEffect('noah_ark', drawArk);
+registerEffect('noah_water', drawArkWater);
 

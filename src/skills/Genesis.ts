@@ -5,6 +5,7 @@ import { Vec2 } from '../utils/Vector';
 import { MAP_W, MAP_H } from '../utils/Grid';
 import { spawnExplosion } from '../entities/Particle';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 const SKILL_END = 15;
 const MAX_R = Math.sqrt(MAP_W * MAP_W + MAP_H * MAP_H) / 2 + 50;
@@ -174,3 +175,5 @@ function drawFire(ctx: CanvasRenderingContext2D, fx: number, fy: number): void {
   ctx.arc(fx, fy - 2, 3, 0, Math.PI * 2);
   ctx.fill();
 }
+
+registerEffect('genesis', drawGenesis);

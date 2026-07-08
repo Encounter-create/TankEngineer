@@ -15,6 +15,7 @@ import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 export function updateDamocles(state: SiegeState, dt: number): void {
   if (state.damoclesPhase === 'idle') return;
@@ -143,3 +144,4 @@ function getDamoclesDescend(state: SiegeState): number {
   return 0;
 }
 
+registerEffect('damocles', drawDamoclesSwords);

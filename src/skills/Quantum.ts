@@ -15,6 +15,7 @@ import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 export function updateQuantum(state: SiegeState, dt: number): void {
   if (state.quantumPhase === 'idle') return;
@@ -60,4 +61,98 @@ export function updateQuantum(state: SiegeState, dt: number): void {
     }
   }
 }
+
+export function drawQuantum(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.quantumPhase === 'idle') return;
+  let elapsed: number;
+  if (state.quantumPhase === 'superposing') elapsed = 5 - state.quantumTimer;
+  else if (state.quantumPhase === 'collapsed') elapsed = 5 + (3 - state.quantumTimer);
+  else elapsed = 0;
+  const hasOverlay = state.quantumRedAlpha > 0.01 || state.quantumBlueAlpha > 0.01 || state.quantumPhase === 'collapsed';
+  if (hasOverlay && state.quantumPhase !== 'collapsed') {
+    ctx.fillStyle = `rgba(255,60,60,${Math.max(0, state.quantumRedAlpha * 0.5)})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+    ctx.fillStyle = `rgba(60,60,255,${Math.max(0, state.quantumBlueAlpha * 0.5)})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+  drawQuantumCat(ctx, elapsed);
+}
+
+function drawQuantumCat(ctx: CanvasRenderingContext2D, elapsed: number): void {
+  let cx: number, cy = MAP_H / 2;
+  if (elapsed <= 4) {
+    cx = -30 + (MAP_W / 2 + 30) * (elapsed / 4); // left edge → center
+  } else if (elapsed <= 5) {
+    cx = MAP_W / 2; // center
+  } else {
+    cx = MAP_W / 2 + (MAP_W / 2 + 30) * ((elapsed - 5) / 3); // center → right
+  }
+  const walking = elapsed <= 4 || elapsed > 5;
+  const bounce = walking ? Math.abs(Math.sin(elapsed * 8)) * 4 : 0;
+  const lookUp = elapsed > 4 && elapsed <= 5;
+
+  ctx.save();
+  ctx.translate(cx, cy + bounce);
+  // Body (ellipse)
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.ellipse(0, 5, 18, 12, 0, 0, Math.PI * 2); ctx.fill();
+  // Head (circle)
+  ctx.beginPath(); ctx.arc(lookUp ? 2 : 0, -10, 10, 0, Math.PI * 2); ctx.fill();
+  // Ears (triangles)
+  ctx.beginPath(); ctx.moveTo(-7, -18); ctx.lineTo(-3, -28); ctx.lineTo(2, -18); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-2, -18); ctx.lineTo(3, -28); ctx.lineTo(7, -18); ctx.closePath(); ctx.fill();
+  // Inner ears (pink)
+  ctx.fillStyle = '#f8a0c0';
+  ctx.beginPath(); ctx.moveTo(-5, -18); ctx.lineTo(-2, -25); ctx.lineTo(0, -18); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(2, -25); ctx.lineTo(5, -18); ctx.closePath(); ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#44dd44';
+  if (lookUp) {
+    ctx.beginPath(); ctx.arc(-4, -13, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -13, 3, 0, Math.PI * 2); ctx.fill();
+    // Meow bubble
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(14, -35, 50, 20, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#333'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('喵呜~', 20, -22);
+  } else {
+    ctx.beginPath(); ctx.arc(-4, -10, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -10, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  // Pupils
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-4, -10, 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4, -10, 1.2, 0, Math.PI * 2); ctx.fill();
+  // Nose
+  ctx.fillStyle = '#f8a0c0';
+  ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(-2, -5); ctx.lineTo(2, -5); ctx.closePath(); ctx.fill();
+  // Tail (only when walking)
+  if (walking) {
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-16, 3);
+    const tailWave = Math.sin(elapsed * 12) * 15;
+    ctx.quadraticCurveTo(-26, -5 + tailWave, -30, -12 + tailWave);
+    ctx.stroke();
+  }
+  // Whiskers
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 0.8;
+  for (let s = -1; s <= 1; s += 2) {
+    ctx.beginPath(); ctx.moveTo(s * 5, -6); ctx.lineTo(s * 18, s * 3 - 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s * 5, -5); ctx.lineTo(s * 18, -6); ctx.stroke();
+  }
+  // Legs
+  if (walking) {
+    ctx.fillStyle = '#333';
+    const legOff = Math.sin(elapsed * 12) * 5;
+    ctx.fillRect(-10, 14, 5, 8 + legOff); ctx.fillRect(-2, 14, 5, 8 - legOff);
+    ctx.fillRect(3, 14, 5, 8 + legOff); ctx.fillRect(9, 14, 5, 8 - legOff);
+  } else {
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-10, 14, 5, 8); ctx.fillRect(-2, 14, 5, 8);
+    ctx.fillRect(3, 14, 5, 8); ctx.fillRect(9, 14, 5, 8);
+  }
+  ctx.restore();
+}
+
+registerEffect('quantum', drawQuantum);
 

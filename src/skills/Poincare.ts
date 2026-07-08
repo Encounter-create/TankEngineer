@@ -14,6 +14,7 @@ import { Vec2 } from '../utils/Vector';
 import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
+import { registerEffect } from '../ui/EffectRenderer';
 import { playExplosion } from '../systems/Sound';
 
 export function updateRewind(state: SiegeState, dt: number): void {
@@ -94,4 +95,24 @@ export function updateRewind(state: SiegeState, dt: number): void {
     }
   }
 }
+
+export function drawRewind(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.rewindPhase === 'idle') return;
+  ctx.fillStyle = `rgba(30,60,180,${state.rewindBlueAlpha})`;
+  ctx.fillRect(0, 0, MAP_W, MAP_H);
+  if (state.rewindPhase === 'recovering' && state.rewindTimer > 0) {
+    const elapsed = 3 - state.rewindTimer;
+    const waveR = elapsed * 300;
+    const alpha = Math.max(0, 1 - elapsed / 3) * 0.6;
+    ctx.strokeStyle = `rgba(150,200,255,${alpha})`; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(MAP_W/2, MAP_H/2, waveR, 0, Math.PI*2); ctx.stroke();
+    const grad = ctx.createRadialGradient(MAP_W/2, MAP_H/2, waveR*0.8, MAP_W/2, MAP_H/2, waveR);
+    grad.addColorStop(0, `rgba(100,160,255,${alpha*0.3})`);
+    grad.addColorStop(1, 'rgba(0,0,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(MAP_W/2, MAP_H/2, waveR, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+registerEffect('rewind', drawRewind);
 

@@ -15,6 +15,7 @@ import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 export function updateTrojan(state: SiegeState, dt: number): void {
   if (state.trojanPhase === 'idle') return;
@@ -256,3 +257,4 @@ export function drawTrojanHorse(ctx: CanvasRenderingContext2D, state: SiegeState
   ctx.restore();
 }
 
+registerEffect('trojan', drawTrojanHorse);

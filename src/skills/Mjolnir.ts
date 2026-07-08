@@ -7,6 +7,7 @@ import { Vec2 } from '../utils/Vector';
 import { MAP_W, MAP_H } from '../utils/Grid';
 import { normalizeAngle } from '../core/Physics';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 const HAMMER_R = 14;
 const ACCEL = 300;
@@ -487,3 +488,5 @@ function drawThor(ctx: CanvasRenderingContext2D, state: SiegeState): void {
 
   ctx.restore();
 }
+
+registerEffect('mjolnir', drawMjolnir);
