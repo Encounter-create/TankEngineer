@@ -1,51 +1,34 @@
 # Session Handoff — 2026-07-08
 
-## Current State
+## 本会话成果
 
-This project is a Canvas 2D tank battle game with 22 commanders (9 new this session). All code compiles clean (`npx tsc --noEmit` passes).
+### 新增技能（3个）
 
-## What We Built This Session
+| 技能 | 车长 | 文件 | 状态 |
+|------|------|------|------|
+| 叶公好龙 | 叶公 | `src/skills/Dragon.ts` | 基本完成，龙外观待优化 |
+| 要有光 | 创世者 | `src/skills/Genesis.ts` | ✅ 完成 |
+| 索尔的锤子 | 雷神 | `src/skills/Mjolnir.ts` | ✅ 完成 |
 
-### 8 Brainhole Skills (all live in `src/modes/Siege.ts`)
+### 系统修复
+- 车间零件列表 scrollOffset 导致底部零件（雷神等）点不中的 bug 已修复
 
-| Commander | Skill | Visual Tech | Phase |
-|-----------|-------|-------------|-------|
-| 三体人 | Meteor Strike | Fireball accelerate, screen flash, crosshair | done |
-| 歌者 | Bivector Foil | Canvas `ctx.transform` shear+scale | done |
-| 薛定谔 | Quantum Cat | Red/blue double exposure, cat sprite animation | done |
-| 爱因斯坦 | Spacetime Lens | Pixel displacement (`getImageData` at 1/3 res) | done |
-| 庞加莱 | Poincaré Recurrence | Velocity reversal + anti-friction boost | done |
-| 奇点 | Big Bang | `ctx.scale` implosion → explosion + shockwave | done |
-| 投影者 | Holographic Universe | Sphere projection (circle clip + shading + grid lines) | done |
-| 奥德修斯 | Trojan Horse | Horse sprite (ellipse body + neck + legs + wheels) + allies | done |
-| 诺亚 | Noah's Ark | Triple wave layer fill + sticky surface + lightning | **in progress** |
+### 设计决策
+- 要有光：去掉了天使小人，纯黑屏→文字→火苗→光圈扩散
+- Mjolnir：鼠标追踪方案废弃→改为玩家轨道环（弹簧平衡点+径向阻尼）
+- 待做技能清单新增：美杜莎、雷神之锤、西西弗斯之石、潘多拉魔盒
 
-### System Improvements
-- Encyclopedia scroll UI + text wrapping
-- Garage scroll UI + wheel input
-- Practice mode shares ALL Siege handlers (zero duplication)
-- Ally tank design finalized: `isPlayer:false, isAlly:true`, blue color, guard_player AI
+## Mjolnir 物理机制（核心突破）
 
-### Noah's Ark Current Issues
-1. Blocks don't disappear when swept off-screen during receding
-2. Player tank can still move below water surface
-3. Water timing: 11s rise → 1s peak → 11s fall (23s total)
+弹簧力 `F = 7*(dist-55)` + 径向阻尼，在玩家周围55px创建稳定轨道环。
+详见 memory/ `conservative-field-design` 和 DESIGN/技能开发日志.md
 
-## Architecture Rules (from memory)
+## 当前参数
+- CAPTURE_R = 480, ORBIT_R = 55, SPRING_K = 7
+- DURATION = Infinity (测试模式)
+- SNAP_ACCEL 已废弃（弹簧力替代）
 
-1. **Practice = Siege**: All skills/weapons only in Siege, Practice calls same handlers
-2. **New mode = Siege - CC + diff**: Siege minus Command Center is the base framework
-3. **Subtract, don't add**: Identify existing wheels → copy → subtract what you don't need → add new
-4. Export `update*` and `draw*` functions from Siege.ts for reuse
-
-## Key Files
-- `src/modes/Siege.ts` (~2200 lines) — All skill update functions + handlers + drawing
-- `src/systems/Practice.ts` (~600 lines) — Mirrors SiegeState fields, calls Siege handlers
-- `src/main.ts` (~900 lines) — Global rendering (bivector transform, lens, water, horse, etc.)
-- `src/entities/Ally.ts` — CloneEntity, TurretEntity, AllyTank, Plane types
-- `src/ui/Encyclopedia.ts` — Scrollable part cards with text wrapping
-
-## Next Steps (if continuing Noah's Ark)
-1. Fix blocks not disappearing off-map during flood receding
-2. Prevent player from going below water surface
-3. Test the sticky-surface mechanic end-to-end
+## 下一步
+- 叶公好龙的龙外观需要重绘（用户评价"像绿色大蛆"）
+- Mjolnir 恢复有限持续时间（测试完改回20s）
+- 新会话加载 karpathy skills 后的工作
