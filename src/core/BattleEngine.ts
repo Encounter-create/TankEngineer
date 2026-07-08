@@ -32,6 +32,9 @@ export function updateBattle(
   // Screen shake decay
   s.screenShake = Math.max(0, s.screenShake - dt * 50);
 
+  // U-key: toggle debug visualization (shared across all battle modes)
+  if (input.wasJustPressed('KeyU')) s.showDebug = !s.showDebug;
+
   // Player
   handlers.playerInput(s, input, dt);
   handlers.playerFire(s, input, dt);

@@ -74,6 +74,14 @@ const COMMAND_CENTER_MAX_HP = 500;
 const COMMAND_CENTER_GRID = { x: Math.floor(MAP_COLS / 2), y: Math.floor(MAP_ROWS / 2) };
 const ENEMY_MAX = 12;
 
+// Shared solid structure for moveTank collision
+const CC_POS = new Vec2(
+  COMMAND_CENTER_GRID.x * CELL_SIZE + CELL_SIZE / 2,
+  COMMAND_CENTER_GRID.y * CELL_SIZE + CELL_SIZE / 2,
+);
+const CC_RADIUS = CELL_SIZE * 1.5;
+const CC_STRUCTURES = [{ pos: CC_POS, radius: CC_RADIUS }];
+
 export function createSiegeState(playerConfig: TankConfig, inventory: Inventory, forceMapName?: MapName): SiegeState {
   const mapName = forceMapName ?? pickRandomMap();
   const map = createMap(mapName);
@@ -195,10 +203,6 @@ export function updateSiege(
   }
 
   state.elapsedTime += dt;
-  // U-key: toggle debug visualization
-  if (input.wasJustPressed('KeyU')) {
-    state.showDebug = !state.showDebug;
-  }
   // O-key: spawn boss with WARNING
   if (input.wasJustPressed('KeyO')) {
     const bossConfig = assembleTank(
@@ -262,7 +266,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
   }
 
   const moveDir = input.getMoveDir();
-  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
 
   // Time slow compensation: boost player velocity to counteract global slowdown
   if (state.timeSlowTimer > 0) {
@@ -281,7 +285,7 @@ function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
       (state.player as any).sprintMul = 1.0;
     }
   }
-  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+  moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
 
   // Turret follows mouse cursor with angular velocity limit
   const toMouse = input.mousePos.sub(state.player.pos);
@@ -530,7 +534,7 @@ export function handleEnemyAI(state: SiegeState, dt: number): void {
     let speedMul = state.activeModifiers.some(m => m.id === 'overclocked') ? 0.75 : 0.55;
     if (state.timeSlowTimer > 0) speedMul *= 0.3;
     const moveDir = updateAI(ctx, target, state.map, dt);
-    moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+    moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
     const maxEnemySpeed = effectiveSpeed(enemy.config) * speedMul;
     if (enemy.vel.mag() > maxEnemySpeed) {
       enemy.vel = enemy.vel.norm().scale(maxEnemySpeed);
@@ -677,13 +681,13 @@ export function handleAllies(state: SiegeState, dt: number): void {
       if (distToPlayer > ally.followRadius) {
         ally.aiState = 'follow';
         const toPlayer = state.player.pos.sub(ally.pos).norm();
-        moveTank(ally, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+        moveTank(ally as any, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
       } else {
         ally.aiState = 'fire';
         ally.vel = Vec2.zero();
         if (nearestEnemy && nearestEnemy.pos.dist(ally.pos) < 100) {
           const away = ally.pos.sub(nearestEnemy.pos).norm();
-          moveTank(ally, away, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+          moveTank(ally as any, away, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
         }
       }
       fireAllyBullet();
@@ -691,10 +695,10 @@ export function handleAllies(state: SiegeState, dt: number): void {
       // Ninja clone: follow player, attack enemies in vision
       if (nearestEnemy && nearestEnemy.pos.dist(ally.pos) < 100) {
         const away = ally.pos.sub(nearestEnemy.pos).norm();
-        moveTank(ally, away, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+        moveTank(ally as any, away, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
       } else if (distToPlayer > ally.followRadius) {
         const toPlayer = state.player.pos.sub(ally.pos).norm();
-        moveTank(ally, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks);
+        moveTank(ally as any, toPlayer, dt, state.map, state.physicsBlocks, state.physicsBlocks, CC_STRUCTURES);
       } else {
         ally.vel = Vec2.zero();
       }

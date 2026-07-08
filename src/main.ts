@@ -64,6 +64,8 @@ import {
   pixelToChessGrid,
 } from './modes/Chess';
 import { renderChess, hitTestChessBackButton, hitTestChessGearButton } from './ui/ChessRenderer';
+import { TwoKingsState, createTwoKingsState, updateTwoKings } from './modes/TwoKings';
+import { renderTwoKings, drawTwoKingsOverlay, drawTwoKingsHUD } from './ui/TwoKingsRenderer';
 import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 import { renderAllEffects } from './ui/EffectRenderer';
@@ -72,7 +74,7 @@ import { renderAllEffects } from './ui/EffectRenderer';
 // App state machine
 // ============================================================
 
-type AppScreen = 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege' | 'chess';
+type AppScreen = 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege' | 'chess' | 'twokings';
 
 interface AppState {
   screen: AppScreen;
@@ -84,6 +86,7 @@ interface AppState {
   encyclopedia: EncyclopediaState;
   siege: SiegeState | null;
   chess: ChessState | null;
+  twokings: TwoKingsState | null;
   practice: PracticeState | null;
   shopSelected: number;
   selectedCol: number;
@@ -124,6 +127,7 @@ const app: AppState = {
   encyclopedia: createEncyclopediaState(),
   siege: null,
   chess: null,
+  twokings: null,
   practice: null,
   shopSelected: 0,
   selectedCol: 0,
@@ -141,6 +145,9 @@ function update(dt: number): void {
   if (app.screen === 'siege' && app.siege) {
     updateSiege(app.siege, input, dt);
     handleSiegeUI();
+  } else if (app.screen === 'twokings' && app.twokings) {
+    updateTwoKings(app.twokings, input, dt);
+    handleTwoKingsUI();
   } else if (app.screen === 'chess' && app.chess) {
     updateChess();
   } else if (app.screen === 'lobby') {
@@ -201,6 +208,12 @@ function render(_alpha: number): void {
     if (app.siege.phase === 'playing' || app.siege.phase === 'paused') {
       drawHUD(ctx, app.siege);
     }
+  } else if (app.screen === 'twokings' && app.twokings) {
+    renderTwoKings(ctx, app.twokings);
+    if (app.twokings.phase === 'playing' || app.twokings.phase === 'paused') {
+      drawTwoKingsHUD(ctx, app.twokings);
+    }
+    drawTwoKingsOverlay(ctx, app.twokings);
   } else if (app.screen === 'chess' && app.chess) {
     renderChess(ctx, app.chess);
   } else if (app.screen === 'lobby') {
@@ -268,6 +281,14 @@ function handlePracticeUI(): void {
 }
 
 function updateLobby(): void {
+  // O-key: quick test TwoKings
+  if (input.wasJustPressed('KeyO')) {
+    const config = getCurrentConfig(app.garage);
+    if (config && app.garage.assemblyResult.valid) {
+      startTwoKings(config);
+      return;
+    }
+  }
   // Developer mode toggle (top-right button)
   if (input.isMouseJustPressed()) {
     const devX = MAP_W - 130, devY = 4, devW = 120, devH = 22;
@@ -311,6 +332,8 @@ function updateLobby(): void {
     if (config && app.garage.assemblyResult.valid) {
       if (app.lobby.selectedMode === 'chess') {
         startChess(config);
+      } else if (app.lobby.selectedMode === 'twokings') {
+        startTwoKings(config);
       } else {
         startSiege(config);
       }
@@ -435,6 +458,48 @@ function updateEncyclopedia(): void {
 function startSiege(config: TankConfig): void {
   app.siege = createSiegeState(config, app.inventory, app.lobby.selectedMap);
   app.screen = 'siege';
+}
+
+function startTwoKings(config: TankConfig): void {
+  app.twokings = createTwoKingsState(config);
+  app.screen = 'twokings';
+}
+
+function handleTwoKingsUI(): void {
+  if (!app.twokings || !input.isMouseJustPressed()) return;
+
+  const phase = app.twokings.phase;
+  const mx = input.mousePos.x;
+  const my = input.mousePos.y;
+
+  // Intro → playing
+  if (phase === 'intro') {
+    app.twokings.phase = 'playing';
+    return;
+  }
+
+  // Gear button during playing → pause
+  if (phase === 'playing' && hitTestGearButton(mx, my)) {
+    app.twokings.phase = 'paused';
+    return;
+  }
+
+  // Pause menu
+  if (phase === 'paused') {
+    if (hitTestPauseResume(mx, my)) {
+      app.twokings.phase = 'playing';
+    } else if (hitTestPauseQuit(mx, my)) {
+      app.screen = 'lobby';
+      app.twokings = null;
+    }
+    return;
+  }
+
+  // Result screens → back to lobby
+  if (phase === 'victory' || phase === 'defeat') {
+    app.screen = 'lobby';
+    app.twokings = null;
+  }
 }
 
 function handleSiegeUI(): void {

@@ -23,6 +23,7 @@ export function createLobbyState(): LobbyState {
 
 const MODES = [
   { id: 'siege', label: '🏰 围城', desc: '防守指挥所3分钟', available: true },
+  { id: 'twokings', label: '👑 双王战争', desc: '三路推进摧毁敌方基地', available: true },
   { id: 'chess', label: '♟️ 棋类', desc: '回合制策略对决', available: true },
   { id: 'territory', label: '🎨 涂地', desc: '区域控制拉锯战', available: false },
   { id: 'pvp', label: '🤖 PvP', desc: '异步编程对战', available: false },

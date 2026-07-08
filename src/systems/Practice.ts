@@ -144,7 +144,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   updateMjolnir(ps as any, dt);
 
   const md = input.getMoveDir();
-  moveTank(ps.player, md, dt, ps.map, ps.blocks, ps.blocks, true);
+  moveTank(ps.player, md, dt, ps.map, ps.blocks, ps.blocks);
   ps.player.turretAngle = Math.atan2(input.mousePos.y - ps.player.pos.y, input.mousePos.x - ps.player.pos.x);
 
   // Firing (matches Siege handlePlayerFire)
@@ -194,8 +194,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     ps.player.skillCooldownUntil = performance.now() + 1000;
   }
 
-  // Debug toggle + O-key boss spawn
-  if (input.wasJustPressed('KeyU')) { ps.showDebug = !ps.showDebug; }
+  // O-key boss spawn
   if (input.wasJustPressed('KeyO')) {
     const bossConfig = assembleTank(
       MVP_BARRELS.find(p => p.id === 'barrel_gatling')!,
