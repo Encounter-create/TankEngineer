@@ -4,6 +4,7 @@
 
 import { MAP_W, MAP_H, CELL_SIZE, TileType } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
+import { PhysicsBlock } from '../entities/PhysicsBlock';
 import { TwoKingsState, DefenseTower, WarBase } from '../modes/TwoKings';
 import { TANK_RADIUS } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
@@ -54,6 +55,7 @@ export function renderTwoKings(ctx: CanvasRenderingContext2D, state: TwoKingsSta
   drawBases(ctx, state);
   drawTowers(ctx, state);
   drawTanksLayer(ctx, state);
+  drawPhysicsBlocks(ctx, state.physicsBlocks);
   drawBullets(ctx, state.bullets);
   drawParticles(ctx, state.particles);
 
@@ -253,6 +255,13 @@ function drawTanksLayer(ctx: CanvasRenderingContext2D, state: TwoKingsState): vo
       ctx.strokeStyle = 'rgba(255,85,85,0.5)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(t.pos.x, t.pos.y, t.fireRange, 0, Math.PI * 2); ctx.stroke();
     }
+    // Base attack ranges (thicker)
+    ctx.strokeStyle = 'rgba(74,158,255,0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(state.blueBase.pos.x, state.blueBase.pos.y, state.blueBase.fireRange, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,85,85,0.6)';
+    ctx.beginPath(); ctx.arc(state.redBase.pos.x, state.redBase.pos.y, state.redBase.fireRange, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(74,158,255,0.8)'; ctx.fillText('蓝基地', state.blueBase.pos.x + state.blueBase.fireRange + 4, state.blueBase.pos.y);
+    ctx.fillStyle = 'rgba(255,85,85,0.8)'; ctx.fillText('红基地', state.redBase.pos.x + state.redBase.fireRange + 4, state.redBase.pos.y);
     ctx.setLineDash([]);
     // AI tank debug: fire radius (red, inner) + vision radius (blue, outer)
     const allAI = [
@@ -299,6 +308,20 @@ function drawBullets(ctx: CanvasRenderingContext2D, bullets: BulletEntity[]): vo
     ctx.beginPath();
     ctx.arc(b.pos.x, b.pos.y, BULLET_RADIUS + 3, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+function drawPhysicsBlocks(ctx: CanvasRenderingContext2D, blocks: PhysicsBlock[]): void {
+  for (const b of blocks) {
+    if (!b.alive) continue;
+    const s = b.radius;
+    if (b.tileType === TileType.METAL) {
+      ctx.fillStyle = C.METAL; ctx.strokeStyle = '#5a6276'; ctx.lineWidth = 2;
+    } else {
+      ctx.fillStyle = C.BRICK; ctx.strokeStyle = '#6b5530'; ctx.lineWidth = 1;
+    }
+    ctx.fillRect(b.pos.x - s, b.pos.y - s, s * 2, s * 2);
+    ctx.strokeRect(b.pos.x - s, b.pos.y - s, s * 2, s * 2);
   }
 }
 

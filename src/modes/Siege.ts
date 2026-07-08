@@ -874,7 +874,7 @@ function onEnemyKilled(state: SiegeState, enemy: TankEntity, multiplier: number)
 // Physics blocks
 // ============================================================
 
-function handlePhysicsBlocks(state: SiegeState, dt: number): void {
+export function handlePhysicsBlocks(state: SiegeState, dt: number): void {
   // Update movement + friction
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;

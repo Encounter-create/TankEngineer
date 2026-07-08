@@ -6,15 +6,28 @@ import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, TileType } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
 import { TankEntity, createTank, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
-import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
+import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS, MVP_COMMANDERS } from '../entities/Parts';
 import { BulletEntity, createBullet, BULLET_RADIUS } from '../entities/Bullet';
-import { PhysicsBlock } from '../entities/PhysicsBlock';
+import { PhysicsBlock, createPhysicsBlock } from '../entities/PhysicsBlock';
 import { Particle, spawnParticles } from '../entities/Particle';
 import { AllyTank, createAllyTank } from '../entities/Ally';
 import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Input } from '../core/Input';
 import { moveTank, normalizeAngle, SolidStructure } from '../core/Physics';
-import { handleBullets, handleBulletTankCollisions, handleSkillActivation } from './Siege';
+import { handleBullets, handleBulletTankCollisions, handleSkillActivation, handlePhysicsBlocks } from './Siege';
+import { updateMeteor } from '../skills/Trisolaran';
+import { updateBivector } from '../skills/Bivector';
+import { updateQuantum } from '../skills/Quantum';
+import { updateLens } from '../skills/Lens';
+import { updateRewind } from '../skills/Poincare';
+import { updateBigBang } from '../skills/BigBang';
+import { updateHolo } from '../skills/Holo';
+import { updateTrojan } from '../skills/Trojan';
+import { updateArk } from '../skills/Noah';
+import { updateDamocles } from '../skills/Damocles';
+import { updateDragon } from '../skills/Dragon';
+import { updateGenesis } from '../skills/Genesis';
+import { updateMjolnir } from '../skills/Mjolnir';
 import { applyTerrainEffects } from '../systems/MapFeatures';
 import { SkillStates } from '../types/SkillStates';
 
@@ -80,31 +93,23 @@ function createWarBase(pos: Vec2, side: Side): WarBase {
 // Wave system
 // ============================================================
 
-interface SpawnWave {
-  timeStart: number;
-  tanksPerLane: number;
-  barrelId: string;
-  turretId: string;
-  chassisId: string;
+const WAVE_INTERVAL = 10; // seconds between waves
+
+function randomPart(parts: any[]): any {
+  return parts[Math.floor(Math.random() * parts.length)];
 }
 
-const SPAWN_WAVES: SpawnWave[] = [
-  { timeStart: 5,   tanksPerLane: 1, barrelId: 'barrel_straight', turretId: 'turret_light', chassisId: 'chassis_standard' },
-  { timeStart: 35,  tanksPerLane: 1, barrelId: 'barrel_straight', turretId: 'turret_heavy', chassisId: 'chassis_standard' },
-  { timeStart: 65,  tanksPerLane: 1, barrelId: 'barrel_bounce',  turretId: 'turret_light', chassisId: 'chassis_standard' },
-  { timeStart: 100, tanksPerLane: 1, barrelId: 'barrel_pierce',  turretId: 'turret_heavy', chassisId: 'chassis_heavy' },
-  { timeStart: 140, tanksPerLane: 2, barrelId: 'barrel_pierce',  turretId: 'turret_heavy', chassisId: 'chassis_heavy' },
-];
+function randomConfig(): TankConfig {
+  const barrel = randomPart(MVP_BARRELS);
+  const turret = randomPart(MVP_TURRETS);
+  const chassis = randomPart(MVP_CHASSIS);
+  return assembleTank(barrel, turret, chassis);
+}
 
 const MATCH_DURATION = 240;
 
 // Lane spawn positions (blue side, per lane) — red side is mirrored
-const BLUE_SPAWNS = [
-  new Vec2(2.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE/2),  // center, lanes branch from here
-];
-const RED_SPAWNS = [
-  new Vec2(27.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE/2),
-];
+const PLAYER_SPAWN = new Vec2(4.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE / 2);
 
 // ============================================================
 // Game State
@@ -157,7 +162,7 @@ let twokingsId = 0;
 // Map generation
 // ============================================================
 
-function createTwoKingsMap(): TileGrid {
+function createTwoKingsMap(blocks: PhysicsBlock[]): TileGrid {
   const map: TileGrid = [];
   for (let y = 0; y < MAP_ROWS; y++) {
     map[y] = [];
@@ -188,14 +193,14 @@ function createTwoKingsMap(): TileGrid {
     }
   }
 
-  // Borders
+  // Borders as physics blocks (same approach as Siege: tiles → blocks, not tile collision)
   for (let x = 0; x < MAP_COLS; x++) {
-    map[0][x] = { type: TileType.METAL, hp: 200 };
-    map[MAP_ROWS - 1][x] = { type: TileType.METAL, hp: 200 };
+    blocks.push(createPhysicsBlock(new Vec2((x + 0.5) * CELL_SIZE, 0.5 * CELL_SIZE), Vec2.zero(), TileType.METAL, 200));
+    blocks.push(createPhysicsBlock(new Vec2((x + 0.5) * CELL_SIZE, (MAP_ROWS - 0.5) * CELL_SIZE), Vec2.zero(), TileType.METAL, 200));
   }
   for (let y = 1; y < MAP_ROWS - 1; y++) {
-    if (map[y][0].type === TileType.EMPTY) map[y][0] = { type: TileType.METAL, hp: 200 };
-    if (map[y][MAP_COLS - 1].type === TileType.EMPTY) map[y][MAP_COLS - 1] = { type: TileType.METAL, hp: 200 };
+    if (map[y][0].type === TileType.EMPTY) blocks.push(createPhysicsBlock(new Vec2(0.5 * CELL_SIZE, (y + 0.5) * CELL_SIZE), Vec2.zero(), TileType.METAL, 200));
+    if (map[y][MAP_COLS - 1].type === TileType.EMPTY) blocks.push(createPhysicsBlock(new Vec2((MAP_COLS - 0.5) * CELL_SIZE, (y + 0.5) * CELL_SIZE), Vec2.zero(), TileType.METAL, 200));
   }
 
   return map;
@@ -207,10 +212,17 @@ function createTwoKingsMap(): TileGrid {
 
 import { updateParticles } from '../entities/Particle';
 
+function ensureCommander(config: TankConfig): TankConfig {
+  if (config.commander.id !== 'commander_none') return config;
+  const repair = MVP_COMMANDERS.find(c => c.id === 'commander_repair')!;
+  return assembleTank(config.barrel, config.turret, config.chassis, repair);
+}
+
 export function createTwoKingsState(playerConfig: TankConfig): TwoKingsState {
-  const map = createTwoKingsMap();
-  const playerSpawn = BLUE_SPAWNS[0];
-  const player = createTank('player', playerSpawn, playerConfig, true);
+  playerConfig = ensureCommander(playerConfig);
+  const blocks: PhysicsBlock[] = [];
+  const map = createTwoKingsMap(blocks);
+  const player = createTank('player', PLAYER_SPAWN, playerConfig, true);
   player.hp = player.maxHp * 3;
   player.maxHp = player.hp;
 
@@ -230,7 +242,7 @@ export function createTwoKingsState(playerConfig: TankConfig): TwoKingsState {
     redTowers: [0, 1, 2].map(i => createDefenseTower(RED_TOWER_POS[i], 'red', i)),
     blueTanks: [], enemies: [],
     blueAiContexts: new Map(), redAiContexts: new Map(),
-    bullets: [], particles: [], physicsBlocks: [],
+    bullets: [], particles: [], physicsBlocks: blocks,
     elapsedTime: 0, wavesSpawned: 0,
     skillMessage: '', skillMessageTime: 0, screenShake: 0, showDebug: false,
     allies: [], turrets: [], clones: [], planes: [],
@@ -270,7 +282,8 @@ function towerAttack(tower: DefenseTower, targets: TankEntity[], bullets: Bullet
   if (nearest) {
     const angle = nearest.pos.sub(tower.pos).angle();
     const spawnPos = tower.pos.add(Vec2.fromAngle(angle, BULLET_RADIUS + 14));
-    bullets.push(createBullet(spawnPos, angle, 'straight', 450, tower.bulletDamage, 0, 0, tower.id, true));
+    const isBlue = tower.side === 'blue';
+    bullets.push(createBullet(spawnPos, angle, 'straight', 450, tower.bulletDamage, 0, 0, tower.id, isBlue));
     tower.fireCooldown = tower.fireCooldownMax;
   }
 }
@@ -284,7 +297,8 @@ function baseAttack(base: WarBase, targets: TankEntity[], bullets: BulletEntity[
   if (nearest) {
     const angle = nearest.pos.sub(base.pos).angle();
     const spawnPos = base.pos.add(Vec2.fromAngle(angle, BULLET_RADIUS + 14));
-    bullets.push(createBullet(spawnPos, angle, 'straight', 480, base.bulletDamage, 0, 0, `base_${base.side}`, true));
+    const isBlue = base.side === 'blue';
+    bullets.push(createBullet(spawnPos, angle, 'straight', 480, base.bulletDamage, 0, 0, `base_${base.side}`, isBlue));
     base.fireCooldown = base.fireCooldownMax;
   }
 }
@@ -294,42 +308,36 @@ function baseAttack(base: WarBase, targets: TankEntity[], bullets: BulletEntity[
 // ============================================================
 
 function spawnWaves(state: TwoKingsState): void {
-  for (let w = state.wavesSpawned; w < SPAWN_WAVES.length; w++) {
-    const wave = SPAWN_WAVES[w];
-    if (state.elapsedTime < wave.timeStart) break;
-    const barrel = MVP_BARRELS.find(p => p.id === wave.barrelId)!;
-    const turret = MVP_TURRETS.find(p => p.id === wave.turretId)!;
-    const chassis = MVP_CHASSIS.find(p => p.id === wave.chassisId)!;
-    const config = assembleTank(barrel, turret, chassis);
+  const nextWaveTime = (state.wavesSpawned + 1) * WAVE_INTERVAL;
+  if (state.elapsedTime < nextWaveTime) return;
 
-    // Spawn blue allies — spread across lanes
-    for (let lane = 0; lane < 3; lane++) {
-      const laneY = [5, 11, 17][lane] * CELL_SIZE + CELL_SIZE / 2;
-      for (let i = 0; i < wave.tanksPerLane; i++) {
-        const spawnPos = new Vec2(BLUE_SPAWNS[0].x, laneY + (i - (wave.tanksPerLane - 1) / 2) * CELL_SIZE * 1.5);
-        const id = `blue_${twokingsId++}`;
-        const ally = createAllyTank(id, spawnPos, config, 'guard_player');
-        ally.hp = ally.maxHp * 1.5; ally.maxHp = ally.hp;
-        state.blueAiContexts.set(id, createAIContext(ally, RED_BASE_POS, 330, 200));
-        state.blueTanks.push(ally);
-        state.allies.push(ally);
-      }
-    }
-
-    // Spawn red enemies
-    for (let lane = 0; lane < 3; lane++) {
-      const laneY = [5, 11, 17][lane] * CELL_SIZE + CELL_SIZE / 2;
-      for (let i = 0; i < wave.tanksPerLane; i++) {
-        const spawnPos = new Vec2(RED_SPAWNS[0].x, laneY + (i - (wave.tanksPerLane - 1) / 2) * CELL_SIZE * 1.5);
-        const id = `red_${twokingsId++}`;
-        const enemy = createTank(id, spawnPos, config, false);
-        enemy.hp = enemy.maxHp * 1.2; enemy.maxHp = enemy.hp;
-        state.redAiContexts.set(id, createAIContext(enemy, BLUE_BASE_POS, 330, 200));
-        state.enemies.push(enemy);
-      }
-    }
-    state.wavesSpawned = w + 1;
+  // Spawn blue allies — 1 per lane, random config, spread per lane Y
+  const laneYs = [5, 11, 17];
+  const blueSpawnX = 5 * CELL_SIZE; // offset from base to avoid getting stuck
+  for (let lane = 0; lane < 3; lane++) {
+    const config = randomConfig();
+    const spawnPos = new Vec2(blueSpawnX, laneYs[lane] * CELL_SIZE + CELL_SIZE / 2);
+    const id = `blue_${twokingsId++}`;
+    const ally = createAllyTank(id, spawnPos, config, 'guard_player');
+    ally.hp = ally.maxHp * 1.5; ally.maxHp = ally.hp;
+    state.blueAiContexts.set(id, createAIContext(ally, RED_BASE_POS, 330, 200));
+    state.blueTanks.push(ally);
+    state.allies.push(ally);
   }
+
+  // Spawn red enemies — 1 per lane, random config
+  const redSpawnX = (MAP_COLS - 5) * CELL_SIZE;
+  for (let lane = 0; lane < 3; lane++) {
+    const config = randomConfig();
+    const spawnPos = new Vec2(redSpawnX, laneYs[lane] * CELL_SIZE + CELL_SIZE / 2);
+    const id = `red_${twokingsId++}`;
+    const enemy = createTank(id, spawnPos, config, false);
+    enemy.hp = enemy.maxHp * 1.2; enemy.maxHp = enemy.hp;
+    state.redAiContexts.set(id, createAIContext(enemy, BLUE_BASE_POS, 330, 200));
+    state.enemies.push(enemy);
+  }
+
+  state.wavesSpawned++;
 }
 
 // ============================================================
@@ -424,6 +432,9 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   state.elapsedTime += dt;
   if (state.elapsedTime >= MATCH_DURATION) { state.phase = 'defeat'; return; }
 
+  // U-key debug toggle (TwoKings doesn't use BattleEngine.updateBattle)
+  if (input.wasJustPressed('KeyU')) state.showDebug = !state.showDebug;
+
   state.screenShake = Math.max(0, state.screenShake - dt * 50);
 
   // === Player movement (Siege pattern via moveTank) ===
@@ -444,9 +455,10 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
       else state.player.turretAngle = normalizeAngle(state.player.turretAngle + Math.sign(diff) * maxStep);
     }
 
-    // Commander skill (E key — Siege handler)
+    // Commander skill (E key — Siege handler, test cooldown 1s)
     if (input.wasJustPressed('KeyE')) {
       handleSkillActivation(state as any, input);
+      state.player.skillCooldownUntil = performance.now() + 1000;
     }
 
     state.playerCooldownRemaining -= dt * 1000;
@@ -503,9 +515,21 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   baseAttack(state.blueBase, allRed, state.bullets, dt);
   baseAttack(state.redBase, allBlue, state.bullets, dt);
 
+  // === Physics blocks (border walls etc.) ===
+  handlePhysicsBlocks(state as any, dt);
+
   // === Bullets ===
   handleBullets(state as any, dt, true);
   handleBulletTankCollisions(state as any, dt);
+  // Override endSiege: player death is a respawn, not game over
+  if (state.phase === 'defeat' && state.blueBase.alive && state.redBase.alive) {
+    state.phase = 'playing';
+    state.player.alive = true;
+    state.player.hp = state.player.maxHp;
+    state.player.pos = PLAYER_SPAWN;
+    state.player.vel = Vec2.zero();
+    state.particles.push(...spawnParticles(PLAYER_SPAWN, 'repair', 15, 80));
+  }
   checkBulletStructureCollisions(state);
 
   // === Particles ===
@@ -513,10 +537,24 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   state.particles = state.particles.filter((p: any) => p.alive);
   state.skillMessageTime -= 16;
 
+  // === All skill updates (same as Siege pipeline) ===
+  updateMeteor(state as any, dt);
+  updateBivector(state as any, dt);
+  updateQuantum(state as any, dt);
+  updateLens(state as any, dt);
+  updateRewind(state as any, dt);
+  updateBigBang(state as any, dt);
+  updateHolo(state as any, dt);
+  updateTrojan(state as any, dt);
+  updateArk(state as any, dt);
+  updateDamocles(state as any, dt);
+  updateDragon(state as any, dt);
+  updateGenesis(state as any, dt);
+  updateMjolnir(state as any, dt);
+
   // === Win/loss ===
   if (state.blueBase.hp <= 0) { state.blueBase.alive = false; state.phase = 'defeat'; }
   if (state.redBase.hp <= 0) { state.redBase.alive = false; state.phase = 'victory'; }
-  if (!state.player.alive) state.phase = 'defeat';
 }
 
 // ============================================================
@@ -539,6 +577,7 @@ function checkBulletStructureCollisions(state: TwoKingsState): void {
         const bulletSide: Side = bullet.isPlayerBullet ? 'blue' : 'red';
         if (bulletSide !== s.side) {
           s.entity.hp -= bullet.damage;
+          if (s.entity.hp <= 0) s.entity.alive = false;
           bullet.alive = false;
           state.particles.push(...spawnParticles(bullet.pos, 'explosion', 5, 50));
         }

@@ -214,6 +214,7 @@ function render(_alpha: number): void {
       drawTwoKingsHUD(ctx, app.twokings);
     }
     drawTwoKingsOverlay(ctx, app.twokings);
+    renderAllEffects(ctx, app.twokings);
   } else if (app.screen === 'chess' && app.chess) {
     renderChess(ctx, app.chess);
   } else if (app.screen === 'lobby') {
