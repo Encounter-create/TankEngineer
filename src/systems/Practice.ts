@@ -8,7 +8,9 @@ import { TileGrid, createEmptyMap } from '../entities/Map';
 import { TileType, CELL_SIZE, MAP_COLS, MAP_ROWS, gridToPixel } from '../utils/Grid';
 import { moveTank, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions } from '../core/Physics';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
-import { handleSkillActivation, handleAllies, handleTurrets, handlePlanes, handleBullets, handleBulletTankCollisions, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir } from '../modes/Siege';
+import { handleAllies, handleTurrets, handlePlanes, handleEnemyAI, updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir } from '../modes/Siege';
+import { handleBullets, handleBulletTankCollisions } from '../systems/CombatSystem';
+import { handleSkillActivation } from '../systems/SkillRegistry';
 import { updateBattle } from '../core/BattleEngine';
 import { CloneEntity } from '../entities/Ally';
 import { Input } from '../core/Input';
@@ -220,7 +222,6 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     physics: () => {},
     bullets: handleBullets, bulletTank: handleBulletTankCollisions,
     skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir],
-    skipCC: true,
   });
 
   // Fire zones (Practice-specific: damage to non-static enemies)

@@ -14,7 +14,8 @@ import { AllyTank, createAllyTank } from '../entities/Ally';
 import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
 import { Input } from '../core/Input';
 import { moveTank, normalizeAngle, SolidStructure } from '../core/Physics';
-import { handleBullets, handleBulletTankCollisions, handleSkillActivation, handlePhysicsBlocks } from './Siege';
+import { handleBullets, handlePhysicsBlocks, handleBulletTankCollisions } from '../systems/CombatSystem';
+import { handleSkillActivation } from '../systems/SkillRegistry';
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
 import { updateQuantum } from '../skills/Quantum';
@@ -519,11 +520,10 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   handlePhysicsBlocks(state as any, dt);
 
   // === Bullets ===
-  handleBullets(state as any, dt, true);
+  handleBullets(state as any, dt);
   handleBulletTankCollisions(state as any, dt);
-  // Override endSiege: player death is a respawn, not game over
-  if (state.phase === 'defeat' && state.blueBase.alive && state.redBase.alive) {
-    state.phase = 'playing';
+  // Player death → respawn (TwoKings mode-specific, not game over)
+  if (!state.player.alive && state.blueBase.alive && state.redBase.alive) {
     state.player.alive = true;
     state.player.hp = state.player.maxHp;
     state.player.pos = PLAYER_SPAWN;

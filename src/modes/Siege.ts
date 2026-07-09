@@ -5,6 +5,7 @@ import { TankEntity, createTank, takeDamage, TANK_RADIUS, TURRET_ANGULAR_VEL, ge
 import { BulletEntity, createBullet, BULLET_RADIUS, FIREWORK_INTERVAL, FIREWORK_CHILD_COUNT, FIREWORK_MAX_LIFE } from '../entities/Bullet';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS } from '../entities/Parts';
 import { moveTank, moveBullet, checkBulletTankHit, resolveBlockWallCollisions, resolveBlockTankCollisions, resolveBlockBlockCollisions, normalizeAngle, bodyRef, elasticBounce } from '../core/Physics';
+import { handleBullets as sysHandleBullets, handlePhysicsBlocks as sysHandlePhysicsBlocks, handleBulletTankCollisions as sysHandleBulletTankCollisions } from '../systems/CombatSystem';
 import { PhysicsBlock, createPhysicsBlock, updatePhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Input } from '../core/Input';
 import { createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
@@ -233,9 +234,20 @@ export function updateSiege(
     playerInput: handlePlayerInput, playerFire: handlePlayerFire,
     terrain: applyTerrainEffects, enemyAI: handleEnemyAI,
     allies: handleAllies, turrets: handleTurrets, planes: handlePlanes, clones: handleClones,
-    physics: handlePhysicsBlocks, bullets: handleBullets, bulletTank: handleBulletTankCollisions,
+    physics: (s: any, d: number) => sysHandlePhysicsBlocks(s, d, CC_STRUCTURES),
+    bullets: (s: any, d: number) => sysHandleBullets(s, d, CC_STRUCTURES, (enemy: TankEntity, mult: number) => onEnemyKilled(s, enemy, mult)),
+    bulletTank: (s: any, d: number) => sysHandleBulletTankCollisions(s, d, (enemy: TankEntity, mult: number) => onEnemyKilled(s, enemy, mult)),
     skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir],
   });
+
+  // Player death check (moved from handleBulletTankCollisions to mode-specific layer)
+  if (!state.player.alive) {
+    state.particles.push(...spawnExplosion(state.player.pos));
+    playExplosion();
+    state.screenShake = 12;
+    endSiege(state, false);
+    return;
+  }
 
   // === Siege-specific ===
   state.waveAnnouncementTime -= dt;
@@ -1202,13 +1214,7 @@ export function handleBulletTankCollisions(state: SiegeState, _dt: number): void
           playHitTank();
           bullet.alive = false;
         }
-        if (!state.player.alive) {
-          state.particles.push(...spawnExplosion(state.player.pos));
-          playExplosion();
-          state.screenShake = 12;
-          endSiege(state, false);
-          return;
-        }
+        // Player death handled by mode-specific update loop (not here)
       }
     }
   }

@@ -21,10 +21,9 @@ export function updateBattle(
     planes: (s: any, d: number) => void;
     clones: (s: any, d: number) => void;
     physics: (s: any, d: number) => void;
-    bullets: (s: any, d: number, skipCC?: boolean) => void;
+    bullets: (s: any, d: number) => void;
     bulletTank: (s: any, d: number) => void;
     skills: ((s: any, d: number) => void)[];
-    skipCC?: boolean;
   },
 ): void {
   const s = state;
@@ -81,7 +80,7 @@ export function updateBattle(
 
   // Physics + bullets
   handlers.physics(s, dt);
-  handlers.bullets(s, dt, handlers.skipCC ?? false);
+  handlers.bullets(s, dt);
   handlers.bulletTank(s, dt);
 
   // All skills
