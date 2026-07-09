@@ -85,21 +85,25 @@ export function renderLobby(
   ctx.textAlign = 'center';
   ctx.fillText('⚔️ 对战大厅', w / 2, 28);
 
+  const barTop = h - 80;
+  const panelTop = 46;
+  const panelH = barTop - panelTop - 6;
+
   // ---- Left panel: Mode selection ----
   const leftX = 12;
   const leftW = 200;
 
   ctx.fillStyle = '#22252c';
-  roundRect(ctx, leftX, 50, leftW, 220, 6);
+  roundRect(ctx, leftX, panelTop, leftW, panelH, 6);
   ctx.fill();
 
   ctx.fillStyle = '#aaa';
   ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('游戏模式', leftX + 12, 72);
+  ctx.fillText('游戏模式', leftX + 12, panelTop + 22);
 
   MODES.forEach((mode, i) => {
-    const cardY = 86 + i * 44;
+    const cardY = panelTop + 36 + i * 44;
     const selected = lobby.selectedMode === mode.id;
     const hovered = mx !== undefined && my !== undefined &&
       mx >= leftX + 6 && mx <= leftX + 6 + leftW - 12 && my >= cardY && my <= cardY + 36;
@@ -121,56 +125,78 @@ export function renderLobby(
     ctx.fillText(mode.available ? mode.desc : '即将开放', leftX + 18, cardY + 30);
   });
 
-  // ---- Right panel: Map selection ----
+  // ---- Right panel: Map/Mode preview ----
   const rightX = 224;
   const rightW = w - rightX - 12;
-  const mapPreviewW = 72;
-  const mapPreviewH = 52;
-  const mapCols = 3;
 
   ctx.fillStyle = '#22252c';
-  roundRect(ctx, rightX, 50, rightW, 300, 6);
+  roundRect(ctx, rightX, panelTop, rightW, panelH, 6);
   ctx.fill();
 
   ctx.fillStyle = '#aaa';
   ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('地图选择 (7张)', rightX + 12, 72);
+  ctx.fillText(lobby.selectedMode === 'twokings' ? '👑 双王战争 — 对称三路地图' : lobby.selectedMode === 'chess' ? '♟️ 棋类 — 8×8棋盘' : '地图选择', rightX + 12, panelTop + 22);
 
-  ALL_MAPS.forEach((mapName, i) => {
-    const col = i % mapCols;
-    const row = Math.floor(i / mapCols);
-    const cx = rightX + 16 + col * (mapPreviewW + 16);
-    const cy = 86 + row * (mapPreviewH + 28);
-    const selected = lobby.selectedMap === mapName;
-    const hovered = mx !== undefined && my !== undefined &&
-      mx >= cx && mx <= cx + mapPreviewW && my >= cy && my <= cy + mapPreviewH;
-
-    // Map thumbnail
-    ctx.fillStyle = selected ? '#2a4a6a' : (hovered ? '#333840' : '#2a2d35');
-    ctx.strokeStyle = selected ? '#4a9eff' : (hovered ? '#777' : '#555');
-    ctx.lineWidth = selected ? 2 : (hovered ? 1.5 : 1);
-    roundRect(ctx, cx, cy, mapPreviewW, mapPreviewH, 4);
-    ctx.fill();
-    ctx.stroke();
-
-    // Mini map preview
-    drawMiniMap(ctx, cx + 4, cy + 4, mapPreviewW - 8, mapPreviewH - 8, mapName);
-
-    // Map name
-    ctx.fillStyle = selected ? '#fff' : '#ccc';
-    ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(MAP_LABELS[mapName], cx + mapPreviewW / 2, cy + mapPreviewH + 14);
-
-    // Description (only for selected)
-    if (selected) {
-      ctx.fillStyle = '#888';
-      ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(MAP_DESCS[mapName], rightX + 16, cy + mapPreviewH + 30);
+  if (lobby.selectedMode === 'siege' || lobby.selectedMode === 'twokings') {
+    const isSiege = lobby.selectedMode === 'siege';
+    if (isSiege) {
+      // Left: small thumbnail grid (3 cols, compact)
+      const gridX = rightX + 12, gridW = 280, mapW = 72, mapH = 52, gapX = 12, gapY = 22, cols = 3;
+      ALL_MAPS.forEach((mapName, i) => {
+        const col = i % cols; const row = Math.floor(i / cols);
+        const cx = gridX + col * (mapW + gapX);
+        const cy = panelTop + 36 + row * (mapH + gapY);
+        const selected = lobby.selectedMap === mapName;
+        const hovered = mx !== undefined && my !== undefined && mx >= cx && mx <= cx + mapW && my >= cy && my <= cy + mapH;
+        ctx.fillStyle = selected ? '#2a4a6a' : (hovered ? '#333840' : '#2a2d35');
+        ctx.strokeStyle = selected ? '#4a9eff' : (hovered ? '#777' : '#555');
+        ctx.lineWidth = selected ? 2 : (hovered ? 1.5 : 1);
+        roundRect(ctx, cx, cy, mapW, mapH, 4); ctx.fill(); ctx.stroke();
+        drawMiniMap(ctx, cx + 3, cy + 3, mapW - 6, mapH - 6, mapName);
+        ctx.fillStyle = selected ? '#fff' : '#ccc'; ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(MAP_LABELS[mapName], cx + mapW/2, cy + mapH + 10);
+      });
+      // Right: large selected map preview + description
+      const detailX = gridX + gridW + 12, detailW = rightW - gridW - 36;
+      const detailY = panelTop + 36;
+      const detailH = panelH - 80;
+      ctx.fillStyle = '#2a2d35';
+      roundRect(ctx, detailX, detailY, detailW, detailH, 4); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+      roundRect(ctx, detailX, detailY, detailW, detailH, 4); ctx.stroke();
+      const selMap = lobby.selectedMap;
+      const lw = detailW - 16, lh = detailH - 50;
+      drawMiniMap(ctx, detailX + 8, detailY + 8, lw, lh, selMap);
+      ctx.fillStyle = '#4a9eff'; ctx.font = 'bold 13px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(MAP_LABELS[selMap], detailX + detailW/2, detailY + lh + 18);
+      ctx.fillStyle = '#aaa'; ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(MAP_DESCS[selMap], detailX + detailW/2, detailY + lh + 34);
+    } else {
+      // TwoKings: show large static minimap
+      const mw = rightW - 32, mh = panelH - 80;
+      const mx2 = rightX + 16, my2 = panelTop + 36;
+      drawTwoKingsMinimap(ctx, mx2, my2, mw, mh);
+      ctx.fillStyle = '#888'; ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('对称三路推进 · 河流 · 桥梁 · 基地 · 防御塔', rightX + rightW/2, my2 + mh + 20);
     }
-  });
+  } else if (lobby.selectedMode === 'chess') {
+    // Chess: draw 8x8 board
+    const boardSize = Math.min(rightW - 32, panelH - 80);
+    const bx = rightX + (rightW - boardSize)/2, by = panelTop + 36;
+    const cell = boardSize / 8;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        ctx.fillStyle = (r + c) % 2 === 0 ? '#d4b896' : '#8b5e3c';
+        ctx.fillRect(bx + c*cell, by + r*cell, cell, cell);
+      }
+    }
+    ctx.fillStyle = '#888'; ctx.font = '12px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('回合制策略 · 8×8棋盘 · 三步一杀', rightX + rightW/2, by + boardSize + 20);
+  } else {
+    ctx.fillStyle = '#555'; ctx.font = '18px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('即将开放', rightX + rightW/2, panelTop + panelH/2);
+  }
 
   // ---- Bottom bar: tank summary + buttons ----
   const barY = h - 80;
@@ -222,6 +248,38 @@ export function renderLobby(
 }
 
 // ============================================================
+// TwoKings minimap preview
+// ============================================================
+
+function drawTwoKingsMinimap(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  const cc = w / MAP_COLS, cr = h / MAP_ROWS;
+  // Background
+  ctx.fillStyle = '#1a1d23'; ctx.fillRect(x, y, w, h);
+  // River (blue)
+  ctx.fillStyle = '#3a6090';
+  ctx.fillRect(x + 14*cc, y, 2*cc, h);
+  // Bridges
+  for (const row of [5, 11, 17]) {
+    ctx.fillStyle = '#8b7355';
+    ctx.fillRect(x + 14*cc, y + row*cr, 2*cc, cr);
+  }
+  // Blue base
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillRect(x + 2*cc, y + 10*cr, cc, 3*cr);
+  // Red base
+  ctx.fillStyle = '#ff6b4a';
+  ctx.fillRect(x + 27*cc, y + 10*cr, cc, 3*cr);
+  // Blue towers
+  ctx.fillStyle = '#3366cc';
+  for (const tr of [3, 11, 19]) ctx.fillRect(x + 9*cc, y + tr*cr, cc, cr);
+  // Red towers
+  ctx.fillStyle = '#cc3333';
+  for (const tr of [3, 11, 19]) ctx.fillRect(x + 20*cc, y + tr*cr, cc, cr);
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.strokeRect(x, y, w, h);
+}
+
+// ============================================================
 // Mini map thumbnail renderer
 // ============================================================
 
@@ -261,7 +319,7 @@ export function hitTestLobbyMode(px: number, py: number): string | null {
   if (px < leftX || px > leftX + leftW) return null;
 
   for (let i = 0; i < MODES.length; i++) {
-    const my = 86 + i * 44;
+    const my = 82 + i * 44;
     if (py >= my && py <= my + 36) {
       return MODES[i].available ? MODES[i].id : null;
     }
@@ -278,7 +336,7 @@ export function hitTestLobbyMap(px: number, py: number, _w: number): MapName | n
     const col = i % mapCols;
     const row = Math.floor(i / mapCols);
     const mx = rightX + 16 + col * (mapW + 16);
-    const my = 86 + row * (mapH + 28);
+    const my = 82 + row * (mapH + 28);
     if (px >= mx && px <= mx + mapW && py >= my && py <= my + mapH + 14) {
       return ALL_MAPS[i];
     }
