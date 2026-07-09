@@ -3,7 +3,7 @@
 // ============================================================
 
 import { Vec2 } from '../utils/Vector';
-import { CELL_SIZE, MAP_COLS, MAP_ROWS, TileType } from '../utils/Grid';
+import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, TileType } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
 import { TankEntity, createTank, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS, MVP_COMMANDERS } from '../entities/Parts';
@@ -11,9 +11,9 @@ import { BulletEntity, createBullet, BULLET_RADIUS } from '../entities/Bullet';
 import { PhysicsBlock, createPhysicsBlock } from '../entities/PhysicsBlock';
 import { Particle, spawnParticles } from '../entities/Particle';
 import { AllyTank, createAllyTank } from '../entities/Ally';
-import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI';
+import { AIContext, createAIContext, shouldFire } from '../ai/EnemyAI';
 import { Input } from '../core/Input';
-import { moveTank, normalizeAngle, SolidStructure } from '../core/Physics';
+import { moveTank, normalizeAngle, resolveTankCollisions, SolidStructure } from '../core/Physics';
 import { handleBullets, handlePhysicsBlocks, handleBulletTankCollisions } from '../systems/CombatSystem';
 import { handleAllies, handlePlanes } from '../systems/SkillEntities';
 import { handleSkillActivation } from '../systems/SkillRegistry';
@@ -51,15 +51,16 @@ const BRIDGES = [
 
 const BLUE_BASE_POS   = new Vec2(2.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE / 2);
 const RED_BASE_POS    = new Vec2(27.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE / 2);
+const TOWER_X = 10 * CELL_SIZE;            // 320px = 4 cells from river (symmetric)
 const BLUE_TOWER_POS  = [
-  new Vec2(9 * CELL_SIZE + CELL_SIZE/2, 5 * CELL_SIZE + CELL_SIZE/2),
-  new Vec2(9 * CELL_SIZE + CELL_SIZE/2, 11 * CELL_SIZE + CELL_SIZE/2),
-  new Vec2(9 * CELL_SIZE + CELL_SIZE/2, 17 * CELL_SIZE + CELL_SIZE/2),
+  new Vec2(TOWER_X, 3 * CELL_SIZE + CELL_SIZE/2),   // top: 2 above lane
+  new Vec2(TOWER_X, 11 * CELL_SIZE + CELL_SIZE/2),  // middle
+  new Vec2(TOWER_X, 19 * CELL_SIZE + CELL_SIZE/2),  // bottom: 2 below lane
 ];
 const RED_TOWER_POS   = [
-  new Vec2(21 * CELL_SIZE + CELL_SIZE/2, 5 * CELL_SIZE + CELL_SIZE/2),
-  new Vec2(21 * CELL_SIZE + CELL_SIZE/2, 11 * CELL_SIZE + CELL_SIZE/2),
-  new Vec2(21 * CELL_SIZE + CELL_SIZE/2, 17 * CELL_SIZE + CELL_SIZE/2),
+  new Vec2(MAP_W - TOWER_X, 3 * CELL_SIZE + CELL_SIZE/2),
+  new Vec2(MAP_W - TOWER_X, 11 * CELL_SIZE + CELL_SIZE/2),
+  new Vec2(MAP_W - TOWER_X, 19 * CELL_SIZE + CELL_SIZE/2),
 ];
 
 // ============================================================
@@ -173,7 +174,7 @@ function createTwoKingsMap(blocks: PhysicsBlock[]): TileGrid {
     }
   }
 
-  // River (water columns)
+  // River — EMPTY tiles (blue visual) + SolidStructure walls (no sticky water)
   for (let y = 0; y < MAP_ROWS; y++) {
     for (let c = RIVER_COL; c <= RIVER_COL_END; c++) {
       let isBridge = false;
@@ -181,7 +182,7 @@ function createTwoKingsMap(blocks: PhysicsBlock[]): TileGrid {
         if (y >= b.rowStart && y <= b.rowEnd) { isBridge = true; break; }
       }
       if (!isBridge) {
-        map[y][c] = { type: TileType.WATER, hp: 0 };
+        map[y][c] = { type: TileType.EMPTY, hp: 0 };
       }
     }
   }
@@ -310,8 +311,8 @@ function baseAttack(base: WarBase, targets: TankEntity[], bullets: BulletEntity[
 // ============================================================
 
 function spawnWaves(state: TwoKingsState): void {
-  const nextWaveTime = (state.wavesSpawned + 1) * WAVE_INTERVAL;
-  if (state.elapsedTime < nextWaveTime) return;
+  // First wave immediately, then every WAVE_INTERVAL
+  if (state.wavesSpawned > 0 && state.elapsedTime < state.wavesSpawned * WAVE_INTERVAL) return;
 
   // Spawn blue allies — 1 per lane, random config, spread per lane Y
   const laneYs = [5, 11, 17];
@@ -322,9 +323,10 @@ function spawnWaves(state: TwoKingsState): void {
     const id = `blue_${twokingsId++}`;
     const ally = createAllyTank(id, spawnPos, config, 'guard_player');
     ally.hp = ally.maxHp * 1.5; ally.maxHp = ally.hp;
-    state.blueAiContexts.set(id, createAIContext(ally, RED_BASE_POS, 330, 200));
+    (ally as any)._lane = lane; (ally as any)._wpIndex = 0;
+    state.blueAiContexts.set(id, createAIContext(ally, RED_BASE_POS, 165, 100));
     state.blueTanks.push(ally);
-    state.allies.push(ally);
+    // NOT state.allies — lane tanks use updateAllAI, not handleAllies
   }
 
   // Spawn red enemies — 1 per lane, random config
@@ -335,7 +337,8 @@ function spawnWaves(state: TwoKingsState): void {
     const id = `red_${twokingsId++}`;
     const enemy = createTank(id, spawnPos, config, false);
     enemy.hp = enemy.maxHp * 1.2; enemy.maxHp = enemy.hp;
-    state.redAiContexts.set(id, createAIContext(enemy, BLUE_BASE_POS, 330, 200));
+    (enemy as any)._lane = lane; (enemy as any)._wpIndex = 0;
+    state.redAiContexts.set(id, createAIContext(enemy, BLUE_BASE_POS, 165, 100));
     state.enemies.push(enemy);
   }
 
@@ -343,81 +346,171 @@ function spawnWaves(state: TwoKingsState): void {
 }
 
 // ============================================================
-// AI update (Siege pattern: updateAI + moveTank + shouldFire)
+// Lane waypoints for AI navigation (3 routes)
 // ============================================================
 
+/** Blue side → Red side — 5-point lane routes for AI navigation + visual */
+export const BLUE_LANE_WAYPOINTS: Vec2[][] = [
+  [ // Lane 0 (top): y=5
+    new Vec2(5 * CELL_SIZE, 5 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(TOWER_X, 5 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(14.5 * CELL_SIZE, 5 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(MAP_W - TOWER_X, 5 * CELL_SIZE + CELL_SIZE / 2),
+    RED_BASE_POS,
+  ],
+  [ // Lane 1 (middle): y=11
+    new Vec2(5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(TOWER_X, 11 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(14.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(MAP_W - TOWER_X, 11 * CELL_SIZE + CELL_SIZE / 2),
+    RED_BASE_POS,
+  ],
+  [ // Lane 2 (bottom): y=17
+    new Vec2(5 * CELL_SIZE, 17 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(TOWER_X, 17 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(14.5 * CELL_SIZE, 17 * CELL_SIZE + CELL_SIZE / 2),
+    new Vec2(MAP_W - TOWER_X, 17 * CELL_SIZE + CELL_SIZE / 2),
+    RED_BASE_POS,
+  ],
+];
+
+/** Red side → Blue side (mirror) */
+export const RED_LANE_WAYPOINTS: Vec2[][] = BLUE_LANE_WAYPOINTS.map(lane =>
+  [...lane].reverse().map(wp => new Vec2(MAP_W - wp.x, wp.y))
+);
+
+// ============================================================
+// AI update — lane nav + layered targeting + moveTank collision
+// ============================================================
+
+function aiTargetAndMove(
+  tank: TankEntity, lane: number, waypoints: Vec2[][],
+  enemies: TankEntity[], towers: any[], player: TankEntity | null,
+  state: TwoKingsState, ctx: AIContext, dt: number, isBlue: boolean,
+): void {
+  const visionR = ctx.visionRadius || 165;
+  const fireR = ctx.fireRadius || 100;
+  const wps = waypoints[lane];
+  const wpIndex = (tank as any)._wpIndex as number ?? 0;
+
+  // 1. Lock: keep current target unless dead or out of vision
+  let lockId = (tank as any)._lockId as string | undefined;
+  let fireTarget: any = null;
+  if (lockId) {
+    const allPossible = [...enemies, ...towers] as any[];
+    if (player) allPossible.push(player);
+    const locked = allPossible.find((t: any) => (t.id || 'player') === lockId && t.alive && tank.pos.dist(t.pos) < visionR);
+    if (locked) { fireTarget = locked; }
+    else { lockId = undefined; (tank as any)._lockId = undefined; }
+  }
+
+  // 2. New target: first enemy/player in vision, else own-lane tower, else any tower
+  if (!lockId) {
+    const inVision = [...enemies.filter(e => e.alive && tank.pos.dist(e.pos) < visionR)] as any[];
+    if (player && player.alive && tank.pos.dist(player.pos) < visionR) inVision.push(player);
+    // Enemy units first, then own-lane tower, then other towers
+    if (inVision.length > 0) {
+      fireTarget = inVision[0];
+      lockId = fireTarget.id || 'player';
+      (tank as any)._lockId = lockId;
+    } else {
+      const ownTower = towers[lane];
+      if (ownTower && ownTower.alive && tank.pos.dist(ownTower.pos) < visionR) {
+        fireTarget = ownTower; lockId = ownTower.id; (tank as any)._lockId = lockId;
+      } else {
+        const anyTower = towers.find(t => t.alive && tank.pos.dist(t.pos) < visionR);
+        if (anyTower) { fireTarget = anyTower; lockId = anyTower.id; (tank as any)._lockId = lockId; }
+      }
+    }
+  }
+
+  // 3. Movement: Siege doFire pattern — keep optimal range, chase/retreat
+  let moveTarget: Vec2;
+  if (fireTarget) {
+    const dist = tank.pos.dist(fireTarget.pos);
+    if (dist < fireR * 0.5) {
+      // Too close — back away (Siege doFire pattern)
+      moveTarget = tank.pos.add(tank.pos.sub(fireTarget.pos).norm().scale(80));
+    } else if (dist > fireR - 10) {
+      // Outside optimal range — chase
+      moveTarget = fireTarget.pos;
+    } else {
+      // Optimal range — stand and shoot
+      moveTarget = tank.pos;
+    }
+  } else {
+    const i = Math.min(wpIndex, wps.length - 1);
+    if (tank.pos.dist(wps[i]) < 100 && wpIndex < wps.length - 1) (tank as any)._wpIndex = wpIndex + 1;
+    moveTarget = wps[Math.min((tank as any)._wpIndex, wps.length - 1)];
+  }
+
+  // 4. Move — grid-based 4-direction (Siege pattern: DIR4 cardinal movement)
+  const toTgt = moveTarget.sub(tank.pos);
+  let moveDir = Vec2.zero();
+  if (toTgt.mag() > 20) {
+    const gx = Math.floor(tank.pos.x / CELL_SIZE);
+    const gy = Math.floor(tank.pos.y / CELL_SIZE);
+    const tgx = Math.floor(moveTarget.x / CELL_SIZE);
+    const tgy = Math.floor(moveTarget.y / CELL_SIZE);
+    const dx = tgx - gx, dy = tgy - gy;
+    // Pick best cardinal direction toward target
+    if (Math.abs(dx) > Math.abs(dy)) moveDir = new Vec2(dx > 0 ? 1 : -1, 0);
+    else if (Math.abs(dy) > 0) moveDir = new Vec2(0, dy > 0 ? 1 : -1);
+  }
+  moveTank(tank as any, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, state._structures);
+  const maxSpd = effectiveSpeed(tank.config) * 0.55;
+  if (tank.vel.mag() > maxSpd) tank.vel = tank.vel.norm().scale(maxSpd);
+
+  // 5. Turret
+  const aimAt = fireTarget ? fireTarget.pos : moveTarget;
+  const toAim = aimAt.sub(tank.pos);
+  if (toAim.mag() > 1) {
+    const ta = toAim.angle();
+    const diff = normalizeAngle(ta - tank.turretAngle);
+    const maxStep = TURRET_ANGULAR_VEL * dt;
+    tank.turretAngle = Math.abs(diff) < maxStep ? ta : normalizeAngle(tank.turretAngle + Math.sign(diff) * maxStep);
+  }
+
+  // 6. Fire (cooldown decrement first — same as updateAI in Siege)
+  ctx.fireCooldown -= dt * 1000;
+  if (fireTarget && shouldFire(ctx, fireTarget.pos)) {
+    const cfg = tank.config;
+    state.bullets.push(createBullet(
+      tank.pos, tank.turretAngle,
+      cfg.barrel.stats.bulletStyle ?? 'straight',
+      cfg.barrel.stats.bulletSpeed ?? (isBlue ? 400 : 350),
+      cfg.barrel.stats.bulletDamage ?? 25,
+      cfg.barrel.stats.bounces ?? 0, cfg.barrel.stats.pierces ?? 0,
+      tank.id, isBlue,
+    ));
+    ctx.fireCooldown = cfg.barrel.stats.cooldownMs ?? (isBlue ? 800 : 2000);
+  }
+}
+
 function updateAllAI(state: TwoKingsState, dt: number): void {
-  // Blue allies: target red enemies → red towers → red base
   for (const ally of state.blueTanks) {
     if (!ally.alive) continue;
     const ctx = state.blueAiContexts.get(ally.id);
     if (!ctx) continue;
-
-    let target: Vec2 = RED_BASE_POS;
-    const nearestEnemy = state.enemies.find(e => e.alive && e.pos.dist(ally.pos) < ctx.visionRadius);
-    if (nearestEnemy) target = nearestEnemy.pos;
-    else {
-      const nearestTower = state.redTowers.find(t => t.alive && t.pos.dist(ally.pos) < ctx.visionRadius);
-      if (nearestTower) target = nearestTower.pos;
-    }
-
-    const moveDir = updateAI(ctx, target, state.map, dt);
-    moveTank(ally as any, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, state._structures);
-    const maxSpd = effectiveSpeed(ally.config) * 0.65;
-    if (ally.vel.mag() > maxSpd) ally.vel = ally.vel.norm().scale(maxSpd);
-
-    // Turret
-    const toTarget = target.sub(ally.pos);
-    if (toTarget.mag() > 1) {
-      const ta = toTarget.angle();
-      const diff = normalizeAngle(ta - ally.turretAngle);
-      const maxStep = TURRET_ANGULAR_VEL * dt;
-      ally.turretAngle = Math.abs(diff) < maxStep ? ta : normalizeAngle(ally.turretAngle + Math.sign(diff) * maxStep);
-    }
-
-    if (shouldFire(ctx, target)) {
-      const cfg = ally.config;
-      state.bullets.push(createBullet(ally.pos, ally.turretAngle, cfg.barrel.stats.bulletStyle ?? 'straight', cfg.barrel.stats.bulletSpeed ?? 400, cfg.barrel.stats.bulletDamage ?? 25, cfg.barrel.stats.bounces ?? 0, cfg.barrel.stats.pierces ?? 0, ally.id, true));
-      ctx.fireCooldown = cfg.barrel.stats.cooldownMs ?? 800;
-    }
+    const lane = (ally as any)._lane as number ?? 1;
+    aiTargetAndMove(ally as any, lane, BLUE_LANE_WAYPOINTS,
+      state.enemies, state.redTowers, null,
+      state, ctx, dt, true);
   }
-
-  // Red enemies: target blue allies → blue towers → blue base
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
     const ctx = state.redAiContexts.get(enemy.id);
     if (!ctx) continue;
-
-    const allBlueCombatants = [...state.blueTanks.filter(a => a.alive), state.player].filter(t => t.alive);
-    let target: Vec2 = BLUE_BASE_POS;
-    const nearestAlly = allBlueCombatants.find(t => t.pos.dist(enemy.pos) < ctx.visionRadius);
-    if (nearestAlly) target = nearestAlly.pos;
-    else {
-      const nearestTower = state.blueTowers.find(t => t.alive && t.pos.dist(enemy.pos) < ctx.visionRadius);
-      if (nearestTower) target = nearestTower.pos;
-    }
-
-    const moveDir = updateAI(ctx, target, state.map, dt);
-    moveTank(enemy, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, state._structures);
-    const maxSpd = effectiveSpeed(enemy.config) * 0.55;
-    if (enemy.vel.mag() > maxSpd) enemy.vel = enemy.vel.norm().scale(maxSpd);
-
-    const toTarget = target.sub(enemy.pos);
-    if (toTarget.mag() > 1) {
-      const ta = toTarget.angle();
-      const diff = normalizeAngle(ta - enemy.turretAngle);
-      const maxStep = TURRET_ANGULAR_VEL * dt;
-      enemy.turretAngle = Math.abs(diff) < maxStep ? ta : normalizeAngle(enemy.turretAngle + Math.sign(diff) * maxStep);
-    }
-
-    if (shouldFire(ctx, target)) {
-      const cfg = enemy.config;
-      state.bullets.push(createBullet(enemy.pos, enemy.turretAngle, cfg.barrel.stats.bulletStyle ?? 'straight', cfg.barrel.stats.bulletSpeed ?? 350, cfg.barrel.stats.bulletDamage ?? 25, cfg.barrel.stats.bounces ?? 0, cfg.barrel.stats.pierces ?? 0, enemy.id, false));
-      ctx.fireCooldown = cfg.barrel.stats.cooldownMs ?? 2000;
-    }
+    const lane = (enemy as any)._lane as number ?? 1;
+    aiTargetAndMove(enemy as any, lane, RED_LANE_WAYPOINTS,
+      [...state.blueTanks, state.player], state.blueTowers, state.player,
+      state, ctx, dt, false);
   }
-}
 
+  // Tank-tank collision
+  const allAlive = [state.player, ...state.blueTanks, ...state.enemies].filter((t: any) => t.alive);
+  resolveTankCollisions(allAlive);
+}
 // ============================================================
 // Main update
 // ============================================================
@@ -506,6 +599,23 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   // === Wave spawning ===
   spawnWaves(state);
 
+  // Bases + river walls block tanks. Towers are walk-through.
+  state._structures = [
+    { pos: state.blueBase.pos, radius: CELL_SIZE * 1.3 },
+    { pos: state.redBase.pos, radius: CELL_SIZE * 1.3 },
+  ];
+  // River walls: 1-block-wide vertical strip left + right of river
+  for (let y = 0; y < MAP_ROWS; y++) {
+    let isBridge = false;
+    for (const b of BRIDGES) {
+      if (y >= b.rowStart && y <= b.rowEnd) { isBridge = true; break; }
+    }
+    if (!isBridge) {
+      state._structures.push({ pos: new Vec2(RIVER_COL * CELL_SIZE + CELL_SIZE/2, y * CELL_SIZE + CELL_SIZE/2), radius: CELL_SIZE/2 });
+      state._structures.push({ pos: new Vec2((RIVER_COL_END+1) * CELL_SIZE - CELL_SIZE/2, y * CELL_SIZE + CELL_SIZE/2), radius: CELL_SIZE/2 });
+    }
+  }
+
   // === AI update ===
   updateAllAI(state, dt);
 
@@ -526,7 +636,11 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
 
   // === Bullets ===
   handleBullets(state as any, dt);
+  // Blue lane tanks need to be in allies for red bullet collision
+  const savedAllies = state.allies;
+  state.allies = [...savedAllies, ...state.blueTanks];
   handleBulletTankCollisions(state as any, dt);
+  state.allies = savedAllies;
   // Player death → respawn (TwoKings mode-specific, not game over)
   if (!state.player.alive && state.blueBase.alive && state.redBase.alive) {
     state.player.alive = true;

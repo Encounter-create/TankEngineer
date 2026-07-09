@@ -2,10 +2,10 @@
 // TwoKingsRenderer — map/entities/HUD for 双王战争 mode
 // ============================================================
 
-import { MAP_W, MAP_H, CELL_SIZE, TileType } from '../utils/Grid';
+import { MAP_W, MAP_H, MAP_ROWS, CELL_SIZE, TileType } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
 import { PhysicsBlock } from '../entities/PhysicsBlock';
-import { TwoKingsState, DefenseTower, WarBase } from '../modes/TwoKings';
+import { TwoKingsState, DefenseTower, WarBase, BLUE_LANE_WAYPOINTS, RED_LANE_WAYPOINTS } from '../modes/TwoKings';
 import { TANK_RADIUS } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
 import { drawTank, drawSkillEntities } from './Renderer';
@@ -52,8 +52,12 @@ export function renderTwoKings(ctx: CanvasRenderingContext2D, state: TwoKingsSta
 
   drawBackground(ctx);
   drawTiles(ctx, state.map);
+  drawRiverWater(ctx);     // Noah-style animated water over river
   drawBases(ctx, state);
   drawTowers(ctx, state);
+  // Lane attack routes (white dashed lines, always visible)
+  drawLaneRoutes(ctx);
+
   drawTanksLayer(ctx, state);
   // Skill-spawned entities (shared with Siege)
   drawSkillEntities(ctx, state);
@@ -95,20 +99,21 @@ function drawBackground(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawTiles(ctx: CanvasRenderingContext2D, map: TileGrid): void {
+  // River area: blue background (cols 14-15, except bridge rows)
+  const bridgeRows = new Set([4,5,6,10,11,12,16,17,18]);
+  for (let y = 0; y < MAP_ROWS; y++) {
+    if (!bridgeRows.has(y)) {
+      for (let c = 14; c <= 15; c++) {
+        ctx.fillStyle = C.WATER;
+        ctx.fillRect(c * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+    }
+  }
   for (let y = 0; y < map.length; y++) {
     for (let x = 0; x < map[y].length; x++) {
       const tile = map[y][x];
       const tx = x * CELL_SIZE, ty = y * CELL_SIZE;
-      if (tile.type === TileType.WATER) {
-        ctx.fillStyle = C.WATER;
-        ctx.fillRect(tx, ty, CELL_SIZE, CELL_SIZE);
-        // Wave lines
-        ctx.strokeStyle = 'rgba(100,160,220,0.3)'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(tx, ty + CELL_SIZE * 0.4);
-        ctx.lineTo(tx + CELL_SIZE, ty + CELL_SIZE * 0.4);
-        ctx.stroke();
-      } else if (tile.type === TileType.METAL) {
+      if (tile.type === TileType.METAL) {
         ctx.fillStyle = C.METAL;
         ctx.fillRect(tx + 1, ty + 1, CELL_SIZE - 2, CELL_SIZE - 2);
         ctx.strokeStyle = '#5a6276'; ctx.lineWidth = 1;
@@ -311,6 +316,58 @@ function drawBullets(ctx: CanvasRenderingContext2D, bullets: BulletEntity[]): vo
     ctx.arc(b.pos.x, b.pos.y, BULLET_RADIUS + 3, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+function drawRiverWater(ctx: CanvasRenderingContext2D): void {
+  const t = Date.now() / 1000;
+  const riverX = 14 * CELL_SIZE;
+  const riverW = 2 * CELL_SIZE;
+  // Clip to river region
+  ctx.save();
+  ctx.beginPath(); ctx.rect(riverX, 0, riverW, MAP_H); ctx.clip();
+  // 3 wave layers (Noah-style sine waves)
+  for (let layer = 0; layer < 3; layer++) {
+    const alpha = [0.6, 0.4, 0.3][layer];
+    const r = [5, 10, 20][layer], g = [15, 30, 50][layer], b = [50, 80, 120][layer];
+    const amp = [14, 11, 8][layer], freq = [0.03, 0.05, 0.07][layer];
+    const speed = [5.4, 8.4, 12][layer];
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    for (let y = 0; y < MAP_H; y += 2) {
+      const wave = Math.sin(y * freq + t * speed) * amp + Math.sin(y * (freq*2.3) + t * (speed*1.4)) * (amp*0.57);
+      ctx.fillRect(riverX + wave, y, 2, 2);
+    }
+  }
+  // Wave crest highlights
+  ctx.strokeStyle = 'rgba(140,210,255,0.4)'; ctx.lineWidth = 2;
+  for (let y = 0; y < MAP_H; y += 3) {
+    const wy = Math.sin(y * 0.05 + t * 8.4) * 10 + Math.sin(y * 0.1 + t * 12) * 6;
+    ctx.beginPath(); ctx.moveTo(riverX + wy, y); ctx.lineTo(riverX + wy + 2, y); ctx.stroke();
+  }
+  // Surface spray particles
+  for (let i = 0; i < 4; i++) {
+    const sy = Math.random() * MAP_H;
+    const sx = riverX + Math.random() * riverW;
+    const c = Math.random() < 0.5 ? '#ffffff' : '#88ccff';
+    ctx.fillStyle = c; ctx.globalAlpha = 0.5 + Math.random() * 0.4;
+    ctx.beginPath(); ctx.arc(sx, sy, 2 + Math.random() * 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawLaneRoutes(ctx: CanvasRenderingContext2D): void {
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([6, 8]);
+  // Blue → Red and Red → Blue (symmetric)
+  const allRoutes = [...BLUE_LANE_WAYPOINTS, ...RED_LANE_WAYPOINTS];
+  for (const waypoints of allRoutes) {
+    ctx.beginPath();
+    ctx.moveTo(waypoints[0].x, waypoints[0].y);
+    for (let i = 1; i < waypoints.length; i++) {
+      ctx.lineTo(waypoints[i].x, waypoints[i].y);
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
 }
 
 function drawPhysicsBlocks(ctx: CanvasRenderingContext2D, blocks: PhysicsBlock[]): void {
