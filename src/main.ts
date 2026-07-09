@@ -206,14 +206,14 @@ function render(_alpha: number): void {
   }
 
   if (app.screen === 'siege' && app.siege) {
-    renderSiege(ctx, app.siege);
+    renderSiege(ctx, app.siege, input.mousePos.x, input.mousePos.y);
     if (app.siege.phase === 'playing' || app.siege.phase === 'paused') {
       drawHUD(ctx, app.siege);
     }
   } else if (app.screen === 'twokings' && app.twokings) {
     renderTwoKings(ctx, app.twokings);
     if (app.twokings.phase === 'playing' || app.twokings.phase === 'paused') {
-      drawTwoKingsHUD(ctx, app.twokings);
+      drawTwoKingsHUD(ctx, app.twokings, input.mousePos.x, input.mousePos.y);
     }
     drawTwoKingsOverlay(ctx, app.twokings);
     renderAllEffects(ctx, app.twokings);
@@ -221,14 +221,14 @@ function render(_alpha: number): void {
     renderChess(ctx, app.chess);
   } else if (app.screen === 'lobby') {
     const config = getCurrentConfig(app.garage);
-    renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid, app.devMode);
+    renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid, input.mousePos.x, input.mousePos.y, app.devMode);
   } else if (app.screen === 'garage') {
-    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory, app.garageMessage, app.garageMessageTimer);
-    if (app.practice) renderPractice(ctx, app.practice);
+    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory, app.garageMessage, app.garageMessageTimer, input.mousePos.x, input.mousePos.y);
+    if (app.practice) renderPractice(ctx, app.practice, input.mousePos.x, input.mousePos.y);
   } else if (app.screen === 'shop') {
-    renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold);
+    renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold, input.mousePos.x, input.mousePos.y);
   } else if (app.screen === 'encyclopedia') {
-    renderEncyclopedia(ctx, MAP_W, MAP_H, app.encyclopedia, app.inventory);
+    renderEncyclopedia(ctx, MAP_W, MAP_H, app.encyclopedia, app.inventory, input.mousePos.x, input.mousePos.y);
   }
 
   // Bivector text on top of transform (during compression)

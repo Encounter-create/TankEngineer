@@ -332,7 +332,7 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
   ps.player.pos = new Vec2(Math.max(ps.arenaX + TANK_RADIUS, Math.min(ps.arenaX + ps.arenaW - TANK_RADIUS, ps.player.pos.x)), Math.max(ps.arenaY + TANK_RADIUS, Math.min(ps.arenaY + ps.arenaH - TANK_RADIUS, ps.player.pos.y)));
 }
 
-export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState): void {
+export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState, mx?: number, my?: number): void {
   const { arenaX: ax, arenaY: ay, arenaW: aw, arenaH: ah } = ps;
   ctx.fillStyle = '#1a1d15'; ctx.fillRect(ax, ay, aw, ah);
   ctx.strokeStyle = '#222'; ctx.lineWidth = 0.5;
@@ -501,14 +501,16 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
 
   // Reset button (top-right)
   const rstX = ax + aw - 64, rstY = ay + 4;
-  ctx.fillStyle = '#3a4a6a'; ctx.strokeStyle = '#6a8aff'; ctx.lineWidth = 2;
+  const rstHover = mx !== undefined && my !== undefined && mx >= rstX && mx <= rstX + 58 && my >= rstY && my <= rstY + 22;
+  ctx.fillStyle = rstHover ? '#4a5a7a' : '#3a4a6a'; ctx.strokeStyle = rstHover ? '#8aaa ff' : '#6a8aff'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.roundRect(rstX, rstY, 58, 22, 4); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 10px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('🔄 重置', rstX + 29, rstY + 11);
 
   // Exit button (bottom)
   const exitX = ax + aw / 2 - 40, exitY = ay + ah - 32;
-  ctx.fillStyle = '#6a3a3a'; ctx.strokeStyle = '#ff6b4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(exitX, exitY, 80, 24, 4); ctx.fill(); ctx.stroke();
+  const exitHover = mx !== undefined && my !== undefined && mx >= exitX && mx <= exitX + 80 && my >= exitY && my <= exitY + 24;
+  ctx.fillStyle = exitHover ? '#8a4a4a' : '#6a3a3a'; ctx.strokeStyle = exitHover ? '#ff8a6a' : '#ff6b4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(exitX, exitY, 80, 24, 4); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('⏹ 退出演习', exitX + 40, exitY + 12);
 
@@ -522,7 +524,8 @@ export function renderPractice(ctx: CanvasRenderingContext2D, ps: PracticeState)
   // Respawn button (when moving target dead)
   if (!ps.movingEnemy.alive) {
     const rx = ax + aw / 2 - 50, ry = ay + ah / 2 + 20;
-    ctx.fillStyle = '#3a6a3a'; ctx.strokeStyle = '#4ae0a0'; ctx.lineWidth = 2;
+    const respHover = mx !== undefined && my !== undefined && mx >= rx && mx <= rx + 100 && my >= ry && my <= ry + 28;
+    ctx.fillStyle = respHover ? '#4a7a4a' : '#3a6a3a'; ctx.strokeStyle = respHover ? '#6ae0b0' : '#4ae0a0'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect(rx, ry, 100, 28, 4); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = 'bold 12px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

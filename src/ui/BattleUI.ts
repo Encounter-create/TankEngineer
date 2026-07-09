@@ -8,10 +8,15 @@ const GEAR_X = MAP_W - GEAR_R - 8;
 const GEAR_Y = GEAR_R + 8;
 
 /** Gear/pause button (top-right) */
-export function drawGearButton(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+export function drawGearButton(ctx: CanvasRenderingContext2D, mx?: number, my?: number): void {
+  const hovered = mx !== undefined && my !== undefined && hitTestGearButton(mx, my);
+  ctx.fillStyle = hovered ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.5)';
   ctx.beginPath(); ctx.arc(GEAR_X, GEAR_Y, GEAR_R, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ccc';
+  if (hovered) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.fillStyle = hovered ? '#fff' : '#ccc';
   ctx.font = '16px monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('⚙', GEAR_X, GEAR_Y);
@@ -23,7 +28,7 @@ export function hitTestGearButton(px: number, py: number): boolean {
 }
 
 /** Pause overlay */
-export function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {
+export function drawPauseOverlay(ctx: CanvasRenderingContext2D, mx?: number, my?: number): void {
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(0, 0, MAP_W, MAP_H);
 
@@ -42,7 +47,8 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {
 
   // Resume button
   const bx = px + 20, by = py + 50, bw = 180, bh = 34;
-  ctx.fillStyle = '#3a6a3a'; ctx.strokeStyle = '#5a8a5a'; ctx.lineWidth = 1;
+  const resHover = mx !== undefined && my !== undefined && mx >= bx && mx <= bx + bw && my >= by && my <= by + bh;
+  ctx.fillStyle = resHover ? '#4a7a4a' : '#3a6a3a'; ctx.strokeStyle = resHover ? '#7aaa7a' : '#5a8a5a'; ctx.lineWidth = 1;
   roundRect(ctx, bx, by, bw, bh, 4);
   ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#fff';
@@ -51,7 +57,8 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {
 
   // Quit button
   const qx = px + 20, qy = py + 92, qw = 180, qh = 34;
-  ctx.fillStyle = '#6a3a3a'; ctx.strokeStyle = '#8a5a5a'; ctx.lineWidth = 1;
+  const quitHover = mx !== undefined && my !== undefined && mx >= qx && mx <= qx + qw && my >= qy && my <= qy + qh;
+  ctx.fillStyle = quitHover ? '#8a4a4a' : '#6a3a3a'; ctx.strokeStyle = quitHover ? '#aa7a7a' : '#8a5a5a'; ctx.lineWidth = 1;
   roundRect(ctx, qx, qy, qw, qh, 4);
   ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#f88';

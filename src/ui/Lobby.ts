@@ -62,6 +62,7 @@ export function renderLobby(
   lobby: LobbyState,
   config: TankConfig | null,
   configValid: boolean,
+  mx?: number, my?: number,
   devMode: boolean = false,
 ): void {
   ctx.fillStyle = '#1a1d23';
@@ -69,9 +70,10 @@ export function renderLobby(
 
   // Developer mode toggle (top-right)
   const devX = w - 130, devY = 4, devW = 120, devH = 22;
-  ctx.fillStyle = devMode ? '#2a6a2a' : '#4a3a3a';
+  const devHover = mx !== undefined && my !== undefined && mx >= devX && mx <= devX + devW && my >= devY && my <= devY + devH;
+  ctx.fillStyle = devMode ? (devHover ? '#3a8a3a' : '#2a6a2a') : (devHover ? '#6a4a4a' : '#4a3a3a');
   ctx.strokeStyle = devMode ? '#4ae0a0' : '#ff6b4a';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = devHover ? 3 : 2;
   roundRect(ctx, devX, devY, devW, devH, 4); ctx.fill(); ctx.stroke();
   ctx.fillStyle = devMode ? '#4ae0a0' : '#fff'; ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -97,24 +99,26 @@ export function renderLobby(
   ctx.fillText('游戏模式', leftX + 12, 72);
 
   MODES.forEach((mode, i) => {
-    const my = 86 + i * 44;
+    const cardY = 86 + i * 44;
     const selected = lobby.selectedMode === mode.id;
+    const hovered = mx !== undefined && my !== undefined &&
+      mx >= leftX + 6 && mx <= leftX + 6 + leftW - 12 && my >= cardY && my <= cardY + 36;
 
-    ctx.fillStyle = selected ? '#2a4a6a' : '#2a2d35';
-    ctx.strokeStyle = selected ? '#4a9eff' : mode.available ? '#444' : '#333';
-    ctx.lineWidth = 1;
-    roundRect(ctx, leftX + 6, my, leftW - 12, 36, 4);
+    ctx.fillStyle = selected ? '#2a4a6a' : (hovered ? '#333840' : '#2a2d35');
+    ctx.strokeStyle = selected ? '#4a9eff' : (hovered ? '#888' : (mode.available ? '#444' : '#333'));
+    ctx.lineWidth = hovered ? 1.5 : 1;
+    roundRect(ctx, leftX + 6, cardY, leftW - 12, 36, 4);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = mode.available ? '#fff' : '#555';
     ctx.font = '13px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(mode.label, leftX + 18, my + 16);
+    ctx.fillText(mode.label, leftX + 18, cardY + 16);
 
     ctx.fillStyle = mode.available ? '#888' : '#555';
     ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.fillText(mode.available ? mode.desc : '即将开放', leftX + 18, my + 30);
+    ctx.fillText(mode.available ? mode.desc : '即将开放', leftX + 18, cardY + 30);
   });
 
   // ---- Right panel: Map selection ----
@@ -136,33 +140,35 @@ export function renderLobby(
   ALL_MAPS.forEach((mapName, i) => {
     const col = i % mapCols;
     const row = Math.floor(i / mapCols);
-    const mx = rightX + 16 + col * (mapPreviewW + 16);
-    const my = 86 + row * (mapPreviewH + 28);
+    const cx = rightX + 16 + col * (mapPreviewW + 16);
+    const cy = 86 + row * (mapPreviewH + 28);
     const selected = lobby.selectedMap === mapName;
+    const hovered = mx !== undefined && my !== undefined &&
+      mx >= cx && mx <= cx + mapPreviewW && my >= cy && my <= cy + mapPreviewH;
 
     // Map thumbnail
-    ctx.fillStyle = selected ? '#2a4a6a' : '#2a2d35';
-    ctx.strokeStyle = selected ? '#4a9eff' : '#555';
-    ctx.lineWidth = selected ? 2 : 1;
-    roundRect(ctx, mx, my, mapPreviewW, mapPreviewH, 4);
+    ctx.fillStyle = selected ? '#2a4a6a' : (hovered ? '#333840' : '#2a2d35');
+    ctx.strokeStyle = selected ? '#4a9eff' : (hovered ? '#777' : '#555');
+    ctx.lineWidth = selected ? 2 : (hovered ? 1.5 : 1);
+    roundRect(ctx, cx, cy, mapPreviewW, mapPreviewH, 4);
     ctx.fill();
     ctx.stroke();
 
     // Mini map preview
-    drawMiniMap(ctx, mx + 4, my + 4, mapPreviewW - 8, mapPreviewH - 8, mapName);
+    drawMiniMap(ctx, cx + 4, cy + 4, mapPreviewW - 8, mapPreviewH - 8, mapName);
 
     // Map name
     ctx.fillStyle = selected ? '#fff' : '#ccc';
     ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(MAP_LABELS[mapName], mx + mapPreviewW / 2, my + mapPreviewH + 14);
+    ctx.fillText(MAP_LABELS[mapName], cx + mapPreviewW / 2, cy + mapPreviewH + 14);
 
     // Description (only for selected)
     if (selected) {
       ctx.fillStyle = '#888';
       ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(MAP_DESCS[mapName], rightX + 16, my + mapPreviewH + 30);
+      ctx.fillText(MAP_DESCS[mapName], rightX + 16, cy + mapPreviewH + 30);
     }
   });
 
@@ -197,7 +203,7 @@ export function renderLobby(
     { x: 120, y: btnY, w: 100, h: 30, label: '🏪 商店', color: '#2a3a5a' },
     { x: 228, y: btnY, w: 110, h: 30, label: '📚 图鉴', color: '#3a3a4a' },
   ];
-  for (const btn of buttons) drawButton(ctx, btn);
+  for (const btn of buttons) drawButton(ctx, btn, mx, my);
 
   // Start battle button (right side)
   const startBtn: ButtonDef = {
@@ -205,7 +211,7 @@ export function renderLobby(
     label: configValid ? '⚔️ 开始对战' : '⚔️ (未就绪)',
     color: configValid ? '#4a7a4a' : '#3a3a3a',
   };
-  drawButton(ctx, startBtn);
+  drawButton(ctx, startBtn, mx, my);
 }
 
 // ============================================================

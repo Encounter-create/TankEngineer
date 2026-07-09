@@ -91,7 +91,7 @@ const TYPE_TABS: { type: PartType; label: string }[] = [
 // Render
 // ============================================================
 
-export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number, garage: GarageState, inventory: Inventory, message?: string, messageTimer?: number): void {
+export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number, garage: GarageState, inventory: Inventory, message?: string, messageTimer?: number, mx?: number, my?: number): void {
   ctx.fillStyle = '#1a1d23';
   ctx.fillRect(0, 0, w, h);
 
@@ -113,10 +113,10 @@ export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number
   drawBuildSlotsBar(ctx, w, garage, inventory);
 
   // ---- Left panel ----
-  drawLeftPanel(ctx, w, h, garage, inventory);
+  drawLeftPanel(ctx, w, h, garage, inventory, mx, my);
 
   // ---- Right panel ----
-  drawRightPanel(ctx, w, h, garage, inventory);
+  drawRightPanel(ctx, w, h, garage, inventory, mx, my);
 
   // ---- Detail tooltip ----
   if (garage.detailPartId) {
@@ -128,7 +128,7 @@ export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number
 // Left panel — part list
 // ============================================================
 
-function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, garage: GarageState, inventory: Inventory): void {
+function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, garage: GarageState, inventory: Inventory, mx?: number, my?: number): void {
   // Panel background
   ctx.fillStyle = '#22252c';
   roundRect(ctx, LEFT_X, 46, LEFT_W, h - 100, 6);
@@ -139,9 +139,11 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
   TYPE_TABS.forEach((t, i) => {
     const tx = LEFT_X + 4 + i * tabW;
     const active = garage.activeType === t.type;
-    ctx.fillStyle = active ? '#3a5a3a' : '#2a2d35';
-    ctx.strokeStyle = active ? '#4ae0a0' : '#444';
-    ctx.lineWidth = 1;
+    const hovered = mx !== undefined && my !== undefined &&
+      mx >= tx && mx <= tx + tabW - 2 && my >= 52 && my <= 78;
+    ctx.fillStyle = active ? '#3a5a3a' : (hovered ? '#333840' : '#2a2d35');
+    ctx.strokeStyle = active ? '#4ae0a0' : (hovered ? '#888' : '#444');
+    ctx.lineWidth = hovered ? 1.5 : 1;
     roundRect(ctx, tx, 52, tabW - 2, 26, 4);
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff';
@@ -173,8 +175,10 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
     const owned = inventory.owns(part.id);
 
     // Row bg
-    if (selected) {
-      ctx.fillStyle = '#2a4a6a';
+    const hovered = mx !== undefined && my !== undefined &&
+      mx >= LEFT_X && mx <= LEFT_X + LEFT_W && my >= ry && my <= ry + rowH;
+    if (selected || hovered) {
+      ctx.fillStyle = selected ? '#2a4a6a' : '#2e3340';
       roundRect(ctx, LEFT_X + 4, ry, LEFT_W - 8, rowH - 2, 3);
       ctx.fill();
     }
@@ -222,7 +226,7 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
 // Right panel — tank preview + stats + buttons
 // ============================================================
 
-function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, garage: GarageState, _inventory: Inventory): void {
+function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, garage: GarageState, _inventory: Inventory, mx?: number, my?: number): void {
   // Preview area
   const previewX = CENTER_X;
   const previewY = 46;
@@ -237,8 +241,10 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
   const practiceBtnW = 70, practiceBtnH = 22;
   const pBtnX = previewX + previewW - practiceBtnW - 6;
   const pBtnY = previewY + 4;
-  ctx.fillStyle = garage.practiceMode ? '#4a7a4a' : '#3a4a5a';
-  ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+  const pBtnHovered = mx !== undefined && my !== undefined &&
+    mx >= pBtnX && mx <= pBtnX + practiceBtnW && my >= pBtnY && my <= pBtnY + practiceBtnH;
+  ctx.fillStyle = garage.practiceMode ? '#4a7a4a' : (pBtnHovered ? '#4a5a6a' : '#3a4a5a');
+  ctx.strokeStyle = pBtnHovered ? '#aaa' : '#666'; ctx.lineWidth = 1;
   roundRect(ctx, pBtnX, pBtnY, practiceBtnW, practiceBtnH, 4);
   ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#fff';
@@ -286,7 +292,7 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
 
   // Back button only (save/load via top bar slots)
   const btnY = h - 50;
-  drawButton(ctx, { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32, label: '← 返回大厅', color: '#444' });
+  drawButton(ctx, { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32, label: '← 返回大厅', color: '#444' }, mx, my);
 }
 
 // ============================================================

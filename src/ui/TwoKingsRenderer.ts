@@ -386,7 +386,7 @@ function drawParticles(ctx: CanvasRenderingContext2D, particles: any[]): void {
 // HUD
 // ============================================================
 
-export function drawTwoKingsHUD(ctx: CanvasRenderingContext2D, state: TwoKingsState): void {
+export function drawTwoKingsHUD(ctx: CanvasRenderingContext2D, state: TwoKingsState, mx?: number, my?: number): void {
   // Top bar background
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, MAP_W, 48);
@@ -435,12 +435,12 @@ export function drawTwoKingsHUD(ctx: CanvasRenderingContext2D, state: TwoKingsSt
 
   // Gear button during playing
   if (state.phase === 'playing') {
-    drawGearButton(ctx);
+    drawGearButton(ctx, mx, my);
   }
 
   // Pause overlay
   if (state.phase === 'paused') {
-    drawPauseOverlay(ctx);
+    drawPauseOverlay(ctx, mx, my);
   }
 }
 

@@ -60,11 +60,20 @@ export interface ButtonDef {
   textColor?: string; // defaults to white
 }
 
-/** Draw a clickable button */
-export function drawButton(ctx: CanvasRenderingContext2D, btn: ButtonDef): void {
-  ctx.fillStyle = btn.color;
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-  ctx.lineWidth = 1.5;
+/** Draw a clickable button. Pass mx/my for hover feedback (omit for static). */
+export function drawButton(ctx: CanvasRenderingContext2D, btn: ButtonDef, mx?: number, my?: number): void {
+  const hovered = mx !== undefined && my !== undefined && hitTestButton(mx, my, btn);
+
+  // Background — brighten on hover
+  if (hovered) {
+    ctx.fillStyle = btn.color; // keep base color
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2;
+  } else {
+    ctx.fillStyle = btn.color;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5;
+  }
   roundRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
   ctx.fill();
   ctx.stroke();

@@ -44,7 +44,7 @@ const C = {
 // Main render function
 // ============================================================
 
-export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState, mx?: number, my?: number): void {
   // Screen shake
   const shakeX = state.screenShake > 0 ? (Math.random() - 0.5) * state.screenShake * 2 : 0;
   const shakeY = state.screenShake > 0 ? (Math.random() - 0.5) * state.screenShake * 2 : 0;
@@ -261,11 +261,11 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
     drawSiegeBackButton(ctx);
   } else if (state.phase === 'playing' || state.phase === 'paused') {
     // Gear button during gameplay
-    drawGearButton(ctx);
+    drawGearButton(ctx, mx, my);
 
     // Pause overlay
     if (state.phase === 'paused') {
-      drawPauseOverlay(ctx);
+      drawPauseOverlay(ctx, mx, my);
     }
   }
 }

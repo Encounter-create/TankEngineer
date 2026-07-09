@@ -29,6 +29,7 @@ export function renderEncyclopedia(
   h: number,
   state: EncyclopediaState,
   inventory: Inventory,
+  mx?: number, my?: number,
 ): void {
   ctx.fillStyle = '#1a1d23';
   ctx.fillRect(0, 0, w, h);
@@ -48,9 +49,11 @@ export function renderEncyclopedia(
   TYPES.forEach((t, i) => {
     const tx = tabStartX + i * (tabW + 8);
     const active = state.selectedType === t.type;
-    ctx.fillStyle = active ? '#3a6a3a' : '#2a2d35';
-    ctx.strokeStyle = active ? '#4ae0a0' : '#444';
-    ctx.lineWidth = 1;
+    const hovered = mx !== undefined && my !== undefined &&
+      mx >= tx && mx <= tx + tabW && my >= tabY && my <= tabY + tabH;
+    ctx.fillStyle = active ? '#3a6a3a' : (hovered ? '#333840' : '#2a2d35');
+    ctx.strokeStyle = active ? '#4ae0a0' : (hovered ? '#888' : '#444');
+    ctx.lineWidth = hovered ? 1.5 : 1;
     roundRect(ctx, tx, tabY, tabW, tabH, 4);
     ctx.fill();
     ctx.stroke();
@@ -176,7 +179,7 @@ export function renderEncyclopedia(
     label: '← 返回大厅',
     color: '#444',
   };
-  drawButton(ctx, backBtn);
+  drawButton(ctx, backBtn, mx, my);
 }
 
 // ============================================================

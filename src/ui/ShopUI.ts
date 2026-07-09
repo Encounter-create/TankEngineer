@@ -46,6 +46,7 @@ export function renderShop(
   h: number,
   shopUi: ShopUIState,
   gold: number,
+  mx?: number, my?: number,
 ): void {
   // Background
   ctx.fillStyle = '#1a1d23';
@@ -113,7 +114,7 @@ export function renderShop(
   });
 
   // Back button
-  drawShopButtons(ctx, w, h);
+  drawShopButtons(ctx, w, h, mx, my);
 }
 
 // ============================================================
@@ -129,9 +130,9 @@ export function getShopButtons(w: number, h: number): ButtonDef[] {
   ];
 }
 
-function drawShopButtons(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function drawShopButtons(ctx: CanvasRenderingContext2D, w: number, h: number, mx?: number, my?: number): void {
   for (const btn of getShopButtons(w, h)) {
-    drawButton(ctx, btn);
+    drawButton(ctx, btn, mx, my);
   }
 }
 
