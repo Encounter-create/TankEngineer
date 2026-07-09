@@ -7,8 +7,8 @@ import { TileGrid } from '../entities/Map';
 import { PhysicsBlock } from '../entities/PhysicsBlock';
 import { TwoKingsState, DefenseTower, WarBase, BLUE_LANE_WAYPOINTS, RED_LANE_WAYPOINTS } from '../modes/TwoKings';
 import { TANK_RADIUS } from '../entities/Tank';
-import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
-import { drawTank, drawSkillEntities } from './Renderer';
+import { BulletEntity } from '../entities/Bullet';
+import { drawTank, drawSkillEntities, drawPhysicsBlock, drawBullet } from './Renderer';
 import { drawGearButton, drawPauseOverlay } from './BattleUI';
 
 // ============================================================
@@ -302,26 +302,7 @@ function drawTanksLayer(ctx: CanvasRenderingContext2D, state: TwoKingsState): vo
 }
 
 function drawBullets(ctx: CanvasRenderingContext2D, bullets: BulletEntity[]): void {
-  for (const b of bullets) {
-    if (!b.alive) continue;
-    // Trail
-    ctx.strokeStyle = b.isPlayerBullet ? 'rgba(255,224,102,0.4)' : 'rgba(255,100,100,0.4)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(b.pos.x, b.pos.y);
-    ctx.lineTo(b.pos.x - b.vel.x * 0.02, b.pos.y - b.vel.y * 0.02);
-    ctx.stroke();
-    // Dot
-    ctx.fillStyle = b.isPlayerBullet ? '#ffe066' : '#ff4444';
-    ctx.beginPath();
-    ctx.arc(b.pos.x, b.pos.y, BULLET_RADIUS + 1, 0, Math.PI * 2);
-    ctx.fill();
-    // Glow
-    ctx.fillStyle = b.isPlayerBullet ? 'rgba(255,224,102,0.3)' : 'rgba(255,68,68,0.3)';
-    ctx.beginPath();
-    ctx.arc(b.pos.x, b.pos.y, BULLET_RADIUS + 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  for (const b of bullets) drawBullet(ctx, b);
 }
 
 function drawRiverWater(ctx: CanvasRenderingContext2D): void {
@@ -385,17 +366,7 @@ function drawLaneRoutes(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawPhysicsBlocks(ctx: CanvasRenderingContext2D, blocks: PhysicsBlock[]): void {
-  for (const b of blocks) {
-    if (!b.alive) continue;
-    const s = b.radius;
-    if (b.tileType === TileType.METAL) {
-      ctx.fillStyle = C.METAL; ctx.strokeStyle = '#5a6276'; ctx.lineWidth = 2;
-    } else {
-      ctx.fillStyle = C.BRICK; ctx.strokeStyle = '#6b5530'; ctx.lineWidth = 1;
-    }
-    ctx.fillRect(b.pos.x - s, b.pos.y - s, s * 2, s * 2);
-    ctx.strokeRect(b.pos.x - s, b.pos.y - s, s * 2, s * 2);
-  }
+  for (const b of blocks) drawPhysicsBlock(ctx, b);
 }
 
 function drawParticles(ctx: CanvasRenderingContext2D, particles: any[]): void {

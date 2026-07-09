@@ -964,7 +964,7 @@ function drawSmokeCloud(ctx: CanvasRenderingContext2D, tank: TankEntity): void {
   ctx.fill();
 }
 
-function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): void {
+export function drawPhysicsBlock(ctx: CanvasRenderingContext2D, block: PhysicsBlock): void {
   if (!block.alive) return;
   ctx.save(); ctx.translate(block.pos.x, block.pos.y);
   const s = block.radius;
