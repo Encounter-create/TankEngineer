@@ -68,7 +68,7 @@ export function updateDemo(state: DemoState, dt: number): void {
 
   // Damocles: total tanks >= 6 → kill ALL (both factions) + quote
   const totalAlive = state.allies.filter(a=>a.alive).length + state.enemies.filter(e=>e.alive).length;
-  if (totalAlive >= 10 && state.damoclesPhase === 'idle') {
+  if (totalAlive >= 8 && state.damoclesPhase === 'idle') {
     state.damoclesPhase = 'hovering'; state.damoclesTimer = 4.7;
     const dq = [['你看见我的幸运了吗？','这把利剑时时刻刻悬在我的头顶，','世人所见的王权荣华，不过是浮于表面的幻象。','身居高位者，永远活在随时坠落的恐惧之中。'],['终日活在死亡威胁下的人，','不可能拥有真正的幸福；','权力越大，头顶悬剑越锋利。']];
     playQuote(dq[Math.floor(Math.random() * dq.length)]);

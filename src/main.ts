@@ -71,6 +71,7 @@ import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 import { renderAllEffects } from './ui/EffectRenderer';
 import { initSound } from './systems/Sound';
+import { startBattleMusic, stopBattleMusic, startMenuMusic } from './systems/Music';
 import { MenuState, createMenuState, updateMenu, renderMenu, hitTestMenuButtons } from './ui/Menu';
 
 // ============================================================
@@ -148,6 +149,15 @@ function update(dt: number): void {
   // Init audio on first user interaction (browser policy)
   if (!soundInited && (input.isMouseJustPressed() || input.isConfirmPressed() || input.isFirePressed())) {
     initSound(); soundInited = true;
+    startMenuMusic(); // start after user gesture
+  }
+
+  // Music: battle only for siege/twokings, menu music for everything else
+  if (app.screen === 'siege' || app.screen === 'twokings') {
+    // handled in startSiege/startTwoKings
+  } else {
+    stopBattleMusic();
+    startMenuMusic();
   }
 
   if (app.screen === 'menu') {
@@ -475,11 +485,13 @@ function updateEncyclopedia(): void {
 function startSiege(configs: TankConfig[]): void {
   app.siege = createSiegeState(configs, app.inventory, app.lobby.selectedMap);
   app.screen = 'siege';
+  startBattleMusic();
 }
 
 function startTwoKings(configs: TankConfig[]): void {
   app.twokings = createTwoKingsState(configs);
   app.screen = 'twokings';
+  startBattleMusic();
 }
 
 function handleTwoKingsUI(): void {
