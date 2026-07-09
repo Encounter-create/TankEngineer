@@ -15,6 +15,7 @@ import { hasSynergy } from '../systems/Synergy';
 import { AIContext, createAIContext } from '../ai/EnemyAI';
 import { moveTank } from '../core/Physics';
 import { playExplosion } from '../systems/Sound';
+import { registerEffect } from '../ui/EffectRenderer';
 
 export function updateMeteor(state: SiegeState, dt: number): void {
   if (state.meteorPhase === 'idle') return;
@@ -99,11 +100,57 @@ export function updateMeteor(state: SiegeState, dt: number): void {
   // burning phase: fire zone is handled by handleFireZones, just wait for it to expire
   // Reset to idle when no fire zones remain (or after some time)
   if (state.meteorPhase === 'burning') {
-    // Check if fire zone is still active
     const hasMeteorZone = state.fireZones.some(z => z.alive && z.radius >= 100);
     if (!hasMeteorZone) {
       state.meteorPhase = 'idle';
     }
   }
 }
+
+export function drawMeteor(ctx: CanvasRenderingContext2D, state: SiegeState): void {
+  if (state.meteorPhase === 'idle') return;
+
+  // Targeting + Incoming: red circle + white crosshair at target
+  if (state.meteorPhase === 'targeting' || state.meteorPhase === 'incoming') {
+    const mt = state.meteorTarget;
+    const flash = state.meteorPhase === 'targeting' ? Math.abs(Math.sin(performance.now() / 1000 * 8)) : 1;
+    ctx.strokeStyle = `rgba(255,40,0,${0.3 + 0.5 * flash})`; ctx.lineWidth = 3;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath(); ctx.arc(mt.x, mt.y, 360, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    const cs = 360;
+    ctx.strokeStyle = `rgba(255,255,255,${0.4 + 0.4 * flash})`; ctx.lineWidth = 1.5;
+    ctx.setLineDash([20, 10]);
+    ctx.beginPath(); ctx.moveTo(mt.x - cs, mt.y); ctx.lineTo(mt.x + cs, mt.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mt.x, mt.y - cs); ctx.lineTo(mt.x, mt.y + cs); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(255,30,30,${0.5 + 0.5 * flash})`;
+    ctx.font = `bold ${28 + flash * 8}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('世界属于三体！！！', MAP_W / 2, MAP_H / 2);
+  }
+
+  // Incoming: fireball
+  if (state.meteorPhase === 'incoming') {
+    const mp = state.meteorPos;
+    const glow = ctx.createRadialGradient(mp.x, mp.y, 15, mp.x, mp.y, 120);
+    glow.addColorStop(0, 'rgba(255,200,50,0.9)');
+    glow.addColorStop(0.5, 'rgba(255,80,0,0.6)');
+    glow.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 120, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffcc33';
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 36, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 15, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // White flash overlay
+  if (state.meteorFlashAlpha > 0.01) {
+    ctx.fillStyle = `rgba(255,255,255,${state.meteorFlashAlpha})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+}
+
+registerEffect('meteor', drawMeteor);
 

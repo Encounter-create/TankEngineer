@@ -180,7 +180,8 @@ function render(_alpha: number): void {
 
   // Big Bang: screen scale transform before game rendering
   const bb = (app.siege && app.siege.bigbangPhase !== 'idle') ? app.siege :
-    (app.practice && app.practice.bigbangPhase !== 'idle') ? app.practice : null;
+    (app.practice && app.practice.bigbangPhase !== 'idle') ? app.practice :
+    (app.twokings && app.twokings.bigbangPhase !== 'idle') ? app.twokings : null;
   if (bb) {
     const b = bb as any;
     const s = b.bigbangScale;
@@ -194,7 +195,8 @@ function render(_alpha: number): void {
 
   // Bivector foil: global shear+scale transform during compression
   const bv = (app.siege && app.siege.bivectorPhase !== 'idle') ? app.siege :
-    (app.practice && app.practice.bivectorPhase !== 'idle') ? app.practice : null;
+    (app.practice && app.practice.bivectorPhase !== 'idle') ? app.practice :
+    (app.twokings && app.twokings.bivectorPhase !== 'idle') ? app.twokings : null;
   const isCompressing = bv && (bv as any).bivectorPhase === 'compressing';
   if (isCompressing) {
     const cy = MAP_H / 2;

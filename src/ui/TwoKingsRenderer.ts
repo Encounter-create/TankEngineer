@@ -8,7 +8,7 @@ import { PhysicsBlock } from '../entities/PhysicsBlock';
 import { TwoKingsState, DefenseTower, WarBase } from '../modes/TwoKings';
 import { TANK_RADIUS } from '../entities/Tank';
 import { BulletEntity, BULLET_RADIUS } from '../entities/Bullet';
-import { drawTank } from './Renderer';
+import { drawTank, drawTurret, drawPlane, drawFireZone } from './Renderer';
 import { drawGearButton, drawPauseOverlay } from './BattleUI';
 
 // ============================================================
@@ -55,6 +55,11 @@ export function renderTwoKings(ctx: CanvasRenderingContext2D, state: TwoKingsSta
   drawBases(ctx, state);
   drawTowers(ctx, state);
   drawTanksLayer(ctx, state);
+  // Skill-spawned entities (allies, turrets, planes, clones, fire zones)
+  for (const ally of state.allies) { if (ally.alive) drawTank(ctx, ally as any); }
+  for (const t of state.turrets) { drawTurret(ctx, t); }
+  for (const p of state.planes) { drawPlane(ctx, p); }
+  for (const z of state.fireZones) { drawFireZone(ctx, z); }
   drawPhysicsBlocks(ctx, state.physicsBlocks);
   drawBullets(ctx, state.bullets);
   drawParticles(ctx, state.particles);

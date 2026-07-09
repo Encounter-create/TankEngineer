@@ -47,7 +47,7 @@ function explodeRocket(bullet: BulletEntity, state: any, _onKill?: OnKillFn): vo
 // Physics blocks
 // ============================================================
 
-export function handlePhysicsBlocks(state: any, dt: number, structures?: SolidStructure[]): void {
+export function handlePhysicsBlocks(state: any, dt: number, structures?: SolidStructure[], onKill?: OnKillFn): void {
   for (const block of state.physicsBlocks) {
     if (!block.alive) continue;
     const nextBg = { x: Math.floor((block.pos.x + block.vel.x * dt) / CELL_SIZE), y: Math.floor((block.pos.y + block.vel.y * dt) / CELL_SIZE) };
@@ -105,8 +105,15 @@ export function handlePhysicsBlocks(state: any, dt: number, structures?: SolidSt
         const dmg = takeDamage(enemy, Math.max(10, baseDmg * ctx.multiplier));
         (state.damageNumbers || []).push(spawnDamageNumber(enemy.pos, dmg, ctx.multiplier >= 3));
         state.particles.push(...spawnParticles(enemy.pos, 'hit', 12, 120));
-        // Check kill (mode-specific callback)
-        if (!enemy.alive && (state as any)._onKill) (state as any)._onKill(enemy, ctx.multiplier);
+        // Combo text for block kills
+        if (ctx.multiplier >= 2) {
+          state.comboText = ctx.label;
+          state.comboColor = ctx.color;
+          state.comboMultiplier = ctx.multiplier;
+          state.comboTimer = 2.5;
+        }
+        // Mode-specific kill callback
+        if (!enemy.alive && onKill) onKill(enemy, ctx.multiplier);
       }
     }
   }

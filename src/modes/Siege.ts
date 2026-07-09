@@ -234,7 +234,7 @@ export function updateSiege(
     playerInput: handlePlayerInput, playerFire: handlePlayerFire,
     terrain: applyTerrainEffects, enemyAI: handleEnemyAI,
     allies: handleAllies, turrets: handleTurrets, planes: handlePlanes, clones: handleClones,
-    physics: (s: any, d: number) => sysHandlePhysicsBlocks(s, d, CC_STRUCTURES),
+    physics: (s: any, d: number) => sysHandlePhysicsBlocks(s, d, CC_STRUCTURES, (enemy: TankEntity, mult: number) => onEnemyKilled(s, enemy, mult)),
     bullets: (s: any, d: number) => sysHandleBullets(s, d, CC_STRUCTURES, (enemy: TankEntity, mult: number) => onEnemyKilled(s, enemy, mult)),
     bulletTank: (s: any, d: number) => sysHandleBulletTankCollisions(s, d, (enemy: TankEntity, mult: number) => onEnemyKilled(s, enemy, mult)),
     skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir],
@@ -1249,9 +1249,10 @@ function handleCCAttack(state: SiegeState, dt: number): void {
 
   if (nearestEnemy) {
     const angle = nearestEnemy.pos.sub(ccPos).angle();
-    const bullet = createBullet(ccPos, angle, 'straight', 450, 20, 0, 0, 'cc', true);
+    const spawnPos = ccPos.add(Vec2.fromAngle(angle, CC_RADIUS + BULLET_RADIUS + 1));
+    const bullet = createBullet(spawnPos, angle, 'straight', 450, 20, 0, 0, 'cc', true);
     state.bullets.push(bullet);
-    ccFireCooldown = 800; // fire every 0.8s
+    ccFireCooldown = 800;
   }
 }
 
