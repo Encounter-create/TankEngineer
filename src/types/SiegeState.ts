@@ -16,7 +16,13 @@ import { SkillStates } from './SkillStates';
 export type SiegePhase = 'intro' | 'playing' | 'paused' | 'victory' | 'defeat';
 
 export interface SiegeState extends SkillStates {
-  phase: SiegePhase; map: TileGrid; mapName: MapName; player: TankEntity;
+  phase: SiegePhase; map: TileGrid; mapName: MapName;
+  /** Primary player tank (backward compat). Use playerTanks[activePlayerIndex] for current. */
+  player: TankEntity;
+  /** All player tanks when multi-tank mode is active */
+  playerTanks: TankEntity[];
+  /** Index into playerTanks for the currently controlled tank */
+  activePlayerIndex: number;
   enemies: TankEntity[]; bullets: BulletEntity[];
   aiContexts: Map<string, AIContext>; inventory: Inventory;
   elapsedTime: number; wavesSpawned: number; enemiesKilled: number;

@@ -131,6 +131,8 @@ export interface TwoKingsState extends SkillStates {
   phase: TwoKingsPhase;
   map: TileGrid;
   player: TankEntity;
+  playerTanks: TankEntity[];
+  activePlayerIndex: number;
   blueBase: WarBase;
   redBase: WarBase;
   blueTowers: DefenseTower[];
@@ -231,13 +233,16 @@ function ensureCommander(config: TankConfig): TankConfig {
   return assembleTank(config.barrel, config.turret, config.chassis, repair);
 }
 
-export function createTwoKingsState(playerConfig: TankConfig): TwoKingsState {
-  playerConfig = ensureCommander(playerConfig);
+export function createTwoKingsState(playerConfigs: TankConfig[]): TwoKingsState {
   const blocks: PhysicsBlock[] = [];
   const map = createTwoKingsMap(blocks);
-  const player = createTank('player', PLAYER_SPAWN, playerConfig, true);
-  player.hp = player.maxHp * 3;
-  player.maxHp = player.hp;
+  const playerTanks = playerConfigs.map((cfg, i) => {
+    const c = ensureCommander(cfg);
+    const t = createTank(`player${i}`, PLAYER_SPAWN.add(new Vec2(i * 8, 0)), c, true);
+    t.hp = t.maxHp * 3; t.maxHp = t.hp;
+    return t;
+  });
+  const player = playerTanks[0];
 
   const structures: SolidStructure[] = [
     { pos: BLUE_BASE_POS, radius: CELL_SIZE * 1.3 },
@@ -248,6 +253,8 @@ export function createTwoKingsState(playerConfig: TankConfig): TwoKingsState {
 
   return {
     phase: 'intro', map, player,
+    playerTanks,
+    activePlayerIndex: 0,
     _structures: structures,
     _playerInBaseHeal: false, _baseHealPos: BLUE_BASE_POS,
     blueBase: createWarBase(BLUE_BASE_POS, 'blue'),
@@ -527,8 +534,8 @@ function updateAllAI(state: TwoKingsState, dt: number): void {
       state, ctx, dt, false);
   }
 
-  // Tank-tank collision
-  const allAlive = [state.player, ...state.blueTanks, ...state.enemies].filter((t: any) => t.alive);
+  // Tank-tank collision (includes allies for skill-spawned + inactive player tanks)
+  const allAlive = [state.player, ...state.blueTanks, ...state.enemies, ...state.allies].filter((t: any) => t.alive);
   resolveTankCollisions(allAlive);
 }
 // ============================================================
@@ -551,6 +558,30 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   if (input.wasJustPressed('KeyU')) state.showDebug = !state.showDebug;
 
   state.screenShake = Math.max(0, state.screenShake - dt * 50);
+
+  // Tank switching (1/2/3 keys)
+  for (let i = 0; i < 3; i++) {
+    if (input.wasJustPressed(`Digit${i + 1}`) && i < state.playerTanks.length && state.playerTanks[i].alive) {
+      state.player.vel = Vec2.zero();
+      state.activePlayerIndex = i;
+      (state as any).player = state.playerTanks[i];
+      state.player.vel = Vec2.zero(); // also stop new tank
+    }
+  }
+
+  // Push inactive player tanks to allies, ensure active tank is NOT in allies
+  state.allies = state.allies.filter((a: any) => !a.id?.startsWith('player'));
+  for (const t of state.playerTanks) {
+    if (t !== state.player && t.alive) {
+      const a = t as any;
+      if (a._allyInit !== true) {
+        a.aiMode = 'guard_player'; a.aiState = 'follow';
+        a.followRadius = 100; a.visionRadius = 200;
+        a.fireCooldown = 0; a._allyInit = true;
+      }
+      state.allies.push(a);
+    }
+  }
 
   // === Player movement (Siege pattern via moveTank) ===
   if (state.player.alive) {
@@ -678,13 +709,20 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   state.allies = [...savedAllies, ...state.blueTanks];
   handleBulletTankCollisions(state as any, dt);
   state.allies = savedAllies;
-  // Player death → respawn (TwoKings mode-specific, not game over)
-  if (!state.player.alive && state.blueBase.alive && state.redBase.alive) {
-    state.player.alive = true;
-    state.player.hp = state.player.maxHp;
-    state.player.pos = PLAYER_SPAWN;
-    state.player.vel = Vec2.zero();
-    state.particles.push(...spawnParticles(PLAYER_SPAWN, 'repair', 15, 80));
+  // Multi-tank death handling
+  for (const t of state.playerTanks) {
+    if (!t.alive && state.blueBase.alive && state.redBase.alive) {
+      t.alive = true; t.hp = t.maxHp; t.pos = PLAYER_SPAWN; t.vel = Vec2.zero();
+      state.particles.push(...spawnParticles(PLAYER_SPAWN, 'repair', 15, 80));
+    }
+  }
+  // Auto-switch if current is dead
+  if (!state.player.alive) {
+    const next = state.playerTanks.find(t => t.alive);
+    if (next) {
+      state.activePlayerIndex = state.playerTanks.indexOf(next);
+      (state as any).player = next;
+    }
   }
   checkBulletStructureCollisions(state);
 

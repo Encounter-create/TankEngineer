@@ -28,6 +28,8 @@ export interface GarageState {
   scrollOffset: number;
   /** Flash message */
   message: string; messageTimer: number;
+  /** Multi-tank mode: use all 3 slots as a squad */
+  multiTank: boolean;
 }
 
 export function createGarageState(inventory: Inventory): GarageState {
@@ -51,6 +53,7 @@ export function createGarageState(inventory: Inventory): GarageState {
     practiceMode: false,
     scrollOffset: 0,
     message: '', messageTimer: 0,
+    multiTank: false,
   };
 
   state.assemblyResult = tryAssemble(defaults.barrelId, defaults.turretId, defaults.chassisId, defaults.commanderId, inventory);
@@ -76,6 +79,14 @@ export function switchSlot(garage: GarageState, slotIdx: number, inventory: Inve
 
 export function getCurrentConfig(garage: GarageState): TankConfig | null {
   return garage.assemblyResult.config;
+}
+
+export function getAllConfigs(garage: GarageState, inventory: Inventory): (TankConfig | null)[] {
+  if (!garage.multiTank) return [garage.assemblyResult.config];
+  return garage.slots.map(slot => {
+    const result = tryAssemble(slot.barrelId, slot.turretId, slot.chassisId, slot.commanderId, inventory);
+    return result.config;
+  });
 }
 
 // ============================================================
@@ -319,6 +330,26 @@ function drawRightPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, ga
 
   // Back button only (save/load via top bar slots)
   const btnY = h - 50;
+  // Multi-tank toggle (left of back button)
+  const mtW2 = 90, mtH2 = 32, mtX2 = CENTER_X + CENTER_W / 2 - 80 - mtW2 - 12;
+  const mtHover2 = mx !== undefined && my !== undefined && mx >= mtX2 && mx <= mtX2 + mtW2 && my >= btnY && my <= btnY + mtH2;
+  ctx.fillStyle = garage.multiTank ? '#3a6a3a' : (mtHover2 ? '#444' : '#2a2d35');
+  ctx.strokeStyle = garage.multiTank ? '#4ae0a0' : (mtHover2 ? '#888' : '#555');
+  ctx.lineWidth = garage.multiTank ? 2 : 1;
+  roundRect(ctx, mtX2, btnY, mtW2, mtH2, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = garage.multiTank ? '#4ae0a0' : '#ccc';
+  ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(garage.multiTank ? '👥 多坦' : '👤 单坦', mtX2 + mtW2/2, btnY + mtH2/2);
+  // Tooltip
+  if (mtHover2) {
+    ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+    const tipW = 260, tipH = 28;
+    roundRect(ctx, mtX2 - (tipW - mtW2)/2, btnY - 36, tipW, tipH, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText('组装三辆坦克同时进入战场，按123切换操控对象', mtX2 + mtW2/2, btnY - 22);
+  }
+
   drawButton(ctx, { x: CENTER_X + CENTER_W / 2 - 80, y: btnY, w: 160, h: 32, label: '← 返回大厅', color: '#444' }, mx, my);
 }
 
@@ -446,6 +477,13 @@ export function hitTestGarageSlots(px: number, py: number, _w: number): number {
     if (px >= sx && px <= sx + slotW && py >= slotY && py <= slotY + slotH) return i;
   }
   return -1;
+}
+
+export function hitTestMultiTankToggle(px: number, py: number, _w: number, h: number): boolean {
+  const btnY = h - 50;
+  const mtW = 90, mtH = 32;
+  const mtX = CENTER_X + CENTER_W / 2 - 80 - mtW - 12;
+  return px >= mtX && px <= mtX + mtW && py >= btnY && py <= btnY + mtH;
 }
 
 export function hitTestGarage(px: number, py: number, _w: number, inventory: Inventory, garage: GarageState): { type: PartType; partId: string } | null {

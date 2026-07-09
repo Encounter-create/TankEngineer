@@ -84,7 +84,15 @@ const CC_POS = new Vec2(
 const CC_RADIUS = CELL_SIZE * 1.5;
 const CC_STRUCTURES = [{ pos: CC_POS, radius: CC_RADIUS }];
 
-export function createSiegeState(playerConfig: TankConfig, inventory: Inventory, forceMapName?: MapName): SiegeState {
+function createPlayerTanks(configs: TankConfig[], spawnPos: Vec2): TankEntity[] {
+  return configs.map((cfg, i) => {
+    const t = createTank(`player${i}`, spawnPos.add(new Vec2(i * 5, i * 5)), cfg, true);
+    t.hp = t.maxHp * 3; t.maxHp = t.hp;
+    return t;
+  });
+}
+
+export function createSiegeState(playerConfigs: TankConfig[], inventory: Inventory, forceMapName?: MapName): SiegeState {
   const mapName = forceMapName ?? pickRandomMap();
   const map = createMap(mapName);
   const centerPos = gridToPixel(COMMAND_CENTER_GRID.x, COMMAND_CENTER_GRID.y);
@@ -113,15 +121,16 @@ export function createSiegeState(playerConfig: TankConfig, inventory: Inventory,
       playerSpawn = gridToPixel(gx, gy); break;
     }
   }
-  const player = createTank('player', playerSpawn, playerConfig, true);
-  player.hp = player.maxHp * 3; // player HP buff
-  player.maxHp = player.hp;
+  const playerTanks = createPlayerTanks(playerConfigs, playerSpawn);
+  const player = playerTanks[0];
 
   return {
     phase: 'intro',
     map,
     mapName,
     player,
+    playerTanks,
+    activePlayerIndex: 0,
     enemies: [],
     bullets: [],
     aiContexts: new Map(),
@@ -276,9 +285,39 @@ export function updateSiege(
 // ============================================================
 
 function handlePlayerInput(state: SiegeState, input: Input, dt: number): void {
+  // Multi-tank switching
+  for (let i = 0; i < 3; i++) {
+    if (input.wasJustPressed(`Digit${i + 1}`) && i < state.playerTanks.length && state.playerTanks[i].alive) {
+      state.player.vel = Vec2.zero();
+      state.playerTanks[i].vel = Vec2.zero();
+      state.activePlayerIndex = i;
+      (state as any).player = state.playerTanks[i];
+    }
+  }
+  // Push inactive player tanks to allies, ensure active tank is NOT in allies
+  state.allies = state.allies.filter((a: any) => !a.id?.startsWith('player'));
+  for (const t of state.playerTanks) {
+    if (t !== state.player && t.alive) {
+      const a = t as any;
+      if (a._allyInit !== true) {
+        a.aiMode = 'guard_player'; a.aiState = 'follow';
+        a.followRadius = 100; a.visionRadius = 200;
+        a.fireCooldown = 0; a._allyInit = true;
+      }
+      state.allies.push(a);
+    }
+  }
+
   if (!state.player.alive) {
-    endSiege(state, false);
-    return;
+    // Auto-switch to next alive
+    const next = state.playerTanks.find(t => t.alive);
+    if (next) {
+      state.activePlayerIndex = state.playerTanks.indexOf(next);
+      (state as any).player = next;
+    } else {
+      endSiege(state, false);
+      return;
+    }
   }
 
   const moveDir = input.getMoveDir();

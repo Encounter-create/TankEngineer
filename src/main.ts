@@ -14,10 +14,12 @@ import {
   selectPart,
   switchSlot,
   getCurrentConfig,
+  getAllConfigs,
   renderGarage,
   hitTestGarage,
   hitTestGarageSlots,
   hitTestGarageButtons,
+  hitTestMultiTankToggle,
 } from './ui/Garage';
 import { PracticeState, createPractice, updatePractice, renderPractice } from './systems/Practice';
 import { updateQuote, renderQuote } from './systems/QuotePlayer';
@@ -291,7 +293,7 @@ function updateLobby(): void {
   if (input.wasJustPressed('KeyO')) {
     const config = getCurrentConfig(app.garage);
     if (config && app.garage.assemblyResult.valid) {
-      startTwoKings(config);
+      startTwoKings([config]);
       return;
     }
   }
@@ -334,14 +336,14 @@ function updateLobby(): void {
     app.screen = 'encyclopedia';
   } else if (btnIdx === 3) {
     // Start battle
-    const config = getCurrentConfig(app.garage);
-    if (config && app.garage.assemblyResult.valid) {
+    const configs = getAllConfigs(app.garage, app.inventory).filter(c => c !== null) as TankConfig[];
+    if (configs.length > 0) {
       if (app.lobby.selectedMode === 'chess') {
-        startChess(config);
+        startChess(configs[0]);
       } else if (app.lobby.selectedMode === 'twokings') {
-        startTwoKings(config);
+        startTwoKings(configs);
       } else {
-        startSiege(config);
+        startSiege(configs);
       }
     }
   }
@@ -361,6 +363,12 @@ function updateGarage(): void {
     app.garage.scrollOffset = Math.max(0, Math.min(maxScroll, so));
   }
   if (input.isMouseJustPressed()) {
+    // Multi-tank toggle
+    if (hitTestMultiTankToggle(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
+      app.garage.multiTank = !app.garage.multiTank;
+      app.garage.message = app.garage.multiTank ? '👥 多坦克模式已开启' : '👤 单坦克模式'; app.garage.messageTimer = 1.5;
+      return;
+    }
     // Config slot buttons (top bar)
     const slotIdx = hitTestGarageSlots(input.mousePos.x, input.mousePos.y, MAP_W);
     if (slotIdx >= 0) {
@@ -443,13 +451,13 @@ function updateEncyclopedia(): void {
 // Siege
 // ============================================================
 
-function startSiege(config: TankConfig): void {
-  app.siege = createSiegeState(config, app.inventory, app.lobby.selectedMap);
+function startSiege(configs: TankConfig[]): void {
+  app.siege = createSiegeState(configs, app.inventory, app.lobby.selectedMap);
   app.screen = 'siege';
 }
 
-function startTwoKings(config: TankConfig): void {
-  app.twokings = createTwoKingsState(config);
+function startTwoKings(configs: TankConfig[]): void {
+  app.twokings = createTwoKingsState(configs);
   app.screen = 'twokings';
 }
 

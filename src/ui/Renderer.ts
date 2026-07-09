@@ -75,6 +75,14 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState, mx
     drawBrickHPBars(ctx, state.map);
   }
   drawTank(ctx, state.player, state);
+  // Multi-tank markers
+  for (let i = 0; i < (state.playerTanks?.length || 0); i++) {
+    const t = state.playerTanks[i];
+    if (!t.alive) continue;
+    ctx.strokeStyle = i === state.activePlayerIndex ? '#4a9eff' : '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(t.pos.x, t.pos.y + TANK_RADIUS + 6, 6, 0, Math.PI * 2); ctx.stroke();
+  }
   // Smoke skill: large obscuring cloud around player
   if (isSmokeActive(state.player)) {
     drawSmokeCloud(ctx, state.player);

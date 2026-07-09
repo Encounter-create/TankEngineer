@@ -236,9 +236,14 @@ function drawTanksLayer(ctx: CanvasRenderingContext2D, state: TwoKingsState): vo
   // Player (blue with highlight)
   if (state.player.alive) {
     drawTank(ctx, state.player);
-    // Player highlight ring
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(state.player.pos.x, state.player.pos.y, TANK_RADIUS + 4, 0, Math.PI * 2); ctx.stroke();
+    // Multi-tank markers
+    for (let i = 0; i < (state.playerTanks?.length || 0); i++) {
+      const t = state.playerTanks[i];
+      if (!t.alive) continue;
+      ctx.strokeStyle = i === state.activePlayerIndex ? '#4a9eff' : '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(t.pos.x, t.pos.y + TANK_RADIUS + 6, 6, 0, Math.PI * 2); ctx.stroke();
+    }
   }
 
   // Blue AI allies
