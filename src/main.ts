@@ -70,12 +70,13 @@ import { renderTwoKings, drawTwoKingsOverlay, drawTwoKingsHUD } from './ui/TwoKi
 import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 import { renderAllEffects } from './ui/EffectRenderer';
+import { MenuState, createMenuState, updateMenu, renderMenu, hitTestMenuButtons } from './ui/Menu';
 
 // ============================================================
 // App state machine
 // ============================================================
 
-type AppScreen = 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege' | 'chess' | 'twokings';
+type AppScreen = 'menu' | 'lobby' | 'garage' | 'shop' | 'encyclopedia' | 'siege' | 'chess' | 'twokings';
 
 interface AppState {
   screen: AppScreen;
@@ -89,6 +90,7 @@ interface AppState {
   chess: ChessState | null;
   twokings: TwoKingsState | null;
   practice: PracticeState | null;
+  menu: MenuState;
   shopSelected: number;
   selectedCol: number;
   selectedRow: number;
@@ -117,7 +119,8 @@ const inventory = new Inventory();
 const shop = new Shop(inventory);
 
 const app: AppState = {
-  screen: 'lobby',
+  screen: 'menu',
+  menu: createMenuState(),
   inventory,
   shop,
   lobby: createLobbyState(),
@@ -139,7 +142,13 @@ const app: AppState = {
 // ============================================================
 
 function update(dt: number): void {
-  if (app.screen === 'siege' && app.siege) {
+  if (app.screen === 'menu') {
+    updateMenu(app.menu, dt);
+    if (input.isMouseJustPressed()) {
+      const btn = hitTestMenuButtons(input.mousePos.x, input.mousePos.y);
+      if (btn === 0) app.screen = 'lobby';
+    }
+  } else if (app.screen === 'siege' && app.siege) {
     updateSiege(app.siege, input, dt);
     handleSiegeUI();
   } else if (app.screen === 'twokings' && app.twokings) {
@@ -202,7 +211,9 @@ function render(_alpha: number): void {
     ctx.transform(1, 0, s, sc, -s * cy, cy * (1 - sc));
   }
 
-  if (app.screen === 'siege' && app.siege) {
+  if (app.screen === 'menu') {
+    renderMenu(ctx, app.menu, input.mousePos.x, input.mousePos.y);
+  } else if (app.screen === 'siege' && app.siege) {
     renderSiege(ctx, app.siege, input.mousePos.x, input.mousePos.y);
     if (app.siege.phase === 'playing' || app.siege.phase === 'paused') {
       drawHUD(ctx, app.siege);
@@ -326,15 +337,17 @@ function updateLobby(): void {
   // Buttons
   const btnIdx = hitTestLobbyButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H);
   if (btnIdx === 0) {
-    app.screen = 'garage'; // open garage
+    app.screen = 'menu'; // return to menu
   } else if (btnIdx === 1) {
+    app.screen = 'garage';
+  } else if (btnIdx === 2) {
     app.shopUI.message = '';
     app.shopUI.slots = app.shop.getSlots();
     app.screen = 'shop';
-  } else if (btnIdx === 2) {
+  } else if (btnIdx === 3) {
     app.encyclopedia = createEncyclopediaState();
     app.screen = 'encyclopedia';
-  } else if (btnIdx === 3) {
+  } else if (btnIdx === 4) {
     // Start battle
     const configs = getAllConfigs(app.garage, app.inventory).filter(c => c !== null) as TankConfig[];
     if (configs.length > 0) {

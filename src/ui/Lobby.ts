@@ -205,9 +205,10 @@ export function renderLobby(
   // Buttons
   const btnY = barY + 36;
   const buttons: ButtonDef[] = [
-    { x: 12, y: btnY, w: 100, h: 30, label: '🔧 组装', color: '#3a5a3a' },
-    { x: 120, y: btnY, w: 100, h: 30, label: '🏪 商店', color: '#2a3a5a' },
-    { x: 228, y: btnY, w: 110, h: 30, label: '📚 图鉴', color: '#3a3a4a' },
+    { x: 8, y: btnY, w: 65, h: 30, label: '← 返回', color: '#444' },
+    { x: 78, y: btnY, w: 82, h: 30, label: '🔧 组装', color: '#3a5a3a' },
+    { x: 165, y: btnY, w: 82, h: 30, label: '🏪 商店', color: '#2a3a5a' },
+    { x: 252, y: btnY, w: 82, h: 30, label: '📚 图鉴', color: '#3a3a4a' },
   ];
   for (const btn of buttons) drawButton(ctx, btn, mx, my);
 
@@ -289,10 +290,11 @@ export function hitTestLobbyButtons(px: number, py: number, w: number, h: number
   const barY = h - 80;
   const btnY = barY + 36;
   const btns: ButtonDef[] = [
-    { x: 12, y: btnY, w: 100, h: 30, label: '', color: '' },        // 0: garage
-    { x: 120, y: btnY, w: 100, h: 30, label: '', color: '' },       // 1: shop
-    { x: 228, y: btnY, w: 110, h: 30, label: '', color: '' },       // 2: encyclopedia
-    { x: w - 150 - 12, y: barY + 16, w: 150, h: 44, label: '', color: '' }, // 3: start
+    { x: 8, y: btnY, w: 65, h: 30, label: '', color: '' },          // 0: return
+    { x: 78, y: btnY, w: 82, h: 30, label: '', color: '' },         // 1: garage
+    { x: 165, y: btnY, w: 82, h: 30, label: '', color: '' },        // 2: shop
+    { x: 252, y: btnY, w: 82, h: 30, label: '', color: '' },        // 3: encyclopedia
+    { x: w - 150 - 12, y: barY + 16, w: 150, h: 44, label: '', color: '' }, // 4: start
   ];
   for (let i = 0; i < btns.length; i++) {
     if (hitTestButton(px, py, btns[i])) return i;
