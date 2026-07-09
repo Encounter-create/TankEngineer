@@ -392,7 +392,7 @@ export function drawTwoKingsHUD(ctx: CanvasRenderingContext2D, state: TwoKingsSt
   ctx.fillRect(0, 0, MAP_W, 48);
 
   // Timer
-  const remaining = Math.max(0, 240 - state.elapsedTime);
+  const remaining = Math.max(0, 180 - state.elapsedTime);
   const mins = Math.floor(remaining / 60);
   const secs = Math.floor(remaining % 60);
   const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -432,6 +432,11 @@ export function drawTwoKingsHUD(ctx: CanvasRenderingContext2D, state: TwoKingsSt
     ctx.textAlign = 'center';
     ctx.fillText(state.skillMessage, MAP_W / 2, MAP_H - 20);
   }
+
+  // Shortcut hint
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('WASD移动 | 鼠标瞄准 | 左键/空格开火 | E技能 | U调试 | ⚙暂停', MAP_W / 2, MAP_H - 4);
 
   // Gear button during playing
   if (state.phase === 'playing') {

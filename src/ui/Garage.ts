@@ -2,7 +2,7 @@ import { PartType, TankConfig } from '../entities/Parts';
 import { Inventory } from '../systems/Inventory';
 import { tryAssemble, AssemblyResult } from '../systems/Assembly';
 import { roundRect, rarityColor, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
-import { loadBuildSlots, saveBuildSlot } from '../systems/BuildSlots';
+
 import { checkSynergies } from '../systems/Synergy';
 import { drawTank } from './Renderer';
 import { MAP_H } from '../utils/Grid';
@@ -12,12 +12,12 @@ import { MAP_H } from '../utils/Grid';
 // ============================================================
 
 export interface GarageState {
-  selectedBarrelId: string;
-  selectedTurretId: string;
-  selectedChassisId: string;
-  selectedCommanderId: string;
+  /** 0, 1, or 2 — which config slot is active */
+  activeSlot: number;
+  /** Per-slot part selections: [slot][type] */
+  slots: { barrelId: string; turretId: string; chassisId: string; commanderId: string }[];
+  /** Assembly result for the active slot */
   assemblyResult: AssemblyResult;
-  visible: boolean;
   /** Currently viewing this type in the left panel */
   activeType: PartType;
   /** Part ID being inspected (shows tooltip) */
@@ -26,6 +26,8 @@ export interface GarageState {
   practiceMode: boolean;
   /** Scroll offset for left panel part list */
   scrollOffset: number;
+  /** Flash message */
+  message: string; messageTimer: number;
 }
 
 export function createGarageState(inventory: Inventory): GarageState {
@@ -33,36 +35,43 @@ export function createGarageState(inventory: Inventory): GarageState {
   const turrets = inventory.getOwnedByType('turret');
   const chassis = inventory.getOwnedByType('chassis');
   const commanders = inventory.getOwnedByType('commander');
+  const defaults = {
+    barrelId: barrels[0]?.id ?? '',
+    turretId: turrets[0]?.id ?? '',
+    chassisId: chassis[0]?.id ?? '',
+    commanderId: commanders[0]?.id ?? '',
+  };
 
   const state: GarageState = {
-    selectedBarrelId: barrels[0]?.id ?? '',
-    selectedTurretId: turrets[0]?.id ?? '',
-    selectedChassisId: chassis[0]?.id ?? '',
-    selectedCommanderId: commanders[0]?.id ?? '',
+    activeSlot: 0,
+    slots: [{ ...defaults }, { ...defaults }, { ...defaults }],
     assemblyResult: { valid: false, config: null, errors: ['请选择零件'] },
-    visible: false,
     activeType: 'barrel',
     detailPartId: null,
     practiceMode: false,
     scrollOffset: 0,
+    message: '', messageTimer: 0,
   };
 
-  state.assemblyResult = tryAssemble(
-    state.selectedBarrelId, state.selectedTurretId, state.selectedChassisId, state.selectedCommanderId, inventory,
-  );
+  state.assemblyResult = tryAssemble(defaults.barrelId, defaults.turretId, defaults.chassisId, defaults.commanderId, inventory);
   return state;
 }
 
 export function selectPart(garage: GarageState, type: PartType, partId: string, inventory: Inventory): void {
+  const slot = garage.slots[garage.activeSlot];
   switch (type) {
-    case 'barrel': garage.selectedBarrelId = partId; break;
-    case 'turret': garage.selectedTurretId = partId; break;
-    case 'chassis': garage.selectedChassisId = partId; break;
-    case 'commander': garage.selectedCommanderId = partId; break;
+    case 'barrel': slot.barrelId = partId; break;
+    case 'turret': slot.turretId = partId; break;
+    case 'chassis': slot.chassisId = partId; break;
+    case 'commander': slot.commanderId = partId; break;
   }
-  garage.assemblyResult = tryAssemble(
-    garage.selectedBarrelId, garage.selectedTurretId, garage.selectedChassisId, garage.selectedCommanderId, inventory,
-  );
+  garage.assemblyResult = tryAssemble(slot.barrelId, slot.turretId, slot.chassisId, slot.commanderId, inventory);
+}
+
+export function switchSlot(garage: GarageState, slotIdx: number, inventory: Inventory): void {
+  garage.activeSlot = slotIdx;
+  const slot = garage.slots[slotIdx];
+  garage.assemblyResult = tryAssemble(slot.barrelId, slot.turretId, slot.chassisId, slot.commanderId, inventory);
 }
 
 export function getCurrentConfig(garage: GarageState): TankConfig | null {
@@ -95,6 +104,24 @@ export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.fillStyle = '#1a1d23';
   ctx.fillRect(0, 0, w, h);
 
+  // Config slot buttons (top bar)
+  const slotW = 120, slotH = 28, slotY = 8;
+  const slotStartX = (w - 3 * slotW - 2 * 8) / 2;
+  for (let i = 0; i < 3; i++) {
+    const sx = slotStartX + i * (slotW + 8);
+    const active = garage.activeSlot === i;
+    const hovered = mx !== undefined && my !== undefined && mx >= sx && mx <= sx + slotW && my >= slotY && my <= slotY + slotH;
+    ctx.fillStyle = active ? "#3a6a3a" : (hovered ? "#444" : "#2a2d35");
+    ctx.strokeStyle = active ? "#4ae0a0" : (hovered ? "#888" : "#555");
+    ctx.lineWidth = active ? 2 : 1;
+    roundRect(ctx, sx, slotY, slotW, slotH, 4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = active ? "#4ae0a0" : "#ccc";
+    ctx.font = "bold 12px PingFang SC, Microsoft YaHei, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("配置" + (i+1), sx + slotW / 2, slotY + slotH / 2);
+  }
+
   // Message toast (above buttons)
   if (message && (messageTimer ?? 0) > 0) {
     ctx.fillStyle = `rgba(74,224,160,${Math.min(1, (messageTimer ?? 0))})`;
@@ -110,7 +137,6 @@ export function renderGarage(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.fillText('🔧 坦克组装车间', 16, 26);
 
   // Build slots bar (top right)
-  drawBuildSlotsBar(ctx, w, garage, inventory);
 
   // ---- Left panel ----
   drawLeftPanel(ctx, w, h, garage, inventory, mx, my);
@@ -160,10 +186,11 @@ function drawLeftPanel(ctx: CanvasRenderingContext2D, _w: number, h: number, gar
   const listH = h - listY - 16; // visible list height
   const maxScroll = Math.max(0, allParts.length * rowH - listH);
   const so = Math.max(0, Math.min(maxScroll, garage.scrollOffset ?? 0));
-  const selectedId = garage.activeType === 'barrel' ? garage.selectedBarrelId
-    : garage.activeType === 'turret' ? garage.selectedTurretId
-    : garage.activeType === 'chassis' ? garage.selectedChassisId
-    : garage.selectedCommanderId;
+  const slot = garage.slots[garage.activeSlot];
+  const selectedId = garage.activeType === 'barrel' ? slot.barrelId
+    : garage.activeType === 'turret' ? slot.turretId
+    : garage.activeType === 'chassis' ? slot.chassisId
+    : slot.commanderId;
 
   // Clip list area
   ctx.save();
@@ -411,6 +438,16 @@ function drawDetailTooltip(ctx: CanvasRenderingContext2D, _w: number, h: number,
 // Hit testing
 // ============================================================
 
+export function hitTestGarageSlots(px: number, py: number, _w: number): number {
+  const slotW = 120, slotH = 28, slotY = 8, gap = 8;
+  const slotStartX = (_w - 3 * slotW - 2 * gap) / 2;
+  for (let i = 0; i < 3; i++) {
+    const sx = slotStartX + i * (slotW + gap);
+    if (px >= sx && px <= sx + slotW && py >= slotY && py <= slotY + slotH) return i;
+  }
+  return -1;
+}
+
 export function hitTestGarage(px: number, py: number, _w: number, inventory: Inventory, garage: GarageState): { type: PartType; partId: string } | null {
   // Type tabs (52-78)
   const tabW = (LEFT_W - 8) / 4;
@@ -459,74 +496,6 @@ export function hitTestGarageButtons(px: number, py: number, _w: number, h: numb
   return hitTestButton(px, py, btn);
 }
 
-// ============================================================
-// Build slots bar
-// ============================================================
-
-function drawBuildSlotsBar(ctx: CanvasRenderingContext2D, w: number, _garage: GarageState, _inventory: Inventory): void {
-  const slots = loadBuildSlots();
-  const slotW = 150, slotH = 26, barY = 4, gap = 8;
-  const startX = w - (slotW * 3 + gap * 2) - 12;
-
-  for (let i = 0; i < 3; i++) {
-    const sx = startX + i * (slotW + gap);
-    const slot = slots[i];
-    const filled = slot.barrelId !== '';
-
-    // Slot background
-    ctx.fillStyle = filled ? '#2a3a3a' : '#2a2d35';
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 1;
-    roundRect(ctx, sx, barY, slotW, slotH, 4);
-    ctx.fill(); ctx.stroke();
-
-    // Slot name
-    ctx.fillStyle = filled ? '#4ae0a0' : '#666';
-    ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(filled ? slot.name : `配置${i + 1}`, sx + slotW / 2, barY + slotH / 2);
-
-    // Save button (left half of slot) — implicit: click saves
-    // Load button (right half) — implicit: click loads
-  }
-
-  // Hint
-  ctx.fillStyle = '#555';
-  ctx.font = '9px "PingFang SC", "Microsoft YaHei", sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('点击加载 | Shift+点击保存', w - 16, barY + slotH + 12);
-}
-
-export function getBuildSlotHitIndex(px: number, py: number, w: number): number {
-  const slotW = 150, slotH = 26, barY = 4, gap = 8;
-  const startX = w - (slotW * 3 + gap * 2) - 12;
-  for (let i = 0; i < 3; i++) {
-    const sx = startX + i * (slotW + gap);
-    if (px >= sx && px <= sx + slotW && py >= barY && py <= barY + slotH) return i;
-  }
-  return -1;
-}
-
-export { loadBuildSlots as getBuildSlots, saveBuildSlot as saveBuild };
-
-export function applyBuildSlot(garage: GarageState, inventory: Inventory, index: number): void {
-  const slots = loadBuildSlots();
-  const slot = slots[index];
-  if (!slot.barrelId) return;
-  selectPart(garage, 'barrel', slot.barrelId, inventory);
-  selectPart(garage, 'turret', slot.turretId, inventory);
-  selectPart(garage, 'chassis', slot.chassisId, inventory);
-  if (slot.commanderId) selectPart(garage, 'commander', slot.commanderId, inventory);
-}
-
-export function saveToBuildSlot(garage: GarageState, index: number): void {
-  saveBuildSlot(index, `配置 ${index + 1}`, garage.selectedBarrelId, garage.selectedTurretId, garage.selectedChassisId, garage.selectedCommanderId);
-}
-
-// ============================================================
-// Part hints
-// ============================================================
 
 function getPartHint(part: { id: string }): { text: string; color: string } | null {
   const hints: Record<string, { text: string; color: string }> = {
@@ -539,4 +508,3 @@ function getPartHint(part: { id: string }): { text: string; color: string } | nu
   return hints[part.id] ?? null;
 }
 
-// Commander portrait helper (from old code, kept for reference)

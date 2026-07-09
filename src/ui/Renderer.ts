@@ -1141,6 +1141,10 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: SiegeState): void 
   // Command center HP
   const ccHp = state.commandCenterHp;
   ctx.fillText(`指挥所: ${ccHp}/500`, 12, 56);
+
+  // Shortcut hint
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('WASD移动 | 鼠标瞄准 | 左键/空格开火 | E技能 | O刷Boss | U调试 | ⚙暂停', MAP_W / 2, MAP_H - 4);
 }
 
 export { MAP_W as W, MAP_H as H };

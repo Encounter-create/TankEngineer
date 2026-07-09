@@ -4,7 +4,7 @@
 
 import { TankConfig } from '../entities/Parts';
 import { MapName, ALL_MAPS, createMap } from '../entities/Map';
-import { roundRect, drawButton, ButtonDef, hitTestButton } from '../utils/Canvas';
+import { roundRect, drawButton, ButtonDef, hitTestButton, UI } from '../utils/Canvas';
 import { MAP_COLS, MAP_ROWS } from '../utils/Grid';
 
 export interface LobbyState {
@@ -195,6 +195,12 @@ export function renderLobby(
       ctx.fillText('⚠ 请先完成坦克组装', w - 12, barY + 28);
     }
   }
+
+  // Shortcut hints
+  ctx.fillStyle = UI.TEXT_DIM;
+  ctx.font = `10px ${UI.FONT}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('键盘: O键快速测试双王 | 鼠标点击选择模式和地图 | 回车确认', w / 2, barY + 14);
 
   // Buttons
   const btnY = barY + 36;

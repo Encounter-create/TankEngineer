@@ -83,21 +83,22 @@ export interface WarBase {
 }
 
 function createDefenseTower(pos: Vec2, side: Side, lane: number): DefenseTower {
-  return { id: `tower_${side}_${lane}`, pos, hp: 400, maxHp: 400,
+  return { id: `tower_${side}_${lane}`, pos, hp: 2000, maxHp: 2000,
     fireRange: 160, fireCooldown: 0, fireCooldownMax: 900,
-    bulletDamage: 18, alive: true, side, lane };
+    bulletDamage: 90, alive: true, side, lane };
 }
 
 function createWarBase(pos: Vec2, side: Side): WarBase {
-  return { pos, hp: 1000, maxHp: 1000, fireRange: 220,
-    fireCooldown: 0, fireCooldownMax: 1100, bulletDamage: 30, alive: true, side };
+  return { pos, hp: 5000, maxHp: 5000, fireRange: 220,
+    fireCooldown: 0, fireCooldownMax: 1100, bulletDamage: 150, alive: true, side };
 }
 
 // ============================================================
 // Wave system
 // ============================================================
 
-const WAVE_INTERVAL = 10; // seconds between waves
+const WAVE_INTERVAL = 10;
+const MATCH_DURATION = 180; // 3 minutes
 
 function randomPart(parts: any[]): any {
   return parts[Math.floor(Math.random() * parts.length)];
@@ -110,7 +111,12 @@ function randomConfig(): TankConfig {
   return assembleTank(barrel, turret, chassis);
 }
 
-const MATCH_DURATION = 240;
+/** Tanks per lane based on game time */
+function tanksPerLane(elapsed: number): number {
+  if (elapsed < 60) return 1;       // minute 1
+  if (elapsed < 120) return 2;      // minute 2
+  return 3;                          // minute 3
+}
 
 // Lane spawn positions (blue side, per lane) — red side is mirrored
 const PLAYER_SPAWN = new Vec2(4.5 * CELL_SIZE, 11 * CELL_SIZE + CELL_SIZE / 2);
@@ -316,32 +322,36 @@ function baseAttack(base: WarBase, targets: TankEntity[], bullets: BulletEntity[
 // ============================================================
 
 function spawnWaves(state: TwoKingsState): void {
-  // First wave immediately, then every WAVE_INTERVAL
+  // Progressive waves: first wave immediately, then every WAVE_INTERVAL
   if (state.wavesSpawned > 0 && state.elapsedTime < state.wavesSpawned * WAVE_INTERVAL) return;
 
-  // Spawn blue allies — 1 per lane at waypoint[0]
+  const tpl = tanksPerLane(state.elapsedTime);
+  const RED_SPAWN_X = 2 * 14.5 * CELL_SIZE - BLUE_BASE_POS.x;
+
   for (let lane = 0; lane < 3; lane++) {
-    const config = randomConfig();
-    const spawnPos = BLUE_LANE_WAYPOINTS[lane][0];
-    const id = `blue_${twokingsId++}`;
-    const ally = createAllyTank(id, spawnPos, config, 'guard_player');
-    ally.hp = ally.maxHp * 1.5; ally.maxHp = ally.hp;
-    (ally as any)._lane = lane; (ally as any)._wpIndex = 0;
-    state.blueAiContexts.set(id, createAIContext(ally, RED_BASE_POS, 165, 100));
-    state.blueTanks.push(ally);
+    for (let i = 0; i < tpl; i++) {
+      const config = randomConfig();
+      const spawnPos = BLUE_LANE_WAYPOINTS[lane][0].add(new Vec2((i + 1) * CELL_SIZE * 1.5, 0));
+      const id = `blue_${twokingsId++}`;
+      const ally = createAllyTank(id, spawnPos, config, 'guard_player');
+      ally.hp = ally.maxHp * 1.5; ally.maxHp = ally.hp;
+      (ally as any)._lane = lane; (ally as any)._wpIndex = 0;
+      state.blueAiContexts.set(id, createAIContext(ally, RED_BASE_POS, 165, 100));
+      state.blueTanks.push(ally);
+    }
   }
 
-  // Spawn red enemies — river-symmetric with blue spawn
-  const RED_SPAWN_X = 2 * 14.5 * CELL_SIZE - BLUE_BASE_POS.x; // x=848, same distance from river
   for (let lane = 0; lane < 3; lane++) {
-    const config = randomConfig();
-    const spawnPos = new Vec2(RED_SPAWN_X, BLUE_BASE_POS.y);
-    const id = `red_${twokingsId++}`;
-    const enemy = createTank(id, spawnPos, config, false);
-    enemy.hp = enemy.maxHp * 1.2; enemy.maxHp = enemy.hp;
-    (enemy as any)._lane = lane; (enemy as any)._wpIndex = 0;
-    state.redAiContexts.set(id, createAIContext(enemy, BLUE_BASE_POS, 165, 100));
-    state.enemies.push(enemy);
+    for (let i = 0; i < tpl; i++) {
+      const config = randomConfig();
+      const spawnPos = new Vec2(RED_SPAWN_X - (i + 1) * CELL_SIZE * 1.5, BLUE_BASE_POS.y);
+      const id = `red_${twokingsId++}`;
+      const enemy = createTank(id, spawnPos, config, false);
+      enemy.hp = enemy.maxHp * 1.2; enemy.maxHp = enemy.hp;
+      (enemy as any)._lane = lane; (enemy as any)._wpIndex = 0;
+      state.redAiContexts.set(id, createAIContext(enemy, BLUE_BASE_POS, 165, 100));
+      state.enemies.push(enemy);
+    }
   }
 
   state.wavesSpawned++;
@@ -726,7 +736,14 @@ function checkBulletStructureCollisions(state: TwoKingsState): void {
       if (bullet.pos.dist(s.pos) < s.radius + BULLET_RADIUS) {
         const bulletSide: Side = bullet.isPlayerBullet ? 'blue' : 'red';
         if (bulletSide !== s.side) {
-          s.entity.hp -= bullet.damage;
+          // Bullets deal half damage to structures; sniper 1/10
+          let dmg = bullet.damage;
+          const owner = state.enemies.find((e: any) => e.id === bullet.ownerId) ||
+                        state.blueTanks.find((a: any) => a.id === bullet.ownerId);
+          const barrelId = owner?.config?.barrel?.id;
+          if (barrelId === 'barrel_sniper') dmg = Math.round(dmg * 0.1);
+          else dmg = Math.round(dmg * 0.5);
+          s.entity.hp -= dmg;
           if (s.entity.hp <= 0) s.entity.alive = false;
           bullet.alive = false;
           state.particles.push(...spawnParticles(bullet.pos, 'explosion', 5, 50));

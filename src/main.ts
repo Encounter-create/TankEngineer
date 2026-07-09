@@ -12,13 +12,12 @@ import {
   GarageState,
   createGarageState,
   selectPart,
+  switchSlot,
   getCurrentConfig,
   renderGarage,
   hitTestGarage,
+  hitTestGarageSlots,
   hitTestGarageButtons,
-  applyBuildSlot,
-  saveToBuildSlot,
-  getBuildSlotHitIndex,
 } from './ui/Garage';
 import { PracticeState, createPractice, updatePractice, renderPractice } from './systems/Practice';
 import { updateQuote, renderQuote } from './systems/QuotePlayer';
@@ -91,8 +90,6 @@ interface AppState {
   shopSelected: number;
   selectedCol: number;
   selectedRow: number;
-  garageMessage: string;
-  garageMessageTimer: number;
   devMode: boolean;
 }
 
@@ -132,8 +129,6 @@ const app: AppState = {
   shopSelected: 0,
   selectedCol: 0,
   selectedRow: 0,
-  garageMessage: '',
-  garageMessageTimer: 0,
   devMode: false,
 };
 
@@ -223,7 +218,7 @@ function render(_alpha: number): void {
     const config = getCurrentConfig(app.garage);
     renderLobby(ctx, MAP_W, MAP_H, app.lobby, config, app.garage.assemblyResult.valid, input.mousePos.x, input.mousePos.y, app.devMode);
   } else if (app.screen === 'garage') {
-    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory, app.garageMessage, app.garageMessageTimer, input.mousePos.x, input.mousePos.y);
+    renderGarage(ctx, MAP_W, MAP_H, app.garage, app.inventory, app.garage.message, app.garage.messageTimer, input.mousePos.x, input.mousePos.y);
     if (app.practice) renderPractice(ctx, app.practice, input.mousePos.x, input.mousePos.y);
   } else if (app.screen === 'shop') {
     renderShop(ctx, MAP_W, MAP_H, app.shopUI, app.inventory.data.gold, input.mousePos.x, input.mousePos.y);
@@ -366,6 +361,13 @@ function updateGarage(): void {
     app.garage.scrollOffset = Math.max(0, Math.min(maxScroll, so));
   }
   if (input.isMouseJustPressed()) {
+    // Config slot buttons (top bar)
+    const slotIdx = hitTestGarageSlots(input.mousePos.x, input.mousePos.y, MAP_W);
+    if (slotIdx >= 0) {
+      switchSlot(app.garage, slotIdx, app.inventory);
+      app.garage.message = `已切换到配置${slotIdx + 1}`; app.garage.messageTimer = 1.5;
+      return;
+    }
     // Practice button (top-right of preview area)
     const px = 284, py = 46, pw = 470;
     const bx = px + pw - 82, by = py + 6;
@@ -382,37 +384,12 @@ function updateGarage(): void {
       app.screen = 'lobby'; return;
     }
 
-    // Build slot: click=load, shift+click=save
-    const slotIdx = getBuildSlotHitIndex(input.mousePos.x, input.mousePos.y, MAP_W);
-    if (slotIdx >= 0) {
-      const shift = input.isDown('ShiftLeft') || input.isDown('ShiftRight');
-      if (shift) {
-        saveToBuildSlot(app.garage, slotIdx);
-        app.garageMessage = `✅ 已保存到配置${slotIdx + 1}`; app.garageMessageTimer = 2;
-      } else {
-        applyBuildSlot(app.garage, app.inventory, slotIdx);
-        app.garageMessage = `📂 已加载配置${slotIdx + 1}`; app.garageMessageTimer = 2;
-      }
-      return;
-    }
-
     // Part cards
     const hit = hitTestGarage(input.mousePos.x, input.mousePos.y, MAP_W, app.inventory, app.garage);
     if (hit) { selectPart(app.garage, hit.type, hit.partId, app.inventory); }
   }
-
-  // Keyboard: 1/2/3 = load, Shift+1/2/3 = save
-  for (let i = 0; i < 3; i++) {
-    const key = `Digit${i + 1}`;
-    if (input.wasJustPressed(key)) {
-      if (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) {
-        saveToBuildSlot(app.garage, i); app.garageMessage = `✅ 已保存配置${i + 1}`; app.garageMessageTimer = 2;
-      } else {
-        applyBuildSlot(app.garage, app.inventory, i); app.garageMessage = `📂 已加载配置${i + 1}`; app.garageMessageTimer = 2;
-      }
-    }
-  }
-  app.garageMessageTimer -= 0.016;
+  // Timer
+  app.garage.messageTimer -= 0.016;
 }
 
 // ============================================================

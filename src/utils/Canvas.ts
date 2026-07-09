@@ -90,3 +90,33 @@ export function hitTestButton(px: number, py: number, btn: ButtonDef): boolean {
   return px >= btn.x && px <= btn.x + btn.w &&
          py >= btn.y && py <= btn.y + btn.h;
 }
+
+// ============================================================
+// Shared UI theme — use these instead of hardcoded colors/fonts
+// ============================================================
+
+export const UI = {
+  BG: '#1a1d23',
+  PANEL: '#22252c',
+  CARD: '#2a2d35',
+  CARD_HOVER: '#333840',
+  SELECTED: '#2a4a6a',
+  SELECTED_BORDER: '#4a9eff',
+
+  BTN_PRIMARY: '#3a5a8c',
+  BTN_SUCCESS: '#3a6a3a',
+  BTN_DANGER: '#6a3a3a',
+  BTN_DEFAULT: '#444',
+
+  TEXT: '#e8e8e8',
+  TEXT_DIM: '#888',
+  TEXT_ACCENT: '#ffcc00',
+  TEXT_SUCCESS: '#4ae0a0',
+  TEXT_DANGER: '#ff6b4a',
+
+  FONT: '"PingFang SC", "Microsoft YaHei", sans-serif',
+  TITLE_SIZE: 20,
+  BODY_SIZE: 14,
+  SMALL_SIZE: 11,
+  HUD_SIZE: 13,
+} as const;
