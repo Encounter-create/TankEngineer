@@ -54,6 +54,12 @@ export function renderTwoKings(ctx: CanvasRenderingContext2D, state: TwoKingsSta
   drawTiles(ctx, state.map);
   drawRiverWater(ctx);     // Noah-style animated water over river
   drawBases(ctx, state);
+  // Base healing zone (visible only when player is inside)
+  if ((state as any)._playerInBaseHeal) {
+    ctx.strokeStyle = 'rgba(74,224,160,0.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.arc(state.blueBase.pos.x, state.blueBase.pos.y, 100, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
   drawTowers(ctx, state);
   // Lane attack routes (white dashed lines, always visible)
   drawLaneRoutes(ctx);
@@ -322,6 +328,9 @@ function drawRiverWater(ctx: CanvasRenderingContext2D): void {
   const t = Date.now() / 1000;
   const riverX = 14 * CELL_SIZE;
   const riverW = 2 * CELL_SIZE;
+  // Skip bridge rows (water doesn't flow over bridges)
+  const bridgeRowSet = new Set([4,5,6,10,11,12,16,17,18]);
+  function isBridge(y: number): boolean { return bridgeRowSet.has(Math.floor(y / CELL_SIZE)); }
   // Clip to river region
   ctx.save();
   ctx.beginPath(); ctx.rect(riverX, 0, riverW, MAP_H); ctx.clip();
@@ -333,19 +342,25 @@ function drawRiverWater(ctx: CanvasRenderingContext2D): void {
     const speed = [5.4, 8.4, 12][layer];
     ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
     for (let y = 0; y < MAP_H; y += 2) {
+      if (isBridge(y)) continue;
       const wave = Math.sin(y * freq + t * speed) * amp + Math.sin(y * (freq*2.3) + t * (speed*1.4)) * (amp*0.57);
+      const wMirror = -wave;
       ctx.fillRect(riverX + wave, y, 2, 2);
+      ctx.fillRect(riverX + riverW + wMirror - 2, y, 2, 2);
     }
   }
-  // Wave crest highlights
+  // Wave crest highlights — both edges
   ctx.strokeStyle = 'rgba(140,210,255,0.4)'; ctx.lineWidth = 2;
   for (let y = 0; y < MAP_H; y += 3) {
+    if (isBridge(y)) continue;
     const wy = Math.sin(y * 0.05 + t * 8.4) * 10 + Math.sin(y * 0.1 + t * 12) * 6;
     ctx.beginPath(); ctx.moveTo(riverX + wy, y); ctx.lineTo(riverX + wy + 2, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(riverX + riverW - wy - 2, y); ctx.lineTo(riverX + riverW - wy, y); ctx.stroke();
   }
   // Surface spray particles
   for (let i = 0; i < 4; i++) {
-    const sy = Math.random() * MAP_H;
+    let sy = Math.random() * MAP_H;
+    if (isBridge(sy)) sy += CELL_SIZE; // push off bridge
     const sx = riverX + Math.random() * riverW;
     const c = Math.random() < 0.5 ? '#ffffff' : '#88ccff';
     ctx.fillStyle = c; ctx.globalAlpha = 0.5 + Math.random() * 0.4;
@@ -357,9 +372,8 @@ function drawRiverWater(ctx: CanvasRenderingContext2D): void {
 
 function drawLaneRoutes(ctx: CanvasRenderingContext2D): void {
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([6, 8]);
-  // Blue → Red and Red → Blue (symmetric)
-  const allRoutes = [...BLUE_LANE_WAYPOINTS, ...RED_LANE_WAYPOINTS];
-  for (const waypoints of allRoutes) {
+  // Blue → Red + Red → Blue (symmetric)
+  for (const waypoints of [...BLUE_LANE_WAYPOINTS, ...RED_LANE_WAYPOINTS]) {
     ctx.beginPath();
     ctx.moveTo(waypoints[0].x, waypoints[0].y);
     for (let i = 1; i < waypoints.length; i++) {
