@@ -19,6 +19,15 @@ import { playHitTank, playHitWall, playExplosion } from './Sound';
 /** Called when a tank is killed in combat. Mode-specific: Siege tracks kills, TwoKings ignores. */
 type OnKillFn = (enemy: TankEntity, multiplier: number) => void;
 
+function spawnCCZone(state: any, pos: Vec2): void {
+  state.fireZones.push(createFireZone(pos, 60, 4, 20, 'green'));
+  for (let i = 0; i < 12; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = 20 + Math.random() * 60;
+    state.particles.push({ pos, vel: new Vec2(Math.cos(a)*spd, Math.sin(a)*spd), life: 0.3+Math.random()*0.4, maxLife:0.6, color: ['#44ff88','#66ffaa','#88ffcc','#22dd66','#aaffcc'][Math.floor(Math.random()*5)], radius: 2+Math.random()*3, alive:true, smokeExpand:true, isCross:false });
+  }
+}
+
 // ============================================================
 // Rocket explosion
 // ============================================================
@@ -191,12 +200,18 @@ export function handleBullets(state: any, dt: number, structures?: SolidStructur
     }
     if (hitBlock) continue;
 
-    // Solid structure collision (bases, towers, CC, etc.) — bullet dies on contact
+    // Solid structure collision (bases, towers, CC, etc.)
     if (structures) {
       let hitStructure = false;
       for (const s of structures) {
         if (bullet.pos.dist(s.pos) < s.radius + BULLET_RADIUS) {
-          state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
+          if (bullet.ownerId === 'cc') spawnCCZone(state, bullet.pos);
+          else state.particles.push(...spawnParticles(bullet.pos, 'explosion', 8, 80));
+          // Enemy bullets damage the structure
+          if (!bullet.isPlayerBullet && (s as any)._hpKey && state[(s as any)._hpKey] !== undefined) {
+            if (!(state as any)._devModeInvuln) state[(s as any)._hpKey] -= bullet.damage;
+            state.screenShake = (state.screenShake || 0) + 3;
+          }
           bullet.alive = false;
           hitStructure = true;
           break;
@@ -243,6 +258,8 @@ export function handleBullets(state: any, dt: number, structures?: SolidStructur
     if (result.hitWall) {
       if (bullet.style === 'rocket') {
         explodeRocket(bullet, state, onKill);
+      } else if (bullet.ownerId === 'cc') {
+        spawnCCZone(state, bullet.pos);
       } else {
         const gx2 = result.hitTileX, gy2 = result.hitTileY;
         if (gx2 >= 0 && gy2 >= 0 && state.map[gy2]?.[gx2]?.type === TileType.BARREL) {
@@ -295,7 +312,8 @@ export function handleBulletTankCollisions(state: any, _dt: number, onKill?: OnK
 
             const dmg = takeDamage(enemy, bullet.damage * killCtx.multiplier);
             (state.damageNumbers || []).push(spawnDamageNumber(enemy.pos, dmg, killCtx.multiplier >= 3));
-            state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
+            if (bullet.ownerId === 'cc') spawnCCZone(state, bullet.pos);
+            else state.particles.push(...spawnParticles(bullet.pos, 'hit', 10, 100));
             if (killCtx.multiplier > 1) {
               state.comboText = killCtx.label;
               state.comboColor = killCtx.color;

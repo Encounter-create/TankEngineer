@@ -70,7 +70,7 @@ export function createTank(
 
 export function takeDamage(tank: TankEntity, rawDamage: number, attacker?: TankEntity): number {
   // Developer mode: player invincible (allies are NOT invincible)
-  if (DEV_MODE && tank.isPlayer && !tank.isAlly) return 0;
+  if (DEV_MODE && (tank.isPlayer || (tank.id && tank.id.startsWith('player'))) && !tank.isAlly) return 0;
   const now = performance.now();
   tank.lastHitAt = now;
 

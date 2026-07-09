@@ -688,6 +688,8 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   updateAllAI(state, dt);
 
   // === Skill entities (allies, planes) ===
+  // Blue allies target red structures (towers + base)
+  (state as any)._enemyStructures = [...state.redTowers, state.redBase];
   handleAllies(state as any, dt, state._structures);
   handlePlanes(state as any, dt);
 
@@ -782,7 +784,20 @@ function checkBulletStructureCollisions(state: TwoKingsState): void {
           if (barrelId === 'barrel_sniper') dmg = Math.round(dmg * 0.1);
           else dmg = Math.round(dmg * 0.5);
           s.entity.hp -= dmg;
-          if (s.entity.hp <= 0) s.entity.alive = false;
+          if (s.entity.hp <= 0) {
+            s.entity.alive = false;
+            // Explosion effect
+            for (let i = 0; i < 20; i++) {
+              const a = Math.random() * Math.PI * 2;
+              const spd = 50 + Math.random() * 150;
+              state.particles.push({ pos: new Vec2(s.pos.x, s.pos.y), vel: new Vec2(Math.cos(a)*spd, Math.sin(a)*spd), life: 0.5+Math.random()*0.8, maxLife:1.2, color: ['#ff4400','#ff8800','#ffcc00','#ffaa00'][Math.floor(Math.random()*4)], radius: 2+Math.random()*4, alive:true, smokeExpand:true, isCross:false });
+            }
+            state.screenShake = 15;
+            const blueAlive = state.blueTowers.filter(t => t.alive).length;
+            const redAlive = state.redTowers.filter(t => t.alive).length;
+            state.comboText = `蓝方 ${blueAlive} vs ${redAlive} 红方`;
+            state.comboColor = '#ffaa00'; state.comboTimer = 2.5;
+          }
           bullet.alive = false;
           state.particles.push(...spawnParticles(bullet.pos, 'explosion', 5, 50));
         }

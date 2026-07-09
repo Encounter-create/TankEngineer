@@ -82,7 +82,7 @@ const CC_POS = new Vec2(
   COMMAND_CENTER_GRID.y * CELL_SIZE + CELL_SIZE / 2,
 );
 const CC_RADIUS = CELL_SIZE * 1.5;
-const CC_STRUCTURES = [{ pos: CC_POS, radius: CC_RADIUS }];
+const CC_STRUCTURES = [{ pos: CC_POS, radius: CC_RADIUS, _hpKey: 'commandCenterHp' }];
 
 function createPlayerTanks(configs: TankConfig[], spawnPos: Vec2): TankEntity[] {
   return configs.map((cfg, i) => {

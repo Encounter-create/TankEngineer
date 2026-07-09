@@ -22,10 +22,34 @@ export function handleAllies(state: any, dt: number, structures?: SolidStructure
     if (!ally.alive) continue;
     ally.fireCooldown -= dt * 1000;
     const distToPlayer = ally.pos.dist(state.player.pos);
-    const nearestEnemy = state.enemies.find((e: any) => e.alive && e.pos.dist(ally.pos) < ally.visionRadius);
+    const enemyStructs: any[] = (state as any)._enemyStructures || [];
+    const visionR = ally.visionRadius || 200;
 
-    if (nearestEnemy) {
-      const targetAngle = nearestEnemy.pos.sub(ally.pos).angle();
+    // Target lock: keep current target unless dead or out of vision
+    let lockId = (ally as any)._lockId as string | undefined;
+    let fireTarget: any = null;
+    if (lockId) {
+      const lockedEnemy = state.enemies.find((e: any) => e.id === lockId && e.alive && e.pos.dist(ally.pos) < visionR);
+      const lockedStruct = enemyStructs.find((s: any) => (s.id || '') === lockId && s.alive && ally.pos.dist(s.pos) < visionR);
+      if (lockedEnemy) { fireTarget = lockedEnemy; }
+      else if (lockedStruct) { fireTarget = lockedStruct; }
+      else { lockId = undefined; (ally as any)._lockId = undefined; }
+    }
+    // Find new target: enemy > structure (priority order)
+    if (!lockId) {
+      const enemiesInRange = state.enemies.filter((e: any) => e.alive && e.pos.dist(ally.pos) < visionR);
+      if (enemiesInRange.length > 0) {
+        fireTarget = enemiesInRange[0]; lockId = fireTarget.id; (ally as any)._lockId = lockId;
+      } else {
+        const structsInRange = enemyStructs.filter((s: any) => s.alive && ally.pos.dist(s.pos) < visionR);
+        if (structsInRange.length > 0) {
+          fireTarget = structsInRange[0]; lockId = fireTarget.id || fireTarget.side + '_base'; (ally as any)._lockId = lockId;
+        }
+      }
+    }
+
+    if (fireTarget) {
+      const targetAngle = fireTarget.pos.sub(ally.pos).angle();
       const diff = normalizeAngle(targetAngle - ally.turretAngle);
       const maxStep = TURRET_ANGULAR_VEL * dt;
       if (Math.abs(diff) < maxStep) ally.turretAngle = targetAngle;
@@ -34,7 +58,7 @@ export function handleAllies(state: any, dt: number, structures?: SolidStructure
     }
 
     const fireAllyBullet = () => {
-      if (ally.fireCooldown > 0 || !nearestEnemy) return;
+      if (ally.fireCooldown > 0 || !fireTarget) return;
       const cfg = ally.config;
       const style = cfg.barrel.stats.bulletStyle ?? 'straight';
       const speed = cfg.barrel.stats.bulletSpeed ?? 400;
@@ -60,15 +84,15 @@ export function handleAllies(state: any, dt: number, structures?: SolidStructure
       } else {
         ally.aiState = 'fire';
         ally.vel = Vec2.zero();
-        if (nearestEnemy && nearestEnemy.pos.dist(ally.pos) < 100) {
-          const away = ally.pos.sub(nearestEnemy.pos).norm();
+        if (fireTarget && fireTarget.pos.dist(ally.pos) < 100) {
+          const away = ally.pos.sub(fireTarget.pos).norm();
           moveTank(ally as any, away, dt, state.map, state.physicsBlocks, state.physicsBlocks, structures);
         }
       }
       fireAllyBullet();
     } else {
-      if (nearestEnemy && nearestEnemy.pos.dist(ally.pos) < 100) {
-        const away = ally.pos.sub(nearestEnemy.pos).norm();
+      if (fireTarget && fireTarget.pos.dist(ally.pos) < 100) {
+        const away = ally.pos.sub(fireTarget.pos).norm();
         moveTank(ally as any, away, dt, state.map, state.physicsBlocks, state.physicsBlocks, structures);
       } else if (distToPlayer > ally.followRadius) {
         const toPlayer = state.player.pos.sub(ally.pos).norm();
