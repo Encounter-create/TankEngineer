@@ -345,7 +345,7 @@ export function handleBulletTankCollisions(state: any, _dt: number, onKill?: OnK
           playHitTank();
           bullet.alive = false;
         }
-        // Player death — handled by each mode's own update loop (no endSiege here)
+        // Player death — handled by each mode's own update loop
       }
     }
   }

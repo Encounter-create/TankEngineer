@@ -96,12 +96,7 @@ export function drawBivector(ctx: CanvasRenderingContext2D, state: SiegeState): 
     ctx.fillStyle = `rgba(255,255,255,${wa})`;
     ctx.fillRect(0, 0, MAP_W, MAP_H);
   }
-  if (state.bivectorText) {
-    ctx.fillStyle = state.bivectorTextColor;
-    ctx.font = 'bold 28px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(state.bivectorText, MAP_W / 2, MAP_H / 2);
-  }
+  // Text drawn in main.ts (inside/outside canvas transform for proper shear effect)
 }
 
 registerEffect('bivector', drawBivector);

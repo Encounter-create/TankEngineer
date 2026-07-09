@@ -210,50 +210,7 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState): v
     }
   }
 
-  // Bivector foil: shear+scale transform
-  // Meteor strike visuals
-  if (state.meteorPhase === 'targeting' || state.meteorPhase === 'incoming') {
-    const mt = state.meteorTarget;
-    // Red circle
-    const flash = state.meteorPhase === 'targeting' ? Math.abs(Math.sin(performance.now()/1000 * 8)) : 1;
-    ctx.strokeStyle = `rgba(255,40,0,${0.3 + 0.5 * flash})`; ctx.lineWidth = 3;
-    ctx.setLineDash([10, 6]);
-    ctx.beginPath(); ctx.arc(mt.x, mt.y, 360, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
-    // White crosshair (full radius)
-    const cs = 360;
-    ctx.strokeStyle = `rgba(255,255,255,${0.4 + 0.4 * flash})`; ctx.lineWidth = 1.5;
-    ctx.setLineDash([20, 10]);
-    ctx.beginPath(); ctx.moveTo(mt.x - cs, mt.y); ctx.lineTo(mt.x + cs, mt.y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(mt.x, mt.y - cs); ctx.lineTo(mt.x, mt.y + cs); ctx.stroke();
-    ctx.setLineDash([]);
-    // Center text
-    ctx.fillStyle = `rgba(255,30,30,${0.5 + 0.5 * flash})`;
-    ctx.font = `bold ${28 + flash * 8}px "PingFang SC", "Microsoft YaHei", sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('世界属于三体！！！', MAP_W / 2, MAP_H / 2);
-  }
-  // Incoming fireball
-  if (state.meteorPhase === 'incoming') {
-    const mp = state.meteorPos;
-    // Glow
-    const glow = ctx.createRadialGradient(mp.x, mp.y, 15, mp.x, mp.y, 120);
-    glow.addColorStop(0, 'rgba(255,200,50,0.9)');
-    glow.addColorStop(0.5, 'rgba(255,80,0,0.6)');
-    glow.addColorStop(1, 'rgba(255,0,0,0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(mp.x, mp.y, 120, 0, Math.PI * 2); ctx.fill();
-    // Core
-    ctx.fillStyle = '#ffcc33';
-    ctx.beginPath(); ctx.arc(mp.x, mp.y, 36, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(mp.x, mp.y, 15, 0, Math.PI * 2); ctx.fill();
-  }
-  // Screen flash
-  if (state.meteorFlashAlpha > 0.01) {
-    ctx.fillStyle = `rgba(255,255,255,${state.meteorFlashAlpha})`;
-    ctx.fillRect(0, 0, MAP_W, MAP_H);
-  }
+  // Meteor visuals now handled by EffectRenderer (Trisolaran.ts drawMeteor)
 
   // Time slow: ↓ arrows on slowed enemies (full duration)
   if (state.timeSlowTimer > 0) {
@@ -929,6 +886,35 @@ export function drawFireZone(ctx: CanvasRenderingContext2D, zone: FireZone): voi
   ctx.arc(zone.pos.x, zone.pos.y, zone.radius, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
+}
+
+/** Shared skill entity rendering — call from any mode's renderer */
+export function drawSkillEntities(ctx: CanvasRenderingContext2D, state: any): void {
+  // Fire zones (meteor, rocket, etc.)
+  for (const zone of (state.fireZones || [])) {
+    drawFireZone(ctx, zone);
+  }
+  // Allies (Trojan, resurrected enemies, etc.)
+  for (const ally of (state.allies || [])) {
+    if (!ally.alive) continue;
+    drawTank(ctx, ally);
+  }
+  // Shadow clones (Ninja, lightning synergy)
+  for (const clone of (state.clones || [])) {
+    if (!clone.alive) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    drawTank(ctx, clone as any);
+    ctx.restore();
+  }
+  // Turrets (Engineer)
+  for (const t of (state.turrets || [])) {
+    drawTurret(ctx, t);
+  }
+  // Planes (Colonel)
+  for (const p of (state.planes || [])) {
+    drawPlane(ctx, p);
+  }
 }
 
 function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {

@@ -15,6 +15,7 @@ import { AIContext, createAIContext, updateAI, shouldFire } from '../ai/EnemyAI'
 import { Input } from '../core/Input';
 import { moveTank, normalizeAngle, SolidStructure } from '../core/Physics';
 import { handleBullets, handlePhysicsBlocks, handleBulletTankCollisions } from '../systems/CombatSystem';
+import { handleAllies, handlePlanes } from '../systems/SkillEntities';
 import { handleSkillActivation } from '../systems/SkillRegistry';
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -507,6 +508,10 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
 
   // === AI update ===
   updateAllAI(state, dt);
+
+  // === Skill entities (allies, planes) ===
+  handleAllies(state as any, dt, state._structures);
+  handlePlanes(state as any, dt);
 
   // === Tower + base auto-attack ===
   const allRed = state.enemies.filter(e => e.alive);
