@@ -70,6 +70,7 @@ import { renderTwoKings, drawTwoKingsOverlay, drawTwoKingsHUD } from './ui/TwoKi
 import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 import { renderAllEffects } from './ui/EffectRenderer';
+import { initSound } from './systems/Sound';
 import { MenuState, createMenuState, updateMenu, renderMenu, hitTestMenuButtons } from './ui/Menu';
 
 // ============================================================
@@ -141,7 +142,14 @@ const app: AppState = {
 // Game loop
 // ============================================================
 
+let soundInited = false;
+
 function update(dt: number): void {
+  // Init audio on first user interaction (browser policy)
+  if (!soundInited && (input.isMouseJustPressed() || input.isConfirmPressed() || input.isFirePressed())) {
+    initSound(); soundInited = true;
+  }
+
   if (app.screen === 'menu') {
     updateMenu(app.menu, dt);
     if (input.isMouseJustPressed()) {
