@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/TankEngineer/',
   root: '.',
   build: {
     outDir: 'dist',

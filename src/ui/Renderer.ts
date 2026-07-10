@@ -184,6 +184,15 @@ export function renderSiege(ctx: CanvasRenderingContext2D, state: SiegeState, mx
       ctx.beginPath(); ctx.arc(turret.pos.x, turret.pos.y, turret.fireRange, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
     }
+    // Debug: turret attack range
+    if (state.showDebug) {
+      ctx.strokeStyle = 'rgba(255,180,40,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(turret.pos.x, turret.pos.y, turret.fireRange, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,180,40,0.8)';
+      ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('炮塔射程', turret.pos.x + turret.fireRange + 4, turret.pos.y);
+    }
   }
   for (const plane of state.planes) {
     drawPlane(ctx, plane);

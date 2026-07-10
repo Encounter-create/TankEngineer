@@ -257,29 +257,23 @@ function render(_alpha: number): void {
     renderEncyclopedia(ctx, MAP_W, MAP_H, app.encyclopedia, app.inventory, input.mousePos.x, input.mousePos.y);
   }
 
-  // Bivector text on top of transform (during compression)
-  if (bv && (bv as any).bivectorText) {
-    ctx.fillStyle = (bv as any).bivectorTextColor;
-    ctx.font = 'bold 22px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText((bv as any).bivectorText, MAP_W / 2, MAP_H / 2);
-  }
-
   // Restore Bivector + BigBang canvas transforms (pre-render wraps)
   if (bv && isCompressing) ctx.restore();
   if (bb) ctx.restore();
 
-  // Bivector text outside transform (whiteout/recovery phases, 28px)
-  if (bv && !isCompressing && (bv as any).bivectorText) {
-    ctx.fillStyle = (bv as any).bivectorTextColor;
-    ctx.font = 'bold 28px "PingFang SC", "Microsoft YaHei", sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText((bv as any).bivectorText, MAP_W / 2, MAP_H / 2);
-  }
-
   // All skill visual effects — each draw function checks its own phase internally
   if (app.siege) renderAllEffects(ctx, app.siege);
   if (app.practice) renderAllEffects(ctx, app.practice);
+
+  // Bivector text on top of effects (all phases, not compressed)
+  if (bv && (bv as any).bivectorText) {
+    ctx.fillStyle = (bv as any).bivectorTextColor;
+    ctx.font = isCompressing
+      ? 'bold 22px "PingFang SC", "Microsoft YaHei", sans-serif'
+      : 'bold 28px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText((bv as any).bivectorText, MAP_W / 2, MAP_H / 2);
+  }
 
   // Quote player (independent of skills)
   renderQuote(ctx);

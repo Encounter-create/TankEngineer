@@ -286,6 +286,16 @@ function drawTanksLayer(ctx: CanvasRenderingContext2D, state: TwoKingsState): vo
     ctx.fillStyle = 'rgba(74,158,255,0.8)'; ctx.fillText('蓝基地', state.blueBase.pos.x + state.blueBase.fireRange + 4, state.blueBase.pos.y);
     ctx.fillStyle = 'rgba(255,85,85,0.8)'; ctx.fillText('红基地', state.redBase.pos.x + state.redBase.fireRange + 4, state.redBase.pos.y);
     ctx.setLineDash([]);
+    // Turret (Engineer) attack ranges
+    ctx.setLineDash([4, 4]);
+    for (const t of (state.turrets || [])) {
+      if (!t.alive) continue;
+      ctx.strokeStyle = 'rgba(255,180,40,0.5)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(t.pos.x, t.pos.y, t.fireRange, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,180,40,0.8)';
+      ctx.fillText('炮塔射程', t.pos.x + t.fireRange + 4, t.pos.y);
+    }
+    ctx.setLineDash([]);
     // AI tank debug: fire radius (red, inner) + vision radius (blue, outer)
     const allAI = [
       ...state.blueTanks.map(t => ({ tank: t, ctx: state.blueAiContexts.get(t.id), color: '#4a9eff' })),

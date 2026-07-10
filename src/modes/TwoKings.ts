@@ -5,10 +5,10 @@
 import { Vec2 } from '../utils/Vector';
 import { CELL_SIZE, MAP_COLS, MAP_ROWS, MAP_W, TileType } from '../utils/Grid';
 import { TileGrid } from '../entities/Map';
-import { TankEntity, createTank, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
+import { TankEntity, createTank, TANK_RADIUS, TURRET_ANGULAR_VEL, getBerserkerMultiplier } from '../entities/Tank';
 import { TankConfig, effectiveSpeed, effectiveCooldown, assembleTank, MVP_BARRELS, MVP_TURRETS, MVP_CHASSIS, MVP_COMMANDERS } from '../entities/Parts';
 import { BulletEntity, createBullet, BULLET_RADIUS } from '../entities/Bullet';
-import { PhysicsBlock, createPhysicsBlock } from '../entities/PhysicsBlock';
+import { PhysicsBlock, createPhysicsBlock, BLOCK_RADIUS } from '../entities/PhysicsBlock';
 import { Particle, spawnParticles } from '../entities/Particle';
 import { AllyTank, createAllyTank } from '../entities/Ally';
 import { AIContext, createAIContext, shouldFire } from '../ai/EnemyAI';
@@ -16,7 +16,7 @@ import { Input } from '../core/Input';
 import { moveTank, normalizeAngle, resolveTankCollisions, SolidStructure } from '../core/Physics';
 import { handleBullets, handlePhysicsBlocks, handleBulletTankCollisions } from '../systems/CombatSystem';
 import { updateFireZone } from '../entities/FireZone';
-import { handleAllies, handlePlanes } from '../systems/SkillEntities';
+import { handleAllies, handlePlanes, handleClones, handleTurrets } from '../systems/SkillEntities';
 import { handleSkillActivation } from '../systems/SkillRegistry';
 import { updateMeteor } from '../skills/Trisolaran';
 import { updateBivector } from '../skills/Bivector';
@@ -552,7 +552,11 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   }
 
   state.elapsedTime += dt;
-  if (state.elapsedTime >= MATCH_DURATION) { state.phase = 'defeat'; return; }
+  if (state.elapsedTime >= MATCH_DURATION) {
+    state.phase = 'defeat';
+    if ((state as any).bivectorPhase !== 'idle') { (state as any).bivectorPhase = 'idle'; (state as any).bivectorText = ''; }
+    return;
+  }
 
   // U-key debug toggle (TwoKings doesn't use BattleEngine.updateBattle)
   if (input.wasJustPressed('KeyU')) state.showDebug = !state.showDebug;
@@ -613,6 +617,7 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
       const cfg = state.player.config;
       const cooldown = effectiveCooldown(cfg);
       state.playerCooldownRemaining = cooldown;
+      (state as any).playerFiredThisFrame = true;
       const bulletStyle = cfg.barrel.stats.bulletStyle ?? 'straight';
       const bulletSpeed = cfg.barrel.stats.bulletSpeed ?? 400;
       const berserkerMul = getBerserkerMultiplier(state.player);
@@ -692,6 +697,41 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   (state as any)._enemyStructures = [...state.redTowers, state.redBase];
   handleAllies(state as any, dt, state._structures);
   handlePlanes(state as any, dt);
+  handleClones(state as any, dt);
+  handleTurrets(state as any, dt);
+
+  // === Turret collision (immovable, impassable) ===
+  const tr = 14;
+  for (const t of (state.turrets || [])) {
+    if (!t.alive) continue;
+    // Tank push-away
+    const allTanks = [state.player, ...state.enemies, ...state.blueTanks, ...(state.allies || [])].filter((tk: any) => tk.alive);
+    for (const tk of allTanks) {
+      const d = tk.pos.sub(t.pos); const dist = d.mag();
+      if (dist < tr + TANK_RADIUS) tk.pos = tk.pos.add(d.norm().scale(tr + TANK_RADIUS - dist + 1));
+    }
+    // Bullet collision
+    for (const b of state.bullets) {
+      if (!b.alive) continue;
+      if (b.ownerId === t.id) continue;
+      if (b.pos.dist(t.pos) < tr + BULLET_RADIUS) {
+        t.hp -= b.isPlayerBullet ? 0 : b.damage;
+        b.alive = false;
+        if (t.hp <= 0) t.alive = false;
+      }
+    }
+    // Physics block push-away + bounce
+    for (const bk of state.physicsBlocks) {
+      if (!bk.alive) continue;
+      const d = bk.pos.sub(t.pos); const dist = d.mag();
+      if (dist < tr + BLOCK_RADIUS) {
+        const n = dist > 0.01 ? d.norm() : new Vec2(1, 0);
+        bk.pos = t.pos.add(n.scale(tr + BLOCK_RADIUS + 1));
+        const vn = bk.vel.dot(n);
+        if (vn < 0) bk.vel = bk.vel.sub(n.scale(2 * vn)).scale(0.4);
+      }
+    }
+  }
 
   // === Tower + base auto-attack ===
   const allRed = state.enemies.filter(e => e.alive);
@@ -753,8 +793,17 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
   updateMjolnir(state as any, dt);
 
   // === Win/loss ===
+  const prevPhase = state.phase;
   if (state.blueBase.hp <= 0) { state.blueBase.alive = false; state.phase = 'defeat'; }
   if (state.redBase.hp <= 0) { state.redBase.alive = false; state.phase = 'victory'; }
+  if (state.phase !== prevPhase && (state as any).bivectorPhase !== 'idle') {
+    (state as any).bivectorPhase = 'idle';
+    (state as any).bivectorProgress = 0;
+    (state as any).bivectorShear = 0;
+    (state as any).bivectorScale = 1;
+    (state as any).bivectorDestroyed = false;
+    (state as any).bivectorText = '';
+  }
 }
 
 // ============================================================

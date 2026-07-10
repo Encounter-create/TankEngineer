@@ -26,7 +26,7 @@ export interface SiegeState extends SkillStates {
   enemies: TankEntity[]; bullets: BulletEntity[];
   aiContexts: Map<string, AIContext>; inventory: Inventory;
   elapsedTime: number; wavesSpawned: number; enemiesKilled: number;
-  commandCenterHp: number; playerCooldownRemaining: number;
+  commandCenterHp: number; playerCooldownRemaining: number; playerFiredThisFrame: boolean;
   pendingReward: BattleReward | null;
   skillMessage: string; skillMessageTime: number;
   particles: Particle[]; screenShake: number;

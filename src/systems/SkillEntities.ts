@@ -150,7 +150,7 @@ export function handleTurrets(state: any, dt: number): void {
 
 export function handleClones(state: any, dt: number): void {
   const now = performance.now();
-  const playerJustFired = state.playerCooldownRemaining > 0 && state.playerCooldownRemaining >= 400;
+  const playerJustFired = state.playerFiredThisFrame === true;
   for (const clone of (state.clones || [])) {
     if (!clone.alive) continue;
     if (now > clone.expireTime) { clone.alive = false; continue; }
@@ -170,6 +170,7 @@ export function handleClones(state: any, dt: number): void {
     }
   }
   state.clones = (state.clones || []).filter((c: any) => c.alive);
+  state.playerFiredThisFrame = false;
 }
 
 // ============================================================

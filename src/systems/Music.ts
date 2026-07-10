@@ -4,9 +4,9 @@ const VOLUME = 0.3;
 
 // Edit these arrays when adding new music files
 const MENU_TRACKS   = [
-  '/assets/menu/menu.mp3',
-  '/assets/menu/soviet_march.mp3',
-  '/assets/menu/phantom_opera.mp3',
+  '/menu/menu.mp3',
+  '/menu/soviet_march.mp3',
+  '/menu/phantom_opera.mp3',
 ];
 const BATTLE_TRACKS = [
   '/battle/battle.mp3',

@@ -7,7 +7,7 @@ import { spawnExplosion } from '../entities/Particle';
 import { playExplosion } from '../systems/Sound';
 import { registerEffect } from '../ui/EffectRenderer';
 
-const SKILL_END = 15;
+const SKILL_END = 16;
 const MAX_R = Math.sqrt(MAP_W * MAP_W + MAP_H * MAP_H) / 2 + 50;
 const SMALL_R = 120; // small circle radius at 8s
 
@@ -38,8 +38,8 @@ export function updateGenesis(state: SiegeState, dt: number): void {
   }
 
   if (state.genesisPhase === 'ignition') {
-    // Fire particles at center (7-15s, density drops after 12s)
-    const fireAlpha = t >= 12 ? Math.max(0, 1 - (t - 12) / 3) : 1;
+    // Fire particles at center (7-16s, density drops 13-16s)
+    const fireAlpha = t >= 13 ? Math.max(0, 1 - (t - 13) / 3) : 1;
     if (Math.random() < 0.7 * fireAlpha) {
       const cx = MAP_W / 2, cy = MAP_H / 2;
       const a = Math.random() * Math.PI * 2;
@@ -57,19 +57,20 @@ export function updateGenesis(state: SiegeState, dt: number): void {
     // Compute light radius from elapsed time
     const e = t - 7; // time since fire appeared
     let lightR: number;
-    if (e < 0) {
+    if (e < 1) {
+      // 7-8s: fire only, no light circle (fully black)
       lightR = 0;
-    } else if (e < 1) {
-      // 7-8s: expand to small circle
-      lightR = 30 + (SMALL_R - 30) * e;
     } else if (e < 2) {
-      // 8-9s: pause at small circle
+      // 8-9s: expand to small circle
+      lightR = 30 + (SMALL_R - 30) * (e - 1);
+    } else if (e < 3) {
+      // 9-10s: pause at small circle
       lightR = SMALL_R;
-    } else if (e < 5) {
-      // 9-12s: expand to full screen
-      lightR = SMALL_R + (MAX_R - SMALL_R) * ((e - 2) / 3);
+    } else if (e < 6) {
+      // 10-13s: expand to full screen
+      lightR = SMALL_R + (MAX_R - SMALL_R) * ((e - 3) / 3);
     } else {
-      // 12-15s: full screen
+      // 13-16s: full screen
       lightR = MAX_R;
     }
     state.genesisFireRadius = lightR;
@@ -115,7 +116,7 @@ export function drawGenesis(ctx: CanvasRenderingContext2D, state: SiegeState): v
 
   if (state.genesisPhase === 'ignition') {
     const r = state.genesisFireRadius;
-    const fireAlpha = t >= 12 ? Math.max(0, 1 - (t - 12) / 3) : 1;
+    const fireAlpha = t >= 13 ? Math.max(0, 1 - (t - 13) / 3) : 1;
 
     // Expanding light circle (radial gradient: transparent center → black edge)
     if (r > 0.1) {
@@ -128,12 +129,12 @@ export function drawGenesis(ctx: CanvasRenderingContext2D, state: SiegeState): v
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, MAP_W, MAP_H);
     } else {
-      // Still fully black (6-7s)
+      // Still fully black (6-8s, fire only)
       ctx.fillStyle = 'rgba(0,0,0,1)';
       ctx.fillRect(0, 0, MAP_W, MAP_H);
     }
 
-    // === FIRE (7-15s, fades 12-15s) ===
+    // === FIRE (7-16s, fades 13-16s) ===
     if (fireAlpha > 0.01) {
       ctx.save();
       ctx.globalAlpha = fireAlpha;

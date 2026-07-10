@@ -140,6 +140,7 @@ export function createSiegeState(playerConfigs: TankConfig[], inventory: Invento
     enemiesKilled: 0,
     commandCenterHp: COMMAND_CENTER_MAX_HP,
     playerCooldownRemaining: 0,
+    playerFiredThisFrame: false,
     pendingReward: null,
     skillMessage: '',
     skillMessageTime: 0,
@@ -240,6 +241,7 @@ export function updateSiege(
   }
 
   // === Shared battle engine ===
+  (state as any)._devModeInvuln = DEV_MODE;
   updateBattle(state as any, input, dt, {
     playerInput: handlePlayerInput, playerFire: handlePlayerFire,
     terrain: applyTerrainEffects, enemyAI: handleEnemyAI,
@@ -252,7 +254,6 @@ export function updateSiege(
     bulletTank: (s: any, d: number) => sysHandleBulletTankCollisions(s, d, (enemy: TankEntity, mult: number) => onEnemyKilled(s, enemy, mult)),
     skills: [updateMeteor, updateBivector, updateQuantum, updateLens, updateRewind, updateBigBang, updateHolo, updateTrojan, updateArk, updateDamocles, updateDragon, updateGenesis, updateMjolnir],
   });
-
   // Player death check (moved from handleBulletTankCollisions to mode-specific layer)
   if (!state.player.alive) {
     state.particles.push(...spawnExplosion(state.player.pos));
@@ -401,6 +402,7 @@ function handlePlayerFire(state: SiegeState, input: Input, _dt: number): void {
     const cfg = state.player.config;
     const cooldown = barrageActive ? 50 : effectiveCooldown(cfg); // 50ms during barrage
     state.playerCooldownRemaining = cooldown;
+    state.playerFiredThisFrame = true;
 
     const bulletStyle = cfg.barrel.stats.bulletStyle ?? 'straight';
     const bulletSpeed = cfg.barrel.stats.bulletSpeed ?? 400;
@@ -1277,6 +1279,15 @@ function endSiege(state: SiegeState, survived: boolean): void {
   if (state.pendingReward) return; // already ended
 
   state.phase = survived ? 'victory' : 'defeat';
+  // Reset bivector if game ends during whiteout/recovering (avoids stuck white overlay)
+  if ((state as any).bivectorPhase !== 'idle') {
+    (state as any).bivectorPhase = 'idle';
+    (state as any).bivectorProgress = 0;
+    (state as any).bivectorShear = 0;
+    (state as any).bivectorScale = 1;
+    (state as any).bivectorDestroyed = false;
+    (state as any).bivectorText = '';
+  }
   state.pendingReward = generateReward(
     state.wavesSpawned,
     TOTAL_WAVES,
