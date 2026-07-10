@@ -249,7 +249,7 @@ export function getSfxSliderY(): number { return SETTINGS_PY + SLIDER2_Y; }
 // Text panel — scrollable text viewer (shared by tutorial + credits)
 // ============================================================
 
-const TEXT_PW = 700, TEXT_PH = 500;
+const TEXT_PW = 700, TEXT_PH = 660;
 const TEXT_PX = (MAP_W - TEXT_PW) / 2, TEXT_PY = (MAP_H - TEXT_PH) / 2;
 const TEXT_AREA_X = TEXT_PX + 25, TEXT_AREA_Y = TEXT_PY + 55;
 const TEXT_AREA_W = TEXT_PW - 50, TEXT_AREA_H = TEXT_PH - 110;
@@ -281,7 +281,22 @@ function renderTextPanel(ctx: CanvasRenderingContext2D, menu: MenuState, title: 
 
   // Measure total height of all wrapped lines
   const wrapped = wrapLines(ctx, lines, TEXT_AREA_W);
-  const totalH = wrapped.length * LINE_H;
+  let totalH = 0;
+  for (const wline of wrapped) {
+    const imgM = wline.match(/^\[IMG\](.+)\[\/IMG\]$/);
+    if (imgM) {
+      const img = getCachedImage(imgM[1]);
+      if (img && img.naturalWidth > 0) {
+        const maxH = TEXT_AREA_H - 10;
+        const iw = Math.min(TEXT_AREA_W, maxH * img.naturalWidth / img.naturalHeight);
+        totalH += (iw / img.naturalWidth) * img.naturalHeight + 10;
+      } else {
+        totalH += 200; // fallback while loading
+      }
+    } else {
+      totalH += LINE_H;
+    }
+  }
   const maxScroll = Math.max(0, totalH - TEXT_AREA_H);
   menu._textTotalH = totalH;
   menu._textMaxScroll = maxScroll;
@@ -289,8 +304,27 @@ function renderTextPanel(ctx: CanvasRenderingContext2D, menu: MenuState, title: 
 
   let drawY = TEXT_AREA_Y - so;
   for (const wline of wrapped) {
-    if (drawY + LINE_H < TEXT_AREA_Y) { drawY += LINE_H; continue; }
+    const imgMatch = wline.match(/^\[IMG\](.+)\[\/IMG\]$/);
+    const lineH = imgMatch ? 170 : LINE_H;
+    if (drawY + lineH < TEXT_AREA_Y) { drawY += lineH; continue; }
     if (drawY > TEXT_AREA_Y + TEXT_AREA_H) break;
+
+    if (imgMatch) {
+      const imgSrc = imgMatch[1];
+      const img = getCachedImage(imgSrc);
+      if (img && img.complete && img.naturalWidth > 0) {
+        // Scale to fit TEXT_AREA_H while keeping aspect ratio
+        const maxH = TEXT_AREA_H - 10;
+        const iw = Math.min(TEXT_AREA_W, maxH * img.naturalWidth / img.naturalHeight);
+        const ih = (iw / img.naturalWidth) * img.naturalHeight;
+        const ix = TEXT_AREA_X + (TEXT_AREA_W - iw) / 2;
+        ctx.drawImage(img, ix, drawY + 5, iw, ih);
+        drawY += ih + 10;
+      } else {
+        drawY += lineH;
+      }
+      continue;
+    }
 
     const isHeader = wline.startsWith('# ');
     const isSubHeader = wline.startsWith('## ');
@@ -386,5 +420,15 @@ export function textScrollFromMouse(my: number, menu: MenuState): number {
   const sbH = Math.max(24, TEXT_AREA_H * TEXT_AREA_H / menu._textTotalH);
   const ratio = (my - TEXT_AREA_Y - sbH / 2) / (TEXT_AREA_H - sbH);
   return Math.round(Math.max(0, Math.min(menu._textMaxScroll, ratio * menu._textMaxScroll)));
+}
+
+// Image cache for text panel images
+const _imgCache = new Map<string, HTMLImageElement>();
+function getCachedImage(src: string): HTMLImageElement | null {
+  if (_imgCache.has(src)) return _imgCache.get(src)!;
+  const img = new Image();
+  img.src = src;
+  _imgCache.set(src, img);
+  return img;
 }
 
