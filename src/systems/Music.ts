@@ -9,11 +9,11 @@ const MENU_TRACKS   = [
   '/assets/menu/phantom_opera.mp3',
 ];
 const BATTLE_TRACKS = [
-  '/assets/battle/battle.mp3',
-  '/assets/battle/british_grenadiers.mp3',
-  '/assets/battle/rush_e.mp3',
-  '/assets/battle/piano_grassland.mp3',
-  '/assets/battle/hammer_of_justice.mp3',
+  '/battle/battle.mp3',
+  '/battle/british_grenadiers.mp3',
+  '/battle/rush_e.mp3',
+  '/battle/piano_grassland.mp3',
+  '/battle/hammer_of_justice.mp3',
 ];
 
 function pickTrack(category: 'menu' | 'battle', exclude: string): string {
