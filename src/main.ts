@@ -70,6 +70,7 @@ import { renderTwoKings, drawTwoKingsOverlay, drawTwoKingsHUD } from './ui/TwoKi
 import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 import { renderAllEffects } from './ui/EffectRenderer';
+import { renderJoystick } from './ui/VirtualJoystick';
 import { initSound, setSfxVolume } from './systems/Sound';
 import { startBattleMusic, stopBattleMusic, startMenuMusic, setVolume } from './systems/Music';
 import { MenuState, createMenuState, updateMenu, renderMenu, hitTestMenuButtons, hitTestSettings, sliderValue, getMusicSliderY, getSfxSliderY, hitTestTextPanelBack, isOutsideTextPanel, hitTestTextPanelScrollbar, textScrollFromMouse } from './ui/Menu';
@@ -327,6 +328,12 @@ function render(_alpha: number): void {
 
   // Quote player (independent of skills)
   renderQuote(ctx);
+
+  // Virtual joystick overlay (mobile only, drawn on top of everything)
+  let skillCd = 0;
+  if (app.siege?.player) skillCd = Math.max(0, (app.siege.player.skillCooldownUntil ?? 0) - performance.now());
+  else if (app.twokings?.player) skillCd = Math.max(0, (app.twokings.player.skillCooldownUntil ?? 0) - performance.now());
+  renderJoystick(ctx, input, skillCd);
 }
 
 // ============================================================
