@@ -197,6 +197,8 @@ export function updatePractice(ps: PracticeState, input: Input, dt: number): voi
     ps.player.skillCooldownUntil = performance.now() + 1000;
   }
 
+  if (input.wasJustPressed('KeyU')) ps.showDebug = !ps.showDebug;
+
   // O-key boss spawn
   if (input.wasJustPressed('KeyO')) {
     const bossConfig = assembleTank(

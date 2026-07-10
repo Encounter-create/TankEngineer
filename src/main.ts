@@ -110,7 +110,41 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = MAP_W;
 canvas.height = MAP_H;
 const ctx = canvas.getContext('2d')!;
-// Offscreen canvas for lens effect (imported from RenderContext)
+
+// Fit canvas to screen, keeping 960:704 ratio. Portrait → rotate 90° around center.
+function fitCanvas(): void {
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const ratio = MAP_W / MAP_H;
+  const portrait = vh > vw;
+
+  if (portrait) {
+    // Height after rotation = phone width. Scale canvas to that.
+    const h = vw;
+    const w = h * ratio;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.style.top = '50%';
+    canvas.style.left = '50%';
+    canvas.style.marginLeft = (-w / 2) + 'px';
+    canvas.style.marginTop = (-h / 2) + 'px';
+    canvas.style.transform = 'rotate(90deg)';
+  } else {
+    let w: number, h: number;
+    if (vw / vh > ratio) { h = vh; w = h * ratio; }
+    else { w = vw; h = w / ratio; }
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.style.top = '50%';
+    canvas.style.left = '50%';
+    canvas.style.marginLeft = (-w / 2) + 'px';
+    canvas.style.marginTop = (-h / 2) + 'px';
+    canvas.style.transform = 'none';
+  }
+}
+window.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 100));
+fitCanvas();
 
 // ============================================================
 // Initialize
@@ -147,6 +181,10 @@ const app: AppState = {
 let soundInited = false;
 
 function update(dt: number): void {
+  // Touch zone mode: battle screens use joystick/fire/skill zones; all others use mouse-only
+  input.setBattleMode(app.screen === 'siege' || app.screen === 'twokings' || (app.screen === 'garage' && !!app.practice));
+
+
   // Init audio on first user interaction (browser policy)
   if (!soundInited && (input.isMouseJustPressed() || input.isConfirmPressed() || input.isFirePressed())) {
     initSound(); soundInited = true;
@@ -201,8 +239,8 @@ function update(dt: number): void {
           m.draggingScrollbar = false;
         }
       }
-      // Wheel scroll
-      const wheel = input.consumeWheel();
+      // Wheel scroll + touch swipe scroll
+      const wheel = input.consumeWheel() + input.consumeTouchScroll();
       if (wheel !== 0) {
         m.textScrollOffset = Math.max(0, Math.min(m._textMaxScroll, m.textScrollOffset + wheel * 0.5));
       }
@@ -329,11 +367,14 @@ function render(_alpha: number): void {
   // Quote player (independent of skills)
   renderQuote(ctx);
 
-  // Virtual joystick overlay (mobile only, drawn on top of everything)
-  let skillCd = 0;
-  if (app.siege?.player) skillCd = Math.max(0, (app.siege.player.skillCooldownUntil ?? 0) - performance.now());
-  else if (app.twokings?.player) skillCd = Math.max(0, (app.twokings.player.skillCooldownUntil ?? 0) - performance.now());
-  renderJoystick(ctx, input, skillCd);
+  // Virtual joystick overlay (mobile battle + practice screens)
+  if (app.screen === 'siege' || app.screen === 'twokings' || (app.screen === 'garage' && app.practice)) {
+    let skillCd = 0, multiTank = false, activeIdx = 0;
+    if (app.siege?.player) { skillCd = Math.max(0, (app.siege.player.skillCooldownUntil ?? 0) - performance.now()); multiTank = (app.siege.playerTanks?.length ?? 0) > 1; activeIdx = app.siege.activePlayerIndex ?? 0; }
+    else if (app.twokings?.player) skillCd = Math.max(0, (app.twokings.player.skillCooldownUntil ?? 0) - performance.now());
+    else if (app.practice?.player) skillCd = Math.max(0, (app.practice.player.skillCooldownUntil ?? 0) - performance.now());
+    renderJoystick(ctx, input, skillCd, multiTank, activeIdx);
+  }
 }
 
 // ============================================================
