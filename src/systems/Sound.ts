@@ -4,12 +4,22 @@
 // ============================================================
 
 let audioCtx: AudioContext | null = null;
+let masterGain: GainNode | null = null;
 
 function ctx(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.8;
+    masterGain.connect(audioCtx.destination);
   }
   return audioCtx;
+}
+
+/** Global SFX volume (0-1). Sets master gain. */
+export function setSfxVolume(v: number): void {
+  if (!audioCtx) ctx();
+  if (masterGain) masterGain.gain.value = Math.max(0, Math.min(1, v));
 }
 
 /** Resume audio context after user interaction (browser policy) */
@@ -34,7 +44,7 @@ export function playShoot(): void {
   osc.frequency.exponentialRampToValueAtTime(200, t + 0.08);
   gain.gain.setValueAtTime(0.08, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.1);
 }
@@ -50,7 +60,7 @@ export function playHitTank(): void {
   osc.frequency.exponentialRampToValueAtTime(300, t + 0.06);
   gain.gain.setValueAtTime(0.12, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.12);
 }
@@ -66,7 +76,7 @@ export function playHitWall(): void {
   osc.frequency.exponentialRampToValueAtTime(60, t + 0.1);
   gain.gain.setValueAtTime(0.1, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.15);
 }
@@ -83,7 +93,7 @@ export function playExplosion(): void {
   osc1.frequency.exponentialRampToValueAtTime(30, t + 0.4);
   g1.gain.setValueAtTime(0.2, t);
   g1.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-  osc1.connect(g1).connect(c.destination);
+  osc1.connect(g1).connect(masterGain!);
   osc1.start(t);
   osc1.stop(t + 0.5);
   // Noise burst
@@ -94,7 +104,7 @@ export function playExplosion(): void {
   osc2.frequency.exponentialRampToValueAtTime(40, t + 0.3);
   g2.gain.setValueAtTime(0.08, t);
   g2.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-  osc2.connect(g2).connect(c.destination);
+  osc2.connect(g2).connect(masterGain!);
   osc2.start(t);
   osc2.stop(t + 0.35);
 }
@@ -110,7 +120,7 @@ export function playRepair(): void {
     osc.frequency.setValueAtTime(freq, t + i * 0.08);
     gain.gain.setValueAtTime(0.1, t + i * 0.08);
     gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.2);
-    osc.connect(gain).connect(c.destination);
+    osc.connect(gain).connect(masterGain!);
     osc.start(t + i * 0.08);
     osc.stop(t + i * 0.08 + 0.2);
   });
@@ -127,7 +137,7 @@ export function playSprint(): void {
   osc.frequency.exponentialRampToValueAtTime(800, t + 0.3);
   gain.gain.setValueAtTime(0.05, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.35);
 }
@@ -143,7 +153,7 @@ export function playBarrage(): void {
   osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
   gain.gain.setValueAtTime(0.06, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.2);
 }
@@ -160,7 +170,7 @@ export function playSmoke(): void {
   gain.gain.setValueAtTime(0.06, t);
   gain.gain.setValueAtTime(0.08, t + 0.1);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.6);
 }
@@ -175,7 +185,7 @@ export function playClick(): void {
   osc.frequency.setValueAtTime(1000, t);
   gain.gain.setValueAtTime(0.04, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(masterGain!);
   osc.start(t);
   osc.stop(t + 0.03);
 }

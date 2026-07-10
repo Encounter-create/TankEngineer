@@ -70,9 +70,9 @@ import { renderTwoKings, drawTwoKingsOverlay, drawTwoKingsHUD } from './ui/TwoKi
 import { Vec2 } from './utils/Vector';
 import { MAP_W, MAP_H } from './utils/Grid';
 import { renderAllEffects } from './ui/EffectRenderer';
-import { initSound } from './systems/Sound';
-import { startBattleMusic, stopBattleMusic, startMenuMusic } from './systems/Music';
-import { MenuState, createMenuState, updateMenu, renderMenu, hitTestMenuButtons } from './ui/Menu';
+import { initSound, setSfxVolume } from './systems/Sound';
+import { startBattleMusic, stopBattleMusic, startMenuMusic, setVolume } from './systems/Music';
+import { MenuState, createMenuState, updateMenu, renderMenu, hitTestMenuButtons, hitTestSettings, sliderValue, getMusicSliderY, getSfxSliderY, hitTestTextPanelBack, isOutsideTextPanel, hitTestTextPanelScrollbar, textScrollFromMouse } from './ui/Menu';
 
 // ============================================================
 // App state machine
@@ -162,9 +162,59 @@ function update(dt: number): void {
 
   if (app.screen === 'menu') {
     updateMenu(app.menu, dt);
-    if (input.isMouseJustPressed()) {
-      const btn = hitTestMenuButtons(input.mousePos.x, input.mousePos.y);
-      if (btn === 0) app.screen = 'lobby';
+    const m = app.menu;
+    const mx = input.mousePos.x, my = input.mousePos.y;
+
+    if (m.subScreen === 'main') {
+      if (input.isMouseJustPressed()) {
+        const btn = hitTestMenuButtons(mx, my);
+        if (btn === 0) app.screen = 'lobby';
+        else if (btn === 1) m.subScreen = 'settings';
+        else if (btn === 2) m.subScreen = 'credits';
+      }
+    } else if (m.subScreen === 'settings') {
+      // Slider drag
+      if (input.isMouseDown()) {
+        if (m.draggingSlider === 'music') {
+          m.musicVol = sliderValue(mx, getMusicSliderY());
+          setVolume(m.musicVol / 100);
+        } else if (m.draggingSlider === 'sfx') {
+          m.sfxVol = sliderValue(mx, getSfxSliderY());
+          setSfxVolume(m.sfxVol / 100);
+        }
+      }
+      if (input.isMouseJustPressed()) {
+        const hit = hitTestSettings(mx, my);
+        if (hit.type === 'back') { m.subScreen = 'main'; m.draggingSlider = null; }
+        else if (hit.type === 'tutorial') { m.subScreen = 'tutorial'; m.textScrollOffset = 0; }
+        else if (hit.type === 'slider_music') { m.draggingSlider = 'music'; m.musicVol = sliderValue(mx, getMusicSliderY()); setVolume(m.musicVol / 100); }
+        else if (hit.type === 'slider_sfx') { m.draggingSlider = 'sfx'; m.sfxVol = sliderValue(mx, getSfxSliderY()); setSfxVolume(m.sfxVol / 100); }
+      }
+      if (!input.isMouseDown()) m.draggingSlider = null;
+    } else if (m.subScreen === 'tutorial' || m.subScreen === 'credits') {
+      // Scrollbar drag
+      if (m.draggingScrollbar) {
+        if (input.isMouseDown()) {
+          m.textScrollOffset = textScrollFromMouse(my, m);
+        } else {
+          m.draggingScrollbar = false;
+        }
+      }
+      // Wheel scroll
+      const wheel = input.consumeWheel();
+      if (wheel !== 0) {
+        m.textScrollOffset = Math.max(0, Math.min(m._textMaxScroll, m.textScrollOffset + wheel * 0.5));
+      }
+      // Back button, scrollbar click, or click outside panel
+      if (input.isMouseJustPressed()) {
+        if (hitTestTextPanelBack(mx, my) || isOutsideTextPanel(mx, my)) {
+          m.subScreen = 'main';
+          m.textScrollOffset = 0;
+        } else if (hitTestTextPanelScrollbar(mx, my)) {
+          m.draggingScrollbar = true;
+          m.textScrollOffset = textScrollFromMouse(my, m);
+        }
+      }
     }
   } else if (app.screen === 'siege' && app.siege) {
     updateSiege(app.siege, input, dt);

@@ -1,6 +1,6 @@
 // Music player — random playlist per category, auto-next on end
 
-const VOLUME = 0.3;
+let musicVolume = 0.3;
 
 // Edit these arrays when adding new music files
 const MENU_TRACKS   = [
@@ -24,7 +24,7 @@ function pickTrack(category: 'menu' | 'battle', exclude: string): string {
   return pick;
 }
 
-function createMusicPlayer(category: 'menu' | 'battle'): { play(): void; stop(): void; isPaused(): boolean } {
+function createMusicPlayer(category: 'menu' | 'battle'): { play(): void; stop(): void; isPaused(): boolean; setCurrentVolume(v: number): void } {
   let audio: HTMLAudioElement | null = null;
   let lastTrack = '';
   return {
@@ -33,19 +33,24 @@ function createMusicPlayer(category: 'menu' | 'battle'): { play(): void; stop():
       if (audio) { audio.pause(); audio = null; }
       lastTrack = pickTrack(category, lastTrack);
       audio = new Audio(lastTrack);
-      audio.volume = VOLUME;
+      audio.volume = musicVolume;
       audio.onended = () => { this.play(); };
       audio.play().catch(() => {});
     },
     stop() { if (audio) { audio.pause(); audio.currentTime = 0; audio = null; } },
     isPaused() { return !audio || audio.paused; },
+    setCurrentVolume(v: number) { if (audio) audio.volume = v; },
   };
 }
 
 const menuPlayer = createMusicPlayer('menu');
 const battlePlayer = createMusicPlayer('battle');
 
-export function setVolume(_v: number): void { /* no-op for now */ }
+export function setVolume(v: number): void {
+  musicVolume = Math.max(0, Math.min(1, v));
+  menuPlayer.setCurrentVolume(musicVolume);
+  battlePlayer.setCurrentVolume(musicVolume);
+}
 
 export function startMenuMusic(): void {
   if (!menuPlayer.isPaused()) return;
