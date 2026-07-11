@@ -4,16 +4,16 @@ let musicVolume = 0.3;
 
 // Edit these arrays when adding new music files
 const MENU_TRACKS   = [
-  '/menu/menu.mp3',
-  '/menu/soviet_march.mp3',
-  '/menu/phantom_opera.mp3',
+  './menu/menu.mp3',
+  './menu/soviet_march.mp3',
+  './menu/phantom_opera.mp3',
 ];
 const BATTLE_TRACKS = [
-  '/battle/battle.mp3',
-  '/battle/british_grenadiers.mp3',
-  '/battle/rush_e.mp3',
-  '/battle/piano_grassland.mp3',
-  '/battle/hammer_of_justice.mp3',
+  './battle/battle.mp3',
+  './battle/british_grenadiers.mp3',
+  './battle/rush_e.mp3',
+  './battle/piano_grassland.mp3',
+  './battle/hammer_of_justice.mp3',
 ];
 
 function pickTrack(category: 'menu' | 'battle', exclude: string): string {
@@ -34,8 +34,10 @@ function createMusicPlayer(category: 'menu' | 'battle'): { play(): void; stop():
       lastTrack = pickTrack(category, lastTrack);
       audio = new Audio(lastTrack);
       audio.volume = musicVolume;
+      audio.preload = 'auto';
       audio.onended = () => { this.play(); };
-      audio.play().catch(() => {});
+      audio.oncanplaythrough = () => { audio!.play().catch(() => {}); };
+      audio.load();
     },
     stop() { if (audio) { audio.pause(); audio.currentTime = 0; audio = null; } },
     isPaused() { return !audio || audio.paused; },
