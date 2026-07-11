@@ -89,10 +89,11 @@ export class Input {
   }
 
   private onTouchStart(e: TouchEvent): void {
-    e.preventDefault(); this.touchDevice_ = true;
+    this.touchDevice_ = true;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i], p = this.cp(t.clientX, t.clientY), zn = this.zone(p);
       this.touches.set(t.identifier, { sx: p.x, sy: p.y, zone: zn });
+      if (zn !== 'a') e.preventDefault();
       if (zn === 'j') { this.moveActive = true; this.moveRaw = p.sub(new Vec2(JX, JY)); this.moveDir = this.moveRaw.norm(); }
       else if (zn === 'f') { this.fireActive = true; this.fireRaw = p.sub(new Vec2(FX, FY)); this.mousePos = new Vec2(FX + this.fireRaw.x * 10, FY + this.fireRaw.y * 10); }
       else if (zn === 's') this.virtualSkillPending = true;
@@ -105,10 +106,10 @@ export class Input {
   }
 
   private onTouchMove(e: TouchEvent): void {
-    e.preventDefault();
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i], rec = this.touches.get(t.identifier);
       if (!rec) continue;
+      if (rec.zone !== 'a') e.preventDefault();
       const p = this.cp(t.clientX, t.clientY);
       if (rec.zone === 'j') { this.moveActive = true; this.moveRaw = p.sub(new Vec2(JX, JY)); this.moveDir = this.moveRaw.norm(); }
       else if (rec.zone === 'f') { this.fireActive = true; this.fireRaw = p.sub(new Vec2(FX, FY)); this.mousePos = new Vec2(FX + this.fireRaw.x * 10, FY + this.fireRaw.y * 10); }
