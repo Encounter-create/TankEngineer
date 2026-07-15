@@ -589,10 +589,7 @@ export function updateTwoKings(state: TwoKingsState, input: Input, dt: number): 
 
   // === Player movement (Siege pattern via moveTank) ===
   if (state.player.alive) {
-    const moveDir = new Vec2(
-      (input.isDown('KeyD') ? 1 : 0) - (input.isDown('KeyA') ? 1 : 0),
-      (input.isDown('KeyS') ? 1 : 0) - (input.isDown('KeyW') ? 1 : 0),
-    );
+    const moveDir = input.getMoveDir();
     moveTank(state.player, moveDir, dt, state.map, state.physicsBlocks, state.physicsBlocks, state._structures);
 
     // Turret follows mouse

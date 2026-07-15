@@ -205,7 +205,7 @@ function update(dt: number): void {
     const mx = input.mousePos.x, my = input.mousePos.y;
 
     if (m.subScreen === 'main') {
-      if (input.isMouseJustPressed()) {
+      if (input.isTap()) {
         const btn = hitTestMenuButtons(mx, my);
         if (btn === 0) app.screen = 'lobby';
         else if (btn === 1) m.subScreen = 'settings';
@@ -222,7 +222,7 @@ function update(dt: number): void {
           setSfxVolume(m.sfxVol / 100);
         }
       }
-      if (input.isMouseJustPressed()) {
+      if (input.isTap()) {
         const hit = hitTestSettings(mx, my);
         if (hit.type === 'back') { m.subScreen = 'main'; m.draggingSlider = null; }
         else if (hit.type === 'tutorial') { m.subScreen = 'tutorial'; m.textScrollOffset = 0; }
@@ -245,7 +245,7 @@ function update(dt: number): void {
         m.textScrollOffset = Math.max(0, Math.min(m._textMaxScroll, m.textScrollOffset + wheel * 0.5));
       }
       // Back button, scrollbar click, or click outside panel
-      if (input.isMouseJustPressed()) {
+      if (input.isTap()) {
         if (hitTestTextPanelBack(mx, my) || isOutsideTextPanel(mx, my)) {
           m.subScreen = 'main';
           m.textScrollOffset = 0;
@@ -383,7 +383,7 @@ function render(_alpha: number): void {
 
 function handlePracticeUI(): void {
   const ps = app.practice!;
-  if (input.isMouseJustPressed()) {
+  if (input.isTap()) {
     const ax = 284, ay = 46, aw = 470, ah = 640 - 160;
     // Exit button
     const bx = ax + aw / 2 - 40, by = ay + ah - 32;
@@ -419,7 +419,7 @@ function updateLobby(): void {
     }
   }
   // Developer mode toggle (top-right button)
-  if (input.isMouseJustPressed()) {
+  if (input.isTap()) {
     const devX = MAP_W - 130, devY = 4, devW = 120, devH = 22;
     if (input.mousePos.x >= devX && input.mousePos.x <= devX + devW &&
         input.mousePos.y >= devY && input.mousePos.y <= devY + devH) {
@@ -428,7 +428,7 @@ function updateLobby(): void {
       return;
     }
   }
-  if (!input.isMouseJustPressed()) return;
+  if (!input.isTap()) return;
 
   // Mode selection
   const mode = hitTestLobbyMode(input.mousePos.x, input.mousePos.y);
@@ -477,15 +477,15 @@ function updateLobby(): void {
 // ============================================================
 
 function updateGarage(): void {
-  // Scroll wheel for part list
-  const wheel = input.consumeWheel();
+  // Scroll wheel + touch swipe for part list
+  const wheel = input.consumeWheel() + input.consumeTouchScroll();
   if (wheel !== 0) {
     const allParts = Inventory.getAllParts().filter(p => p.type === app.garage.activeType);
     const maxScroll = Math.max(0, allParts.length * 28 - (MAP_H - 86 - 16));
     const so = (app.garage.scrollOffset ?? 0) + wheel;
     app.garage.scrollOffset = Math.max(0, Math.min(maxScroll, so));
   }
-  if (input.isMouseJustPressed()) {
+  if (input.isTap()) {
     // Multi-tank toggle
     if (hitTestMultiTankToggle(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
       app.garage.multiTank = !app.garage.multiTank;
@@ -528,7 +528,7 @@ function updateGarage(): void {
 // ============================================================
 
 function updateShop(): void {
-  if (!input.isMouseJustPressed()) return;
+  if (!input.isTap()) return;
 
   if (hitTestShopButtons(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
     app.screen = 'lobby';
@@ -546,8 +546,8 @@ function updateShop(): void {
 // ============================================================
 
 function updateEncyclopedia(): void {
-  // Scroll wheel for part cards
-  const wheel = input.consumeWheel();
+  // Scroll wheel + touch swipe for part cards
+  const wheel = input.consumeWheel() + input.consumeTouchScroll();
   if (wheel !== 0 && !input.isMouseJustPressed()) {
     const allParts = Inventory.getAllParts().filter(p => p.type === app.encyclopedia.selectedType);
     const totalH = allParts.length * (120 + 8);
@@ -556,7 +556,7 @@ function updateEncyclopedia(): void {
     const so = app.encyclopedia.scrollOffset + wheel * 0.5;
     app.encyclopedia.scrollOffset = Math.max(0, Math.min(maxScroll, so));
   }
-  if (!input.isMouseJustPressed()) return;
+  if (!input.isTap()) return;
 
   if (hitTestEncyclopediaButton(input.mousePos.x, input.mousePos.y, MAP_W, MAP_H)) {
     app.screen = 'lobby';
@@ -587,7 +587,7 @@ function startTwoKings(configs: TankConfig[]): void {
 }
 
 function handleTwoKingsUI(): void {
-  if (!app.twokings || !input.isMouseJustPressed()) return;
+  if (!app.twokings || !input.isTap()) return;
 
   const phase = app.twokings.phase;
   const mx = input.mousePos.x;
@@ -624,7 +624,7 @@ function handleTwoKingsUI(): void {
 }
 
 function handleSiegeUI(): void {
-  if (!app.siege || !input.isMouseJustPressed()) return;
+  if (!app.siege || !input.isTap()) return;
 
   const phase = app.siege.phase;
   const mx = input.mousePos.x;
@@ -676,7 +676,7 @@ function startChess(config: TankConfig): void {
 }
 
 function updateChess(): void {
-  if (!app.chess || !input.isMouseJustPressed()) return;
+  if (!app.chess || !input.isTap()) return;
 
   const state = app.chess;
   const mx = input.mousePos.x;

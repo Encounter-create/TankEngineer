@@ -508,8 +508,8 @@ export function hitTestGarage(px: number, py: number, _w: number, inventory: Inv
     const ry = listY + i * rowH - so;
     if (px >= LEFT_X && px <= LEFT_X + LEFT_W && py >= ry && py <= ry + rowH) {
       const part = allParts[i];
-      // Toggle detail
-      if (garage.detailPartId === part.id) {
+      // Toggle detail (touch devices: click same part keeps detail visible)
+      if (garage.detailPartId === part.id && !('ontouchstart' in window)) {
         garage.detailPartId = null;
       } else {
         garage.detailPartId = part.id;

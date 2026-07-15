@@ -39,5 +39,5 @@ export const CREDITS_LINES: string[] = [
   '---',
   '  珑',
   '  2026年7月',
-  '[IMG]/long.jpg[/IMG]',
+  '[IMG]long.jpg[/IMG]',
 ];

@@ -113,6 +113,12 @@ export function renderMenu(ctx: CanvasRenderingContext2D, menu: MenuState, mx?: 
   ctx.textAlign = 'center';
   ctx.fillText('v0.5  ·  MVP', MAP_W / 2, MAP_H - 10);
 
+  // Full-black overlay when sub-panel is open (blocks demo text from bleeding through)
+  if (menu.subScreen !== 'main') {
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+
   // Sub-panels drawn on top of main menu
   if (menu.subScreen === 'settings') renderSettingsPanel(ctx, menu, mx, my);
   else if (menu.subScreen === 'tutorial') renderTextPanel(ctx, menu, '新手教程', TUTORIAL_LINES, mx, my);
@@ -145,15 +151,12 @@ const SETTINGS_PX = (MAP_W - SETTINGS_PW) / 2, SETTINGS_PY = (MAP_H - SETTINGS_P
 
 // Slider geometry (relative to panel left/top)
 const SLIDER1_Y = 115, SLIDER2_Y = 175;
-const SLIDER_X = 90, SLIDER_W = 300, SLIDER_H = 8;
+const SLIDER_W = 400, SLIDER_H = 10;
 const THUMB_R = 7;
 
 export interface SettingsHitResult { type: 'back' | 'tutorial' | 'slider_music' | 'slider_sfx' | 'none'; }
 
 function renderSettingsPanel(ctx: CanvasRenderingContext2D, menu: MenuState, mx?: number, my?: number): void {
-  // Dim overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, MAP_W, MAP_H);
-
   const px = SETTINGS_PX, py = SETTINGS_PY, pw = SETTINGS_PW, ph = SETTINGS_PH;
 
   // Panel background
@@ -171,13 +174,13 @@ function renderSettingsPanel(ctx: CanvasRenderingContext2D, menu: MenuState, mx?
 
   // -- Music volume slider --
   ctx.fillStyle = UI.TEXT; ctx.font = `bold ${UI.BODY_SIZE}px ${UI.FONT}`;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
   ctx.fillText('🎵 音乐音量', px + 40, py + SLIDER1_Y);
-  drawSlider(ctx, px + SLIDER_X, py + SLIDER1_Y - SLIDER_H / 2, SLIDER_W, SLIDER_H, menu.musicVol, mx, my);
+  drawSlider(ctx, px + 40, py + SLIDER1_Y + 6, SLIDER_W, SLIDER_H, menu.musicVol, mx, my);
 
   // -- SFX volume slider --
   ctx.fillText('🔊 音效音量', px + 40, py + SLIDER2_Y);
-  drawSlider(ctx, px + SLIDER_X, py + SLIDER2_Y - SLIDER_H / 2, SLIDER_W, SLIDER_H, menu.sfxVol, mx, my);
+  drawSlider(ctx, px + 40, py + SLIDER2_Y + 6, SLIDER_W, SLIDER_H, menu.sfxVol, mx, my);
 
   // -- Tutorial button --
   const tBtn: ButtonDef = { x: px + 40, y: py + ph - 72, w: pw - 80, h: 36, label: '📖 新手教程', color: UI.BTN_DEFAULT, textColor: UI.TEXT };
@@ -226,24 +229,24 @@ export function hitTestSettings(mx: number, my: number): SettingsHitResult {
   const tX = px + 40, tY = py + ph - 72, tW = pw - 80, tH = 36;
   if (mx >= tX && mx <= tX + tW && my >= tY && my <= tY + tH) return { type: 'tutorial' };
 
-  // Music slider thumb area
-  const s1x = px + SLIDER_X, s1y = py + SLIDER1_Y - SLIDER_H / 2;
-  if (mx >= s1x - 10 && mx <= s1x + SLIDER_W + 10 && my >= s1y - 10 && my <= s1y + SLIDER_H + 10) return { type: 'slider_music' };
+  // Music slider area (label + track)
+  const s1y = py + SLIDER1_Y;
+  if (mx >= px + 30 && mx <= px + pw - 30 && my >= s1y - 18 && my <= s1y + SLIDER_H + 14) return { type: 'slider_music' };
 
-  // SFX slider thumb area
-  const s2x = px + SLIDER_X, s2y = py + SLIDER2_Y - SLIDER_H / 2;
-  if (mx >= s2x - 10 && mx <= s2x + SLIDER_W + 10 && my >= s2y - 10 && my <= s2y + SLIDER_H + 10) return { type: 'slider_sfx' };
+  // SFX slider area
+  const s2y = py + SLIDER2_Y;
+  if (mx >= px + 30 && mx <= px + pw - 30 && my >= s2y - 18 && my <= s2y + SLIDER_H + 14) return { type: 'slider_sfx' };
 
   return { type: 'none' };
 }
 
 export function sliderValue(mx: number, _sliderY: number): number {
-  const sx = SETTINGS_PX + SLIDER_X;
+  const sx = SETTINGS_PX + 40;
   return Math.round(Math.max(0, Math.min(100, ((mx - sx) / SLIDER_W) * 100)));
 }
 
-export function getMusicSliderY(): number { return SETTINGS_PY + SLIDER1_Y; }
-export function getSfxSliderY(): number { return SETTINGS_PY + SLIDER2_Y; }
+export function getMusicSliderY(): number { return SETTINGS_PY + SLIDER1_Y + 6; }
+export function getSfxSliderY(): number { return SETTINGS_PY + SLIDER2_Y + 6; }
 
 // ============================================================
 // Text panel — scrollable text viewer (shared by tutorial + credits)
@@ -257,9 +260,6 @@ const LINE_H = 22;
 const FONT_SIZE = 14;
 
 function renderTextPanel(ctx: CanvasRenderingContext2D, menu: MenuState, title: string, lines: string[], mx?: number, my?: number): void {
-  // Dim overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, MAP_W, MAP_H);
-
   const px = TEXT_PX, py = TEXT_PY, pw = TEXT_PW, ph = TEXT_PH;
 
   // Panel background
@@ -365,7 +365,7 @@ function renderTextPanel(ctx: CanvasRenderingContext2D, menu: MenuState, title: 
   }
 
   // Back button
-  const bBtn: ButtonDef = { x: px + pw / 2 - 60, y: py + ph - 32, w: 120, h: 24, label: '← 返回', color: 'transparent', textColor: UI.TEXT_DIM };
+  const bBtn: ButtonDef = { x: px + pw / 2 - 60, y: py + ph - 44, w: 120, h: 24, label: '← 返回', color: 'transparent', textColor: UI.TEXT_DIM };
   drawButton(ctx, bBtn, mx, my);
 }
 
@@ -400,7 +400,7 @@ function wrapLines(ctx: CanvasRenderingContext2D, lines: string[], maxWidth: num
 
 export function hitTestTextPanelBack(mx: number, my: number): boolean {
   const px = TEXT_PX, py = TEXT_PY, pw = TEXT_PW, ph = TEXT_PH;
-  const bX = px + pw / 2 - 60, bY = py + ph - 32, bW = 120, bH = 24;
+  const bX = px + pw / 2 - 60, bY = py + ph - 44, bW = 120, bH = 24;
   return mx >= bX && mx <= bX + bW && my >= bY && my <= bY + bH;
 }
 

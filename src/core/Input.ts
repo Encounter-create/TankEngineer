@@ -123,7 +123,7 @@ export class Input {
       if (!rec) continue;
       if (rec.zone === 'j') { this.moveActive = false; this.moveDir = Vec2.zero(); this.moveRaw = Vec2.zero(); }
       else if (rec.zone === 'f') { this.fireActive = false; this.fireRaw = Vec2.zero(); }
-      else if (rec.zone === 'a') this.mouseDown_ = false;
+      else if (rec.zone === 'a') { this.mouseDown_ = false; this.mouseJustReleased_ = true; }
       this.touches.delete(t.identifier);
     }
   }
@@ -153,6 +153,8 @@ export class Input {
   isMouseDown(): boolean { return this.mouseDown_ || this.fireActive; }
   isMouseJustPressed(): boolean { return this.mouseJustPressed_; }
   isMouseJustReleased(): boolean { return this.mouseJustReleased_; }
+  /** Button tap: desktop uses press, mobile uses release (tap-and-release on button) */
+  isTap(): boolean { return this.touchDevice_ ? this.mouseJustReleased_ : this.mouseJustPressed_; }
   consumeWheel(): number { const d = this.wheelDelta_; this.wheelDelta_ = 0; return d; }
   consumeTouchScroll(): number { const d = this.touchDy_; this.touchDy_ = 0; return d; }
 

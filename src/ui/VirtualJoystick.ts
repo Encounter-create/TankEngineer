@@ -26,6 +26,15 @@ export function renderJoystick(ctx: CanvasRenderingContext2D, input: Input, skil
     drawTankBtn(ctx, T2X, T2Y, '2', activeTankIdx === 1);
     drawTankBtn(ctx, T3X, T3Y, '3', activeTankIdx === 2);
   }
+
+  // Fire aim indicator: red circle at mousePos when firing (mobile cursor visual)
+  if (input.isMouseDown()) {
+    const mx = input.mousePos.x, my = input.mousePos.y;
+    ctx.strokeStyle = 'rgba(255,60,30,0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(mx, my, 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,60,30,0.3)';
+    ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 function drawSmallBtn(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, label: string, pressed: boolean, cdSec: number): void {
